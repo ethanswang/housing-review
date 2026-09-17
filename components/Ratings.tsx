@@ -1,4 +1,4 @@
-import { RATING_LABELS, type Averages, type RatingKey } from '@/lib/types'
+import { RATING_KEYS, RATING_LABELS, type Averages } from '@/lib/types'
 
 /** The headline score: an editorial numeral, not a pill. */
 export function ScoreNumeral({
@@ -50,7 +50,7 @@ function Bar({ label, score }: { label: string; score: number | null }) {
 
 /** The three sub-scores. `overall` is shown separately as the headline numeral. */
 export function RatingBars({ averages }: { averages: Averages }) {
-  const keys: RatingKey[] = ['maintenance', 'communication', 'value']
+  const keys = RATING_KEYS.filter((key) => key !== 'overall')
   return (
     <div className="flex flex-col gap-2">
       {keys.map((key) => (

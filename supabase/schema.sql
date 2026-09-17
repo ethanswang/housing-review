@@ -43,8 +43,8 @@ create index reviews_property_id_idx on reviews(property_id);
 create index properties_company_id_idx on properties(company_id);
 
 -- Row Level Security ---------------------------------------------------------
--- The app talks to Supabase with the anon key, which is public by design (it
--- ships in the browser bundle). RLS is therefore the actual access control:
+-- The app talks to Supabase with the anon key, which is public by design. RLS is
+-- therefore the actual access control:
 -- anyone may read, anyone may submit a review, nobody may edit or delete.
 
 alter table management_companies enable row level security;

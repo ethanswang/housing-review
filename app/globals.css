@@ -16,8 +16,6 @@
   --color-rule-soft:  #ebe5d9;
   --color-accent:     #ff5f05;
   --color-accent-dim: #ffe4d1;
-  --color-good:       #2f6f4f;
-  --color-mid:        #b0762d;
 
   --font-display: var(--font-instrument-serif), Georgia, serif;
   --font-body:    var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;

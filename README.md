@@ -44,8 +44,8 @@ Fill in both values from **Project Settings → API**:
 | `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `anon` / `public` key |
 
-The anon key is public by design — it ships in the client bundle, and Row Level Security is
-what actually controls access. **Never** put the `service_role` key here; it bypasses RLS.
+The anon key is public by design — Row Level Security is what actually controls access. It is
+read only by server components, so it never reaches the browser bundle. **Never** put the `service_role` key here; it bypasses RLS.
 
 **3. Start**
 
