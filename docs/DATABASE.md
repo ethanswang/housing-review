@@ -108,21 +108,30 @@ aggregate, so it would read every review on every request regardless of the filt
 Averages are rounded to one decimal place in SQL, and a property with no published reviews
 returns `review_count = 0` with null averages — which is what the UI renders as "—".
 
+Note for callers: node-postgres returns `numeric` values as strings to avoid precision loss,
+so `avg_overall` arrives as `'3.5'`, not `3.5`. Whatever reads these views converts at the
+boundary; the tests do the same.
+
 The views are declared `security_invoker = true`, so if row-level security is enabled on
 the base tables later, the caller's policies still apply rather than the view owner's.
 
 ## Where each rule is enforced
 
-| Rule | Browser | API | Database |
+Only the database column is live today. The API column describes the service added in a
+later PR and is **not built yet**: rating and body validation currently happen in the
+Next.js Server Action, and there is no sign-in, so the account rules below exist only as
+constraints in this schema.
+
+| Rule | Browser | API (not built yet) | Database (live) |
 | --- | --- | --- | --- |
 | Ratings are 1–5 | `required` inputs | request validation | `check` constraint |
 | Body length 20–2000 | `minLength` | request validation | `check` constraint |
 | University email only | — | checked at sign-in | `check` constraint |
 | One review per property | UI hides the form | ownership + conflict check | `unique` constraint |
-| Only the author edits a review | UI hides controls | **authoritative check** | `author_id` comparison |
+| Only the author edits a review | UI hides controls | authoritative check | `author_id` comparison |
 
-The browser layer is convenience. The API is the real guard. The database is the last line,
-and the only one nothing can bypass.
+The browser layer is convenience. The API will be the real guard. The database is the last
+line, and the only one nothing can bypass.
 
 ## Migrations
 
