@@ -14,6 +14,7 @@ npm install
 npm run db:migrate               # apply migrations
 npm run db:seed                  # load development data
 npm test                         # constraint and aggregate tests
+npm run db:benchmark             # EXPLAIN ANALYZE at volume, then rolls back
 ```
 
 `DATABASE_URL` overrides the connection string; it defaults to the compose database
@@ -95,6 +96,36 @@ Each index exists for a specific query rather than as a precaution.
 | `reviews_author_idx` | "My reviews", partial on `author_id is not null` so legacy rows are not indexed. |
 | `review_reports_open_idx` | The moderation queue, partial on `status = 'open'` — the only rows it reads. |
 
+### Measured, not assumed
+
+`npm run db:benchmark` generates volume data, runs `EXPLAIN ANALYZE` on the hot queries, and
+rolls back. At 50,000 properties and 200,000 reviews — roughly ten times a realistic
+Champaign–Urbana ceiling:
+
+| Query | Time | Plan chosen |
+| --- | --- | --- |
+| Property search (`ilike` on name and address) | 1.5 ms | both trigram indexes |
+| Directory page 1, sorted by rating | 164 ms | sequential scan (see *Known ceiling*) |
+| Filtered by area + rent + bedrooms | 19 ms | `properties_neighborhood_idx` |
+| One property page | 0.08 ms | `properties_slug_key` |
+| One property's reviews | 0.05 ms | `reviews_property_created_idx` |
+
+### `random_page_cost` is load-bearing
+
+Postgres defaults `random_page_cost` to 4.0, a value that models a spinning disk. On SSD
+storage the planner therefore rejects the trigram indexes and scans the table instead. Measured
+at 50k rows, the same search took **23 ms** under the default and **1.5 ms** at
+`random_page_cost = 1.1` — an 18x difference from one setting, with no change to the query or
+the schema.
+
+Rewriting the query does not substitute for it: filtering in a subquery before the join
+measured 23.0 ms, indistinguishable from the unrestructured form. Only the cost setting moved
+the planner.
+
+`docker-compose.yml` starts Postgres with `-c random_page_cost=1.1` so local plans match
+production plans. **Any production deployment must set the same value** — on RDS, through the
+parameter group — or search quietly degrades into a table scan.
+
 ## Aggregates
 
 `property_stats` and `company_stats` compute review counts and per-category averages in
@@ -111,6 +142,20 @@ returns `review_count = 0` with null averages — which is what the UI renders a
 Note for callers: node-postgres returns `numeric` values as strings to avoid precision loss,
 so `avg_overall` arrives as `'3.5'`, not `3.5`. Whatever reads these views converts at the
 boundary; the tests do the same.
+
+### Known ceiling
+
+Sorting the directory by rating is the one query indexes cannot rescue: every matching property
+must have its average computed before the rows can be ordered. Measured at **164 ms for 50,000
+properties**, against 65 ms at 5,000. Champaign–Urbana has a few thousand rental properties, so
+there is plenty of headroom — and the benchmark is committed so the headroom can be re-measured
+rather than assumed.
+
+When that stops being true, the fix is to stop computing averages per request: store
+`review_count` and the four averages on `properties`, maintain them with a trigger on
+`reviews`, and index them, which turns the sort into an index scan. That is deliberately not
+built yet. It costs a trigger, a backfill, and a new way for data to drift, in exchange for
+time this dataset does not currently need.
 
 The views are declared `security_invoker = true`, so if row-level security is enabled on
 the base tables later, the caller's policies still apply rather than the view owner's.

@@ -11,7 +11,8 @@
     "db:rollback": "DATABASE_URL=${DATABASE_URL:-postgres://housing:housing_dev@localhost:5433/housing} node-pg-migrate down",
     "db:seed": "node scripts/seed.mjs",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:benchmark": "node scripts/benchmark.mjs"
   },
   "dependencies": {
     "pg": "^8.23.0"
