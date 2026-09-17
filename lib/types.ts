@@ -33,6 +33,9 @@ export type Property = {
 export const RATING_KEYS = ['overall', 'maintenance', 'communication', 'value'] as const
 export type RatingKey = (typeof RATING_KEYS)[number]
 
+/** The categories shown as bars. `overall` is displayed separately as the headline score. */
+export const SUB_RATING_KEYS = RATING_KEYS.filter((key) => key !== 'overall')
+
 export const RATING_LABELS: Record<RatingKey, string> = {
   overall: 'Overall',
   maintenance: 'Maintenance',

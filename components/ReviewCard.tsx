@@ -1,4 +1,4 @@
-import { RATING_KEYS, RATING_LABELS, type Review } from '@/lib/types'
+import { RATING_LABELS, SUB_RATING_KEYS, type Review } from '@/lib/types'
 import { SampleBadge } from './Ratings'
 
 export function ReviewCard({ review }: { review: Review }) {
@@ -13,7 +13,7 @@ export function ReviewCard({ review }: { review: Review }) {
       <p className="mt-3 max-w-2xl text-[0.9375rem] leading-relaxed">{review.body}</p>
 
       <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-1">
-        {RATING_KEYS.filter((key) => key !== 'overall').map((key) => (
+        {SUB_RATING_KEYS.map((key) => (
           <div key={key} className="flex items-baseline gap-1.5">
             <dt className="label">{RATING_LABELS[key]}</dt>
             <dd className="tnum font-mono text-xs">{review[key]}/5</dd>
