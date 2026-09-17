@@ -1,0 +1,23 @@
+# Local development database. The production database is managed separately;
+# this exists so `docker compose up -d` gives every contributor an identical
+# Postgres without installing one.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: housing
+      POSTGRES_PASSWORD: housing_dev
+      POSTGRES_DB: housing
+    # 5433 on the host so this never collides with a Postgres already on 5432.
+    ports:
+      - '5433:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U housing -d housing']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db-data:
