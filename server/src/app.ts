@@ -39,7 +39,13 @@ export function buildApp({ config, db }: AppDependencies): FastifyInstance {
    */
   app.setErrorHandler((error: FastifyError, request, reply) => {
     if (error instanceof AppError) {
-      request.log.info({ code: error.code, statusCode: error.statusCode }, 'request rejected')
+      // A 4xx is the client's problem and belongs at info. A 5xx raised on
+      // purpose — a failed readiness check, say — is still an outage, and must
+      // not be buried at a level nobody watches.
+      const details = { err: error, code: error.code, statusCode: error.statusCode }
+      if (error.statusCode >= 500) request.log.error(details, 'request failed')
+      else request.log.info(details, 'request rejected')
+
       return reply
         .status(error.statusCode)
         .send({ error: { code: error.code, message: error.message } })
