@@ -36,6 +36,10 @@ services:
       NODE_ENV: production
       PORT: 3001
       LOG_LEVEL: info
+      # Only used to derive the JWKS URL and the expected token issuer; the
+      # service never holds a Supabase secret. A placeholder is fine locally
+      # until you sign in against a real project.
+      SUPABASE_URL: ${SUPABASE_URL:-https://placeholder.supabase.co}
       # Nothing proxies this service — the port is published straight to the
       # host — so no X-Forwarded-For header should be believed. Trusting one
       # hop here would let any client forge request.ip.

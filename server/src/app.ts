@@ -1,8 +1,11 @@
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify'
+import { auth } from './auth/plugin.ts'
+import { type KeySource, remoteKeySource } from './auth/verify.ts'
 import type { Config } from './config.ts'
 import type { Database } from './db.ts'
 import { AppError } from './errors.ts'
 import { healthRoutes } from './routes/health.ts'
+import { meRoutes } from './routes/me.ts'
 import { companyRoutes } from './routes/companies.ts'
 import { propertyRoutes } from './routes/properties.ts'
 
@@ -29,13 +32,18 @@ const CLIENT_ERROR_CODES: Record<number, string> = {
 export type AppDependencies = {
   config: Config
   db: Database
+  /**
+   * Injectable so tests can verify against a locally generated key pair rather
+   * than reaching Supabase. Defaults to the real remote key set.
+   */
+  keys?: KeySource
 }
 
 /**
  * Builds the server without starting it, so tests can drive it through
  * `app.inject()` with no ports, no sockets, and no cleanup.
  */
-export function buildApp({ config, db }: AppDependencies): FastifyInstance {
+export function buildApp({ config, db, keys }: AppDependencies): FastifyInstance {
   const app = Fastify({
     logger: {
       level: config.LOG_LEVEL,
@@ -122,7 +130,14 @@ export function buildApp({ config, db }: AppDependencies): FastifyInstance {
     })
   })
 
+  app.register(auth, {
+    db,
+    keys: keys ?? remoteKeySource(config.supabaseJwksUrl),
+    verify: { issuer: config.supabaseIssuer, audience: config.SUPABASE_JWT_AUDIENCE },
+  })
+
   app.register(healthRoutes, { db })
+  app.register(meRoutes, { prefix: '/api' })
   app.register(propertyRoutes, { db, prefix: '/api' })
   app.register(companyRoutes, { db, prefix: '/api' })
 

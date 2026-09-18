@@ -8,7 +8,12 @@ import { AppError, notFound } from '../src/errors.ts'
 
 const DATABASE_URL = SHARED_DATABASE_URL
 
-const config = loadConfig({ NODE_ENV: 'test', DATABASE_URL, LOG_LEVEL: 'silent' })
+const config = loadConfig({
+  NODE_ENV: 'test',
+  DATABASE_URL,
+  LOG_LEVEL: 'silent',
+  SUPABASE_URL: 'https://project.supabase.co',
+})
 
 /** A database that always fails, for proving what does and does not touch it. */
 const brokenDb = {
@@ -18,39 +23,39 @@ const brokenDb = {
 
 describe('configuration', () => {
   it('rejects a missing DATABASE_URL', () => {
-    expect(() => loadConfig({})).toThrow(/DATABASE_URL/)
+    expect(() => loadConfig({ SUPABASE_URL: 'https://p.supabase.co' })).toThrow(/DATABASE_URL/)
   })
 
   it('rejects a DATABASE_URL that is not a URL', () => {
-    expect(() => loadConfig({ DATABASE_URL: 'not a url' })).toThrow(/postgres/)
+    expect(() => loadConfig({ ...{ DATABASE_URL: 'not a url' }, SUPABASE_URL: 'https://p.supabase.co' })).toThrow(/postgres/)
   })
 
   it('rejects a connection string with no scheme', () => {
-    expect(() => loadConfig({ DATABASE_URL: 'housing:pass@localhost:5433/housing' })).toThrow(/postgres/)
+    expect(() => loadConfig({ ...{ DATABASE_URL: 'housing:pass@localhost:5433/housing' }, SUPABASE_URL: 'https://p.supabase.co' })).toThrow(/postgres/)
   })
 
   it('rejects a misspelled postgres scheme', () => {
-    expect(() => loadConfig({ DATABASE_URL: 'postgress://user@localhost:5432/db' })).toThrow(/postgres/)
+    expect(() => loadConfig({ ...{ DATABASE_URL: 'postgress://user@localhost:5432/db' }, SUPABASE_URL: 'https://p.supabase.co' })).toThrow(/postgres/)
   })
 
   it('accepts both postgres:// and postgresql://', () => {
-    expect(loadConfig({ DATABASE_URL: 'postgresql://u@h:5432/d' }).DATABASE_URL).toBeTruthy()
-    expect(loadConfig({ DATABASE_URL: 'postgres://u@h:5432/d' }).DATABASE_URL).toBeTruthy()
+    expect(loadConfig({ DATABASE_URL: 'postgresql://u@h:5432/d', SUPABASE_URL: 'https://p.supabase.co' }).DATABASE_URL).toBeTruthy()
+    expect(loadConfig({ DATABASE_URL: 'postgres://u@h:5432/d', SUPABASE_URL: 'https://p.supabase.co' }).DATABASE_URL).toBeTruthy()
   })
 
   it('rejects an unknown log level', () => {
-    expect(() => loadConfig({ DATABASE_URL, LOG_LEVEL: 'chatty' })).toThrow(/LOG_LEVEL/)
+    expect(() => loadConfig({ DATABASE_URL, LOG_LEVEL: 'chatty', SUPABASE_URL: 'https://p.supabase.co' })).toThrow(/LOG_LEVEL/)
   })
 
   it('applies defaults for everything optional', () => {
-    const parsed = loadConfig({ DATABASE_URL })
+    const parsed = loadConfig({ DATABASE_URL, SUPABASE_URL: 'https://p.supabase.co' })
     expect(parsed.PORT).toBe(3001)
     expect(parsed.HOST).toBe('0.0.0.0')
     expect(parsed.NODE_ENV).toBe('development')
   })
 
   it('coerces PORT from a string, as environments always supply it', () => {
-    expect(loadConfig({ DATABASE_URL, PORT: '8080' }).PORT).toBe(8080)
+    expect(loadConfig({ DATABASE_URL, PORT: '8080', SUPABASE_URL: 'https://p.supabase.co' }).PORT).toBe(8080)
   })
 })
 

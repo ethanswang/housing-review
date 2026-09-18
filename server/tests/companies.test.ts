@@ -5,7 +5,12 @@ import { loadConfig } from '../src/config.ts'
 import { createPool, type Database } from '../src/db.ts'
 import { DATABASE_URL } from './helpers.ts'
 
-const config = loadConfig({ NODE_ENV: 'test', DATABASE_URL, LOG_LEVEL: 'silent' })
+const config = loadConfig({
+  NODE_ENV: 'test',
+  DATABASE_URL,
+  LOG_LEVEL: 'silent',
+  SUPABASE_URL: 'https://project.supabase.co',
+})
 
 let app: FastifyInstance
 let pool: Database
