@@ -1,4 +1,5 @@
 import type { Database } from '../db.ts'
+import { type Averages, type Page, escapeLike, toNumber, toPage } from './shared.ts'
 
 /**
  * Every property read lives here. Routes never build SQL, and nothing outside
@@ -18,13 +19,6 @@ export type PropertyQuery = {
   sort: SortKey
   page: number
   perPage: number
-}
-
-export type Averages = {
-  overall: number | null
-  maintenance: number | null
-  communication: number | null
-  value: number | null
 }
 
 export type PropertySummary = {
@@ -53,14 +47,6 @@ export type Review = {
   createdAt: string
 }
 
-export type Page<T> = {
-  data: T[]
-  page: number
-  perPage: number
-  total: number
-  totalPages: number
-}
-
 /**
  * A sort key never reaches SQL as text from the request. It selects one of
  * these clauses, each ending in `slug` so that ordering is total: without a
@@ -72,18 +58,6 @@ const SORT_CLAUSES: Record<SortKey, string> = {
   price: 'rent_min asc, slug asc',
   reviews: 'review_count desc, slug asc',
 }
-
-/**
- * `%` and `_` are wildcards to LIKE. Left unescaped, a search for "%" matches
- * every property and scans the whole table, and "_" quietly matches any single
- * character. Values are bound parameters either way, so this is about correct
- * search behaviour, not injection.
- */
-const escapeLike = (value: string) => value.replace(/[\\%_]/g, (match) => `\\${match}`)
-
-/** node-postgres returns numeric as a string to avoid precision loss. */
-const toNumber = (value: string | number | null): number | null =>
-  value === null ? null : Number(value)
 
 type PropertyStatsRow = {
   id: string
@@ -103,7 +77,7 @@ type PropertyStatsRow = {
   avg_value: string | null
 }
 
-function toSummary(row: PropertyStatsRow): PropertySummary {
+export function toSummary(row: PropertyStatsRow): PropertySummary {
   return {
     id: row.id,
     slug: row.slug,
@@ -172,10 +146,9 @@ export async function listProperties(
     params
   )
 
-  // count(*) over() only reports a total when rows come back. Asking for a
-  // page past the end would otherwise answer "total: 0", telling the client
-  // the filter matches nothing when it matches plenty. The extra query runs
-  // only on that empty-page path, so the normal case stays one round trip.
+  // count(*) over() only reports a total when rows come back. Asking for a page
+  // past the end would otherwise answer "total: 0", telling the client the
+  // filter matches nothing when it matches plenty.
   let total = rows.length ? Number(rows[0].total_count) : 0
   if (!rows.length && query.page > 1) {
     // Counted against the base tables rather than property_stats: every filter
@@ -194,13 +167,7 @@ export async function listProperties(
     total = counted[0].total
   }
 
-  return {
-    data: rows.map(toSummary),
-    page: query.page,
-    perPage: query.perPage,
-    total,
-    totalPages: Math.max(1, Math.ceil(total / query.perPage)),
-  }
+  return toPage(rows.map(toSummary), query.page, query.perPage, total)
 }
 
 export async function getPropertyBySlug(
@@ -236,8 +203,8 @@ export async function listReviewsForProperty(
     total = counted[0].total
   }
 
-  return {
-    data: rows.map((row) => ({
+  return toPage(
+    rows.map((row) => ({
       id: row.id,
       maintenance: row.maintenance,
       communication: row.communication,
@@ -250,7 +217,6 @@ export async function listReviewsForProperty(
     })),
     page,
     perPage,
-    total,
-    totalPages: Math.max(1, Math.ceil(total / perPage)),
-  }
+    total
+  )
 }
