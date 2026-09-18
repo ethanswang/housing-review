@@ -16,6 +16,9 @@ export type ReviewInput = {
   leaseTerm: string
 }
 
+/** A PATCH may carry any subset; whatever is absent keeps its current value. */
+export type ReviewPatch = Partial<ReviewInput>
+
 export type OwnedReview = {
   id: string
   propertyId: string
@@ -137,8 +140,20 @@ export async function getReviewForAuthor(db: Database, id: string): Promise<Owne
 export async function updateReview(
   db: Database,
   id: string,
-  input: ReviewInput
+  current: OwnedReview,
+  patch: ReviewPatch
 ): Promise<OwnedReview> {
+  // Absent fields keep their current value, so a caller can send just the one
+  // thing they changed rather than having to echo the whole review back.
+  const next: ReviewInput = {
+    maintenance: patch.maintenance ?? current.maintenance,
+    communication: patch.communication ?? current.communication,
+    value: patch.value ?? current.value,
+    overall: patch.overall ?? current.overall,
+    body: patch.body ?? current.body,
+    leaseTerm: patch.leaseTerm ?? current.leaseTerm,
+  }
+
   const { rows } = await db.query(
     `with updated as (
        update reviews
@@ -148,14 +163,17 @@ export async function updateReview(
        returning *
      )
      select ${SELECT} from updated r join properties p on p.id = r.property_id`,
-    [id, input.maintenance, input.communication, input.value, input.overall, input.body, input.leaseTerm]
+    [id, next.maintenance, next.communication, next.value, next.overall, next.body, next.leaseTerm]
   )
   if (!rows.length) throw notFound('That review no longer exists')
   return toReview(rows[0] as ReviewRow)
 }
 
 export async function deleteReview(db: Database, id: string): Promise<void> {
-  const { rowCount } = await db.query(`delete from reviews where id = $1`, [id])
+  const { rowCount } = await db.query(
+    `update reviews set status = 'removed' where id = $1 and status <> 'removed'`,
+    [id]
+  )
   if (!rowCount) throw notFound('That review no longer exists')
 }
 

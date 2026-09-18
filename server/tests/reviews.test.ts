@@ -16,6 +16,10 @@ const config = loadConfig({
   DATABASE_URL,
   LOG_LEVEL: 'silent',
   SUPABASE_URL: 'https://project.supabase.co',
+  // Pinned high so these suites can never trip the limiter incidentally; the
+  // limiter's own behaviour is tested in rate-limit.test.ts with tiny ceilings.
+  RATE_LIMIT_MAX: '100000',
+  RATE_LIMIT_WRITE_MAX: '100000',
 })
 
 let app: FastifyInstance
@@ -82,7 +86,7 @@ beforeAll(async () => {
   keys = localKeySource({ keys: [{ ...jwk, kid: KID, alg: 'ES256' }] })
 
   pool = createPool(DATABASE_URL)
-  app = buildApp({ config, db: pool, keys })
+  app = await buildApp({ config, db: pool, keys })
   await app.ready()
 
   propertySlug = `write-test-${crypto.randomUUID().slice(0, 8)}`
@@ -237,6 +241,32 @@ describe('PATCH /api/reviews/:id — ownership', () => {
     expect(response.statusCode).toBe(403)
   })
 
+  it('changes only the fields sent', async () => {
+    const { bearer } = await signIn()
+    const created = (await post(`/api/properties/${propertySlug}/reviews`, VALID, bearer)).json()
+
+    // PATCH means "change these": echoing back four untouched ratings to fix a
+    // typo would make this a replacement wearing the wrong verb.
+    const response = await patch(`/api/reviews/${created.id}`, { overall: 2 }, bearer)
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+    expect(body.overall).toBe(2)
+    expect(body.maintenance).toBe(VALID.maintenance)
+    expect(body.body).toBe(VALID.body)
+  })
+
+  it('rejects an empty patch rather than writing nothing', async () => {
+    const { bearer } = await signIn()
+    const created = (await post(`/api/properties/${propertySlug}/reviews`, VALID, bearer)).json()
+    expect((await patch(`/api/reviews/${created.id}`, {}, bearer)).statusCode).toBe(400)
+  })
+
+  it('still validates the fields that are sent', async () => {
+    const { bearer } = await signIn()
+    const created = (await post(`/api/properties/${propertySlug}/reviews`, VALID, bearer)).json()
+    expect((await patch(`/api/reviews/${created.id}`, { overall: 99 }, bearer)).statusCode).toBe(400)
+  })
+
   it('returns 404 for a review that does not exist', async () => {
     const { bearer } = await signIn()
     const response = await patch(`/api/reviews/${crypto.randomUUID()}`, VALID, bearer)
@@ -257,16 +287,43 @@ describe('PATCH /api/reviews/:id — ownership', () => {
 })
 
 describe('DELETE /api/reviews/:id — ownership', () => {
-  it('lets an author delete their own review', async () => {
+  it('lets an author delete their own review, and it leaves every read path', async () => {
     const { bearer } = await signIn()
     const created = (await post(`/api/properties/${propertySlug}/reviews`, VALID, bearer)).json()
     const response = await del(`/api/reviews/${created.id}`, bearer)
     expect(response.statusCode).toBe(204)
 
-    const { rows } = await pool.query('select count(*)::int as n from reviews where id = $1', [
-      created.id,
-    ])
-    expect(rows[0].n).toBe(0)
+    // A soft delete: the row survives as 'removed' so reports against it do,
+    // but it is gone from the property page, the aggregates and /me/reviews.
+    const { rows } = await pool.query('select status from reviews where id = $1', [created.id])
+    expect(rows[0].status).toBe('removed')
+
+    const property = (await get(`/api/properties/${propertySlug}`)).json()
+    expect(property.reviewCount).toBe(0)
+    expect(property.reviews.total).toBe(0)
+    expect((await get('/api/me/reviews', bearer)).json()).toEqual([])
+  })
+
+  it('keeps reports filed against a review the author deletes', async () => {
+    // Otherwise an author could erase the complaints along with the review,
+    // before a moderator ever saw the queue.
+    const author = await signIn()
+    const reporter = await signIn()
+    const created = (await post(`/api/properties/${propertySlug}/reviews`, VALID, author.bearer)).json()
+    // The reporter needs a user row; signing in once creates it.
+    await get('/api/me', reporter.bearer)
+    await pool.query(
+      `insert into review_reports (review_id, reporter_id, reason) values ($1, $2, 'spam')`,
+      [created.id, reporter.id]
+    )
+
+    await del(`/api/reviews/${created.id}`, author.bearer)
+
+    const { rows } = await pool.query(
+      'select count(*)::int as n from review_reports where review_id = $1',
+      [created.id]
+    )
+    expect(rows[0].n).toBe(1)
   })
 
   it('refuses to let one person delete another person\'s review', async () => {

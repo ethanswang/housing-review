@@ -13,6 +13,10 @@ const config = loadConfig({
   DATABASE_URL,
   LOG_LEVEL: 'silent',
   SUPABASE_URL: 'https://project.supabase.co',
+  // Pinned high so these suites can never trip the limiter incidentally; the
+  // limiter's own behaviour is tested in rate-limit.test.ts with tiny ceilings.
+  RATE_LIMIT_MAX: '100000',
+  RATE_LIMIT_WRITE_MAX: '100000',
 })
 
 /** A database that always fails, for proving what does and does not touch it. */
@@ -43,6 +47,21 @@ describe('configuration', () => {
     expect(loadConfig({ DATABASE_URL: 'postgres://u@h:5432/d', SUPABASE_URL: 'https://p.supabase.co' }).DATABASE_URL).toBeTruthy()
   })
 
+  it('rejects a malformed rate limit window at boot', () => {
+    expect(() =>
+      loadConfig({ DATABASE_URL, SUPABASE_URL: 'https://p.supabase.co', RATE_LIMIT_WINDOW: '1 min' })
+    ).toThrow(/RATE_LIMIT_WINDOW/)
+  })
+
+  it('accepts the window forms the limiter understands', () => {
+    for (const value of ['30 seconds', '1 minute', '2 hours', '86400000']) {
+      expect(
+        loadConfig({ DATABASE_URL, SUPABASE_URL: 'https://p.supabase.co', RATE_LIMIT_WINDOW: value })
+          .RATE_LIMIT_WINDOW
+      ).toBe(value)
+    }
+  })
+
   it('rejects an unknown log level', () => {
     expect(() => loadConfig({ DATABASE_URL, LOG_LEVEL: 'chatty', SUPABASE_URL: 'https://p.supabase.co' })).toThrow(/LOG_LEVEL/)
   })
@@ -65,7 +84,7 @@ describe('health endpoints', () => {
 
   beforeAll(async () => {
     pool = createPool(DATABASE_URL)
-    app = buildApp({ config, db: pool })
+    app = await buildApp({ config, db: pool })
     await app.ready()
   })
   afterAll(async () => {
@@ -90,7 +109,7 @@ describe('health endpoints without a working database', () => {
   let app: FastifyInstance
 
   beforeAll(async () => {
-    app = buildApp({ config, db: brokenDb })
+    app = await buildApp({ config, db: brokenDb })
     await app.ready()
   })
   afterAll(async () => { await app?.close() })
@@ -111,7 +130,7 @@ describe('error handling', () => {
   let app: FastifyInstance
 
   beforeAll(async () => {
-    app = buildApp({ config, db: brokenDb })
+    app = await buildApp({ config, db: brokenDb })
     app.get('/deliberate', async () => { throw notFound('No such property') })
     app.get('/bug', async () => { throw new Error('connection string postgres://user:secret@host/db') })
     app.get('/validated', {
@@ -156,7 +175,7 @@ describe('framework-raised client errors', () => {
   let app: FastifyInstance
 
   beforeAll(async () => {
-    app = buildApp({ config, db: brokenDb })
+    app = await buildApp({ config, db: brokenDb })
     app.post('/echo', async (request) => request.body)
     await app.ready()
   })
@@ -188,7 +207,7 @@ describe('framework-raised client errors', () => {
 describe('resilience', () => {
   it('survives an idle client error instead of crashing the process', async () => {
     const pool = createPool(DATABASE_URL)
-    const app = buildApp({ config, db: pool })
+    const app = await buildApp({ config, db: pool })
     await app.ready()
     // pg.Pool emits this when an idle connection dies. With no listener,
     // EventEmitter throws and the process exits.
@@ -199,7 +218,7 @@ describe('resilience', () => {
 
   it('returns 503 rather than hanging when the database never answers', async () => {
     const wedged = { query: () => new Promise(() => {}), on: () => {} } as unknown as Database
-    const app = buildApp({ config, db: wedged })
+    const app = await buildApp({ config, db: wedged })
     await app.ready()
     const response = await app.inject({ method: 'GET', url: '/readyz' })
     expect(response.statusCode).toBe(503)

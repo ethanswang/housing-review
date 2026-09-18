@@ -4,7 +4,7 @@ import { createPool } from './db.ts'
 
 const config = loadConfig()
 const db = createPool(config.DATABASE_URL)
-const app = buildApp({ config, db })
+const app = await buildApp({ config, db })
 
 /**
  * Shut down in order: stop accepting connections, finish in-flight requests,

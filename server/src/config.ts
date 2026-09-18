@@ -5,6 +5,15 @@ import { z } from 'zod'
  * than surfacing as a confusing runtime error later. A container that starts
  * with a bad environment is worse than one that refuses to start.
  */
+/**
+ * A time window, as "30 seconds" / "5 minutes" / "1 hour", or milliseconds.
+ * Validated here so a typo is reported as the configuration error it is, at
+ * boot, rather than throwing from inside the limiter while the app is built.
+ */
+const WINDOW = /^(\d+\s*(second|minute|hour|day)s?|\d+)$/i
+const window = () =>
+  z.string().refine((value) => WINDOW.test(value.trim()), 'must be like "1 minute", "2 hours", or a number of milliseconds')
+
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   HOST: z.string().default('0.0.0.0'),
@@ -36,6 +45,15 @@ const schema = z.object({
     // A trailing slash would produce '//auth/v1' once the paths are appended.
     .transform((value) => value.replace(/\/+$/, '')),
   SUPABASE_JWT_AUDIENCE: z.string().default('authenticated'),
+  // Per-IP ceiling on all traffic. Deliberately generous: a university campus
+  // sits behind a handful of NAT addresses, so hundreds of students share an
+  // IP and a tight limit here would lock out a lecture hall, not an attacker.
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(600),
+  RATE_LIMIT_WINDOW: window().default('1 minute'),
+  // Writes are limited per authenticated user instead, which is why the hook
+  // runs after requireAuth. Nobody writes twenty reviews an hour honestly.
+  RATE_LIMIT_WRITE_MAX: z.coerce.number().int().positive().default(20),
+  RATE_LIMIT_WRITE_WINDOW: window().default('1 hour'),
 })
 
 export type Config = z.infer<typeof schema> & {
