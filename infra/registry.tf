@@ -2,6 +2,12 @@ resource "aws_ecr_repository" "api" {
   name                 = var.name
   image_tag_mutability = "MUTABLE"
 
+  # Every deploy pushes :latest, so the repository is never empty by the time
+  # anyone tries to tear the stack down — and deleting a non-empty repository
+  # fails. The same reasoning as recovery_window_in_days = 0 on the secret:
+  # this stack has to destroy and recreate cleanly.
+  force_delete = true
+
   image_scanning_configuration {
     scan_on_push = true
   }

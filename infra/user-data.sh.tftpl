@@ -16,6 +16,15 @@ REGION="${region}"
 SECRET_ARN="${secret_arn}"
 IMAGE="${image}"
 LOG_GROUP="${log_group}"
+CA_PATH="${region_ca}"
+
+# Amazon's roots are not in any public trust store, so the driver cannot verify
+# an RDS certificate without them. Fetched on every start rather than only at
+# first boot: a transient failure then heals on the next restart instead of
+# leaving an instance that can never connect.
+mkdir -p "$(dirname "$CA_PATH")"
+curl -fsS --retry 5 --retry-delay 2 -o "$CA_PATH" \
+  "https://truststore.pki.rds.amazonaws.com/$REGION/$REGION-bundle.pem"
 
 aws ecr get-login-password --region "$REGION" \
   | docker login --username AWS --password-stdin "$${IMAGE%%/*}"
@@ -36,6 +45,7 @@ exec docker run --rm --name api \
   -e SUPABASE_URL="${supabase_url}" \
   -e LOG_LEVEL=info \
   -e TRUST_PROXY_HOPS=0 \
+  -v "$(dirname "$CA_PATH")":"$(dirname "$CA_PATH")":ro \
   --log-driver=awslogs \
   --log-opt awslogs-region="$REGION" \
   --log-opt awslogs-group="$LOG_GROUP" \

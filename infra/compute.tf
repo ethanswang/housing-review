@@ -1,7 +1,9 @@
 # Amazon Linux 2023 for arm64, resolved at plan time so the stack is not pinned
 # to an AMI id that goes stale.
 data "aws_ssm_parameter" "al2023" {
-  name = "/aws/service/ami-al2023/ami-al2023-latest-arm64"
+  # The published public parameter path. /aws/service/ami-al2023/... does not
+  # exist, and tofu validate cannot catch that — only a plan reaches the API.
+  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64"
 }
 
 resource "aws_security_group" "api" {
@@ -120,6 +122,7 @@ resource "aws_instance" "api" {
     image        = "${aws_ecr_repository.api.repository_url}:latest"
     log_group    = aws_cloudwatch_log_group.api.name
     supabase_url = var.supabase_url
+    region_ca    = local.rds_ca_path
   })
 
   # Replaces the instance when the startup script changes, so a change to how
@@ -142,7 +145,16 @@ resource "aws_instance" "api" {
 
   tags = { Name = "${var.name}-api" }
 
-  depends_on = [aws_secretsmanager_secret_version.database]
+  # user-data runs exactly once. If the instance boots before the subnet has
+  # its internet route, or before the egress rule exists — creating a security
+  # group drops the AWS-provided allow-all egress — then `dnf update` fails,
+  # `set -e` aborts the whole script, and the instance is permanently dead
+  # while OpenTofu reports success.
+  depends_on = [
+    aws_secretsmanager_secret_version.database,
+    aws_route_table_association.public,
+    aws_vpc_security_group_egress_rule.api_all,
+  ]
 }
 
 # A fixed address, so redeploying the instance does not change where the
@@ -151,4 +163,7 @@ resource "aws_eip" "api" {
   instance = aws_instance.api.id
   domain   = "vpc"
   tags     = { Name = "${var.name}-api" }
+
+  # The provider documents this: an EIP in a VPC needs the gateway to exist.
+  depends_on = [aws_internet_gateway.main]
 }

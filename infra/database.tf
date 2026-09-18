@@ -1,3 +1,8 @@
+locals {
+  # Where the RDS certificate bundle is mounted inside the container.
+  rds_ca_path = "/etc/ssl/rds/bundle.pem"
+}
+
 resource "aws_db_subnet_group" "main" {
   name       = "${var.name}-db"
   subnet_ids = aws_subnet.private[*].id
@@ -40,12 +45,19 @@ resource "aws_secretsmanager_secret_version" "database" {
   # The connection string is assembled here so the instance never has to build
   # one, and so the password exists in exactly one place.
   secret_string = jsonencode({
-    username     = var.db_username
-    password     = random_password.database.result
-    host         = aws_db_instance.main.address
-    port         = aws_db_instance.main.port
-    dbname       = var.db_name
-    database_url = "postgres://${var.db_username}:${urlencode(random_password.database.result)}@${aws_db_instance.main.address}:${aws_db_instance.main.port}/${var.db_name}?sslmode=require"
+    username = var.db_username
+    password = random_password.database.result
+    host     = aws_db_instance.main.address
+    port     = aws_db_instance.main.port
+    dbname   = var.db_name
+    # sslmode=verify-full with Amazon's regional root bundle, not sslmode=require.
+    # node-postgres turns any `sslmode` into `ssl = {}` and never passes the
+    # libpq-compat flag that would relax verification, so the connection is
+    # checked against Node's Mozilla CA store — which does not contain the
+    # Amazon RDS roots. `require` would therefore fail every query with
+    # SELF_SIGNED_CERT_IN_CHAIN while looking like it asked for less security.
+    # The bundle is fetched onto the instance and mounted at this path.
+    database_url = "postgres://${var.db_username}:${urlencode(random_password.database.result)}@${aws_db_instance.main.address}:${aws_db_instance.main.port}/${var.db_name}?sslmode=verify-full&sslrootcert=${local.rds_ca_path}"
   })
 }
 

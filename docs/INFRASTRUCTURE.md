@@ -54,6 +54,15 @@ security group rather than its IP, so replacing the instance does not require to
 **No inbound SSH by default.** `ssh_ingress_cidr` is empty, so port 22 is closed. Session
 Manager gives a shell through IAM, audited in CloudTrail, with nothing listening.
 
+**The database connection verifies TLS against Amazon's roots.** The connection string uses
+`sslmode=verify-full` with the regional RDS bundle, which the instance fetches on every start
+and mounts into the container. The obvious-looking `sslmode=require` would have failed *every
+query*: node-postgres turns any `sslmode` into an empty TLS config and never passes the
+libpq-compatibility flag that would relax verification, so the certificate is checked against
+Node's Mozilla trust store — which contains none of the three `Amazon RDS ... Root CA`
+certificates. With `rds.force_ssl = 1` there is no fallback to plaintext either, so the symptom
+would have been a container that starts, passes `/healthz`, and fails every request.
+
 **IMDSv2 required.** Version 1 is what turns a request-forgery bug in the application into
 credential theft.
 
@@ -142,8 +151,23 @@ the account.
 The Supabase URL is *not* secret: the API only uses it to find public keys and to know which
 issuer to expect. It holds no Supabase credential of any kind.
 
-Rotating the database password is a change in Secrets Manager plus `systemctl restart api`; the
-startup script re-reads the secret on every start.
+**Rotating the password is not a change in Secrets Manager.** RDS holds the master password
+from `random_password.database`, and the secret is a copy assembled by OpenTofu. Editing the
+secret leaves RDS on the old password, so the next restart makes the API authenticate with a
+credential the database rejects — an outage caused by following the runbook — and the next
+`tofu apply` silently reverts the edit anyway.
+
+To rotate, change it at the source and let both move together:
+
+```bash
+tofu -chdir=infra taint random_password.database
+tofu -chdir=infra apply          # updates RDS and the secret in one run
+aws ssm send-command --instance-ids "$(tofu -chdir=infra output -raw api_instance_id)" \
+  --document-name AWS-RunShellScript --parameters 'commands=["systemctl restart api"]'
+```
+
+For real rotation on a schedule, `manage_master_user_password` hands the whole cycle to RDS and
+Secrets Manager, which is the right answer once anyone depends on this.
 
 ## When something is wrong
 
@@ -152,7 +176,13 @@ aws logs tail "$(tofu -chdir=infra output -raw log_group)" --follow
 aws ssm start-session --target "$(tofu -chdir=infra output -raw api_instance_id)"
 ```
 
-On the instance: `systemctl status api`, `journalctl -u api -f`, `docker logs api`.
+On the instance: `systemctl status api` and `journalctl -u api -f`.
+
+`docker logs api` does **not** work here and never will: the container uses the `awslogs`
+driver, which does not implement reading, so the command returns "configured logging driver
+does not support reading" at precisely the moment it is reached for. Application logs are in
+CloudWatch, via the `aws logs tail` above; `journalctl` covers everything before the container
+starts, which is where startup failures live.
 
 Two alarms exist. One fires when more than ten errors are logged in five minutes — the
 container restarts on failure, so a crash loop is otherwise invisible. The other fires when the
