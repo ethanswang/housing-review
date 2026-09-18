@@ -9,6 +9,8 @@ import { serviceUnavailable, unauthorized } from '../errors.ts'
  */
 
 /** The claims this service relies on. Supabase sends more; we ignore the rest. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export type TokenClaims = {
   sub: string
   email: string
@@ -49,14 +51,31 @@ export async function verifyToken(
       algorithms: ['ES256'],
     }))
   } catch (error) {
-    // An unreachable or malformed key set is our dependency failing, not a bad
-    // request. Reporting it as 401 would tell a user with a perfectly good
-    // token to sign in again, which cannot help them.
-    // JWKSNoMatchingKey is deliberately NOT here: a token signed by a key the
-    // issuer does not publish is a bad token, not a broken dependency.
-    if (error instanceof errors.JWKSTimeout || error instanceof errors.JWKSInvalid) {
-      throw serviceUnavailable('Cannot verify credentials right now')
-    }
+    /**
+     * Enumerate what the caller can be blamed for; treat everything else as our
+     * failure. The list has to run this way round, because jose reports a
+     * broken key set in shapes that look like nothing in particular: a non-200
+     * JWKS response and unparseable JSON both raise a bare JOSEError, and a DNS
+     * failure, refused connection or TLS error is fetch's own TypeError passed
+     * straight through. Defaulting the unrecognised case to 401 would tell
+     * every user holding a valid token to sign in again for the duration of a
+     * Supabase outage — the precise failure this branch exists to prevent.
+     *
+     * JWKSNoMatchingKey stays on the client side deliberately: a token signed
+     * by a key the issuer does not publish is a bad token, not a broken
+     * dependency.
+     */
+    const badToken =
+      error instanceof errors.JWTExpired ||
+      error instanceof errors.JWTInvalid ||
+      error instanceof errors.JWTClaimValidationFailed ||
+      error instanceof errors.JWSInvalid ||
+      error instanceof errors.JWSSignatureVerificationFailed ||
+      error instanceof errors.JOSEAlgNotAllowed ||
+      error instanceof errors.JWKSNoMatchingKey ||
+      error instanceof errors.JWKSMultipleMatchingKeys
+
+    if (!badToken) throw serviceUnavailable('Cannot verify credentials right now')
     if (error instanceof errors.JWTExpired) {
       throw unauthorized('Your session has expired. Please sign in again.')
     }
@@ -68,6 +87,12 @@ export async function verifyToken(
   const { sub, email } = payload
   if (typeof sub !== 'string' || !sub) {
     throw unauthorized('Token is missing a subject')
+  }
+  // `sub` becomes a uuid primary key. Without this check a validly signed token
+  // carrying a non-uuid subject reaches Postgres and surfaces as a 500 rather
+  // than being rejected as the bad credential it is.
+  if (!UUID.test(sub)) {
+    throw unauthorized('Token subject is not a valid identifier')
   }
   if (typeof email !== 'string' || !email) {
     throw unauthorized('Token is missing an email address')

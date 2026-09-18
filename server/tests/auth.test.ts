@@ -41,6 +41,7 @@ type TokenOptions = {
   expiresIn?: string
   key?: SigningKey
   omitEmail?: boolean
+  omitSub?: boolean
 }
 
 async function token(options: TokenOptions = {}): Promise<string> {
@@ -55,7 +56,7 @@ async function token(options: TokenOptions = {}): Promise<string> {
     .setAudience(options.audience ?? AUDIENCE)
     .setExpirationTime(options.expiresIn ?? '1h')
 
-  if (options.sub !== null) jwt.setSubject(options.sub ?? crypto.randomUUID())
+  if (!options.omitSub) jwt.setSubject(options.sub ?? crypto.randomUUID())
   return jwt.sign(options.key ?? signingKey)
 }
 
@@ -257,5 +258,80 @@ describe('GET /api/me', () => {
   it('refuses an address that only ends with the university domain', async () => {
     const response = await me(`Bearer ${await token({ email: 'a@notillinois.edu' })}`)
     expect(response.statusCode).toBe(403)
+  })
+})
+
+describe('failures that are ours, not the caller\'s', () => {
+  const opts = { issuer: ISSUER, audience: AUDIENCE }
+
+  it('reports a JWKS endpoint returning non-200 as unavailable', async () => {
+    // jose raises a bare JOSEError for this, which looks like nothing in
+    // particular — the case that made the original classification wrong.
+    const failing = (() => {
+      throw new errors.JOSEError('Expected 200 OK from the JSON Web Key Set HTTP response')
+    }) as unknown as typeof keys
+    await expect(verifyToken(await token(), failing, opts)).rejects.toMatchObject({
+      statusCode: 503,
+    })
+  })
+
+  it('reports a network failure reaching the key set as unavailable', async () => {
+    // fetch's own TypeError, passed straight through by jose.
+    const offline = (() => {
+      throw new TypeError('fetch failed')
+    }) as unknown as typeof keys
+    await expect(verifyToken(await token(), offline, opts)).rejects.toMatchObject({
+      statusCode: 503,
+    })
+  })
+
+  it('still blames the caller for a token signed by an unpublished key', async () => {
+    await expect(verifyToken(await token({ key: otherKey }), keys, opts)).rejects.toMatchObject({
+      statusCode: 401,
+    })
+  })
+})
+
+describe('claims that cannot become a user', () => {
+  const opts = { issuer: ISSUER, audience: AUDIENCE }
+
+  it('rejects a token with no subject', async () => {
+    await expect(verifyToken(await token({ omitSub: true }), keys, opts)).rejects.toMatchObject({
+      statusCode: 401,
+      message: /subject/i,
+    })
+  })
+
+  it('rejects a subject that is not a uuid, rather than failing in Postgres', async () => {
+    await expect(
+      verifyToken(await token({ sub: 'not-a-uuid' }), keys, opts)
+    ).rejects.toMatchObject({ statusCode: 401, message: /identifier/i })
+  })
+})
+
+describe('email already held by another account', () => {
+  it('answers 409 rather than a 500 from the unique constraint', async () => {
+    const shared = testEmail('shared')
+    const first = await me(`Bearer ${await token({ sub: crypto.randomUUID(), email: shared })}`)
+    expect(first.statusCode).toBe(200)
+
+    // A second Supabase identity presenting the same address.
+    const second = await me(`Bearer ${await token({ sub: crypto.randomUUID(), email: shared })}`)
+    expect(second.statusCode).toBe(409)
+    expect(second.json().error.code).toBe('email_taken')
+  })
+})
+
+describe('repeat sign-ins', () => {
+  it('does not rewrite the row when nothing changed', async () => {
+    const sub = crypto.randomUUID()
+    const bearer = `Bearer ${await token({ sub, email: testEmail('quiet') })}`
+    await me(bearer)
+    const before = await pool.query('select updated_at from users where id = $1', [sub])
+    await me(bearer)
+    await me(bearer)
+    const after = await pool.query('select updated_at from users where id = $1', [sub])
+    // The upsert only writes when the email differs, so updated_at stands still.
+    expect(after.rows[0].updated_at.getTime()).toBe(before.rows[0].updated_at.getTime())
   })
 })

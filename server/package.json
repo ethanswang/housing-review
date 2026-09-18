@@ -14,7 +14,7 @@
     "db:benchmark": "node scripts/benchmark.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "dev": "DATABASE_URL=${DATABASE_URL:-postgres://housing:housing_dev@localhost:5433/housing} node --watch src/server.ts",
+    "dev": "DATABASE_URL=${DATABASE_URL:-postgres://housing:housing_dev@localhost:5433/housing} SUPABASE_URL=${SUPABASE_URL:-https://placeholder.supabase.co} node --watch src/server.ts",
     "start": "node src/server.ts"
   },
   "dependencies": {
