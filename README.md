@@ -4,10 +4,11 @@ A free, student-run housing review site for the University of Illinois. Students
 Champaign–Urbana apartments and management companies on **maintenance**, **communication**,
 and **value**, and those ratings roll up into scores you can filter and compare.
 
-**Live demo: https://housing-review-mvp.vercel.app**
+**Live at [www.uiuchousing.com](https://www.uiuchousing.com)**
 
 > **This is a prototype.** The reviews in it are synthetic sample data, clearly labeled in the
-> UI, and the site is set to `noindex` so those ratings don't reach search results. See
+> UI, and the site is set to `noindex` so those ratings don't reach search results — the domain
+> is reachable, but deliberately absent from search until the sample data is replaced. See
 > [Sample data](#sample-data) below.
 
 ---
@@ -154,7 +155,13 @@ Fine for a demo; something to handle before launch.
 
 ## Stack
 
-Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · Supabase (Postgres) · Vercel
+**Frontend:** Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · Vercel
+**Backend:** Fastify · PostgreSQL · Docker — see [docs/DATABASE.md](docs/DATABASE.md)
+
+**Domain:** `uiuchousing.com`, registered and served through Vercel DNS
+(`ns1`/`ns2.vercel-dns.com`). The apex issues a 308 to `www.uiuchousing.com`, which is the
+canonical host. `housing-review-mvp.vercel.app` still resolves and serves the same
+deployment.
 
 Managed services throughout, so this ships at zero cost and needs close to zero maintenance
 during the school year. Infrastructure decisions get revisited when there's real usage to
