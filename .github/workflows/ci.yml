@@ -81,12 +81,35 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build the API image
         run: docker build -t uiuc-housing-api:ci ./server
-      - name: It starts and reports liveness
+      - name: It starts and reports liveness with no database reachable
         run: |
           docker run -d --name api-ci -p 3001:3001 \
             -e DATABASE_URL=postgres://unused:unused@127.0.0.1:5432/unused \
             -e LOG_LEVEL=silent uiuc-housing-api:ci
-          # /healthz deliberately does not touch the database, so it must answer
-          # even with no database reachable. That is the property being checked.
-          curl -sf --retry 20 --retry-delay 1 --retry-connrefused http://127.0.0.1:3001/healthz
+
+          # --retry-all-errors, not --retry-connrefused: docker publishes the
+          # port before the process inside listens, so early connections are
+          # accepted and reset rather than refused. curl exits 56 on a reset and
+          # does not treat it as retryable, which fails instantly.
+          if ! curl -sf --retry 30 --retry-delay 1 --retry-all-errors \
+                 http://127.0.0.1:3001/healthz; then
+            echo '--- container logs ---'; docker logs api-ci; exit 1
+          fi
+
+          # The image's own HEALTHCHECK must agree. It reads PORT and calls
+          # /healthz, which never touches the database — so a container with no
+          # database at all still has to report healthy. If liveness ever starts
+          # depending on the database, this step fails here rather than during
+          # a real outage.
+          for _ in $(seq 1 30); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' api-ci)
+            [ "$status" = healthy ] && break
+            [ "$status" = unhealthy ] && break
+            sleep 1
+          done
+          echo "docker-reported health: $status"
+          if [ "$status" != healthy ]; then
+            echo '--- container logs ---'; docker logs api-ci; exit 1
+          fi
+
           docker rm -f api-ci
