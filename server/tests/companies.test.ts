@@ -10,6 +10,10 @@ const config = loadConfig({
   DATABASE_URL,
   LOG_LEVEL: 'silent',
   SUPABASE_URL: 'https://project.supabase.co',
+  // Pinned high so these suites can never trip the limiter incidentally; the
+  // limiter's own behaviour is tested in rate-limit.test.ts with tiny ceilings.
+  RATE_LIMIT_MAX: '100000',
+  RATE_LIMIT_WRITE_MAX: '100000',
 })
 
 let app: FastifyInstance
@@ -18,7 +22,7 @@ const get = (url: string) => app.inject({ method: 'GET', url })
 
 beforeAll(async () => {
   pool = createPool(DATABASE_URL)
-  app = buildApp({ config, db: pool })
+  app = await buildApp({ config, db: pool })
   await app.ready()
   const { rows } = await pool.query('select count(*)::int as n from management_companies')
   if (rows[0].n === 0) {

@@ -42,6 +42,10 @@ npm run dev                        # http://localhost:3001
 | `HOST` | `0.0.0.0` | Listen address. |
 | `NODE_ENV` | `development` | `production` enables proxy trust. |
 | `LOG_LEVEL` | `info` | pino level. |
+| `RATE_LIMIT_MAX` | `600` | Requests per IP per window, across everything. Deliberately generous: a campus shares a few NAT addresses, so a tight ceiling would lock out a lecture hall rather than an attacker. |
+| `RATE_LIMIT_WINDOW` | `1 minute` | Window for the per-IP limit. `"30 seconds"`, `"2 hours"`, or milliseconds. |
+| `RATE_LIMIT_WRITE_MAX` | `20` | Review writes per **account** per window. This is the limit with teeth — an account needs a verified `illinois.edu` address. |
+| `RATE_LIMIT_WRITE_WINDOW` | `1 hour` | Window for the per-account write limit. |
 | `TRUST_PROXY_HOPS` | `1` | Proxy hops to trust for `X-Forwarded-For`. Set to `0` wherever nothing proxies the service, as compose does — otherwise any client can forge `request.ip`. |
 
 A bad environment fails at boot with the specific problem named, rather than surfacing later
@@ -90,3 +94,22 @@ forgets it stays public — the safe direction here, since nothing readable was 
 | `503` | Supabase's key set is unreachable — deliberately **not** 401, so an outage does not read as "sign in again" |
 
 `GET /api/me` returns the caller and is the quickest way to check sign-in end to end.
+
+## Rate limiting
+
+Two ceilings, because the two kinds of abuse look different.
+
+**Reads are limited per IP**, generously, to stop crude flooding. `/healthz` and `/readyz` are
+exempt: they decide whether an orchestrator kills the container, so throttling them would turn
+a traffic spike into a restart loop.
+
+**Writes are limited per account**, not per IP. A campus shares a handful of NAT addresses, so
+an IP bucket would let one student exhaust the write budget for everyone on the same network.
+The account is the identity that costs something to obtain, since it requires a verified
+university address.
+
+Both return `429` with `error.code = "rate_limited"` and a `Retry-After` header.
+
+The per-account counter lives in the API process, so running N instances permits N times the
+limit. That is acceptable for a single service and is the point at which a shared store (Redis,
+or Postgres) becomes necessary.

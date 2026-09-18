@@ -30,5 +30,8 @@ export const notFound = (message = 'Not found') =>
 export const conflict = (message: string, code = 'conflict') =>
   new AppError(message, 409, code)
 
+export const tooManyRequests = (message: string) =>
+  new AppError(message, 429, 'rate_limited')
+
 export const serviceUnavailable = (message = 'Service unavailable') =>
   new AppError(message, 503, 'service_unavailable')

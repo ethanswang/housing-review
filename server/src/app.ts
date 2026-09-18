@@ -4,6 +4,7 @@ import { type KeySource, remoteKeySource } from './auth/verify.ts'
 import type { Config } from './config.ts'
 import type { Database } from './db.ts'
 import { AppError } from './errors.ts'
+import { registerRateLimits } from './rate-limit.ts'
 import { healthRoutes } from './routes/health.ts'
 import { meRoutes } from './routes/me.ts'
 import { companyRoutes } from './routes/companies.ts'
@@ -44,7 +45,7 @@ export type AppDependencies = {
  * Builds the server without starting it, so tests can drive it through
  * `app.inject()` with no ports, no sockets, and no cleanup.
  */
-export function buildApp({ config, db, keys }: AppDependencies): FastifyInstance {
+export async function buildApp({ config, db, keys }: AppDependencies): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
       level: config.LOG_LEVEL,
@@ -131,6 +132,8 @@ export function buildApp({ config, db, keys }: AppDependencies): FastifyInstance
     })
   })
 
+  await registerRateLimits(app, config)
+
   app.register(auth, {
     db,
     keys: keys ?? remoteKeySource(config.supabaseJwksUrl),
@@ -141,7 +144,7 @@ export function buildApp({ config, db, keys }: AppDependencies): FastifyInstance
   app.register(meRoutes, { prefix: '/api' })
   app.register(propertyRoutes, { db, prefix: '/api' })
   app.register(companyRoutes, { db, prefix: '/api' })
-  app.register(reviewRoutes, { db, prefix: '/api' })
+  app.register(reviewRoutes, { db, config, prefix: '/api' })
 
   return app
 }

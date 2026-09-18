@@ -10,6 +10,8 @@ import {
   listReviewsByAuthor,
   updateReview,
 } from '../repositories/reviews.ts'
+import type { Config } from '../config.ts'
+import { createWriteLimiter } from '../rate-limit.ts'
 import { parse, slugSchema } from './query.ts'
 
 /**
@@ -30,22 +32,28 @@ const reviewBodySchema = z.object({
 
 const idSchema = z.object({ id: z.uuid('must be a review id') })
 
-export async function reviewRoutes(app: FastifyInstance, options: { db: Database }) {
-  app.post('/properties/:slug/reviews', { preHandler: app.requireAuth }, async (request, reply) => {
+export async function reviewRoutes(
+  app: FastifyInstance,
+  options: { db: Database; config: Config }
+) {
+  // After requireAuth, so the bucket is the account rather than the network.
+  const limited = [app.requireAuth, createWriteLimiter(options.config)]
+
+  app.post('/properties/:slug/reviews', { preHandler: limited }, async (request, reply) => {
     const { slug } = parse(z.object({ slug: slugSchema }), request.params)
     const input = parse(reviewBodySchema, request.body)
     const review = await createReview(options.db, slug, currentUser(request).id, input)
     return reply.status(201).send(review)
   })
 
-  app.patch('/reviews/:id', { preHandler: app.requireAuth }, async (request) => {
+  app.patch('/reviews/:id', { preHandler: limited }, async (request) => {
     const { id } = parse(idSchema, request.params)
     const input = parse(reviewBodySchema, request.body)
     await assertOwned(options.db, id, currentUser(request).id)
     return updateReview(options.db, id, input)
   })
 
-  app.delete('/reviews/:id', { preHandler: app.requireAuth }, async (request, reply) => {
+  app.delete('/reviews/:id', { preHandler: limited }, async (request, reply) => {
     const { id } = parse(idSchema, request.params)
     await assertOwned(options.db, id, currentUser(request).id)
     await deleteReview(options.db, id)

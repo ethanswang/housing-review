@@ -16,6 +16,10 @@ const config = loadConfig({
   DATABASE_URL,
   LOG_LEVEL: 'silent',
   SUPABASE_URL: 'https://project.supabase.co',
+  // Pinned high so these suites can never trip the limiter incidentally; the
+  // limiter's own behaviour is tested in rate-limit.test.ts with tiny ceilings.
+  RATE_LIMIT_MAX: '100000',
+  RATE_LIMIT_WRITE_MAX: '100000',
 })
 
 let app: FastifyInstance
@@ -82,7 +86,7 @@ beforeAll(async () => {
   keys = localKeySource({ keys: [{ ...jwk, kid: KID, alg: 'ES256' }] })
 
   pool = createPool(DATABASE_URL)
-  app = buildApp({ config, db: pool, keys })
+  app = await buildApp({ config, db: pool, keys })
   await app.ready()
 
   propertySlug = `write-test-${crypto.randomUUID().slice(0, 8)}`
