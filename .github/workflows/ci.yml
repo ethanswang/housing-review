@@ -5,10 +5,18 @@ on:
   push:
     branches: [main]
 
-# A second push to the same branch makes the first run irrelevant.
+# Only reading the repository. Without this the workflow inherits whatever the
+# repository default is, which on older settings is read/write — and the web
+# job's `npm ci` runs dependency lifecycle scripts with that token in scope.
+permissions:
+  contents: read
+
+# A second push to a branch makes the first run irrelevant. Not so on main:
+# cancelling there would leave a merged commit with no completed check, so each
+# main commit is allowed to finish.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   web:
@@ -83,9 +91,11 @@ jobs:
         run: docker build -t uiuc-housing-api:ci ./server
       - name: It starts and reports liveness with no database reachable
         run: |
+          # LOG_LEVEL=error, not silent: a failed boot is reported through the
+          # logger, and at `silent` the failure dump below would print nothing.
           docker run -d --name api-ci -p 3001:3001 \
             -e DATABASE_URL=postgres://unused:unused@127.0.0.1:5432/unused \
-            -e LOG_LEVEL=silent uiuc-housing-api:ci
+            -e LOG_LEVEL=error uiuc-housing-api:ci
 
           # --retry-all-errors, not --retry-connrefused: docker publishes the
           # port before the process inside listens, so early connections are
@@ -101,7 +111,12 @@ jobs:
           # database at all still has to report healthy. If liveness ever starts
           # depending on the database, this step fails here rather than during
           # a real outage.
-          for _ in $(seq 1 30); do
+          # The image's HEALTHCHECK has a 30s interval, so the first probe does
+          # not fire until t=30s. A 30-iteration loop finishes at roughly the
+          # same moment: measured healthy on iteration 29 of 30, one second of
+          # slack. A loaded runner would fail a container that is perfectly
+          # fine — the same false failure this step was rewritten to stop.
+          for _ in $(seq 1 90); do
             status=$(docker inspect --format '{{.State.Health.Status}}' api-ci)
             [ "$status" = healthy ] && break
             [ "$status" = unhealthy ] && break
