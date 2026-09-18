@@ -109,8 +109,21 @@ describe('global per-IP limit', () => {
     const blocked = await app().inject({ method: 'GET', url })
     expect(blocked.statusCode).toBe(429)
     expect(blocked.json().error.code).toBe('rate_limited')
+    // The message has to survive too. The plugin throws whatever its builder
+    // returns, so a plain object arrives with no top-level `message` and the
+    // client gets a 429 that says nothing.
+    expect(blocked.json().error.message).toMatch(/too many requests/i)
     // Tells a client when to come back, rather than leaving it to guess.
     expect(blocked.headers['retry-after']).toBeDefined()
+  })
+
+  it('exempts a health probe that carries a query string', async () => {
+    // request.url includes the query, so an exact-equality allowList would
+    // throttle any probe appending a cache-buster — during exactly the traffic
+    // spike the exemption exists for.
+    for (const url of ['/healthz?probe=1', '/readyz?ts=12345']) {
+      expect((await app().inject({ method: 'GET', url })).statusCode).toBe(200)
+    }
   })
 
   it('never throttles the health endpoints', async () => {
@@ -179,6 +192,30 @@ describe('per-account write limit', () => {
       headers: { authorization: other },
     })
     expect(allowed.statusCode).toBe(201)
+  })
+
+  it('does not charge the budget for a rejected write', async () => {
+    // Counting in the preHandler would spend the budget on attempts that never
+    // wrote anything, so someone fighting a validation error would be locked
+    // out for the window having published nothing at all.
+    const bearer = await signIn()
+    for (let i = 0; i < 3; i++) {
+      const rejected = await app().inject({
+        method: 'POST',
+        url: `/api/properties/${propertySlug}/reviews`,
+        payload: { ...REVIEW, overall: 99 },
+        headers: { authorization: bearer },
+      })
+      expect(rejected.statusCode).toBe(400)
+    }
+
+    const accepted = await app().inject({
+      method: 'POST',
+      url: `/api/properties/${propertySlug}/reviews`,
+      payload: REVIEW,
+      headers: { authorization: bearer },
+    })
+    expect(accepted.statusCode).toBe(201)
   })
 
   it('still refuses an unauthenticated write with 401, not 429', async () => {

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { currentUser } from '../auth/plugin.ts'
 import type { Database } from '../db.ts'
 import { forbidden, notFound } from '../errors.ts'
+import type { OwnedReview } from '../repositories/reviews.ts'
 import {
   createReview,
   deleteReview,
@@ -21,14 +22,28 @@ import { parse, slugSchema } from './query.ts'
  */
 const rating = z.number().int().min(1).max(5)
 
-const reviewBodySchema = z.object({
+const reviewFields = {
   maintenance: rating,
   communication: rating,
   value: rating,
   overall: rating,
   body: z.string().trim().min(20, 'must be at least 20 characters').max(2000),
   leaseTerm: z.string().trim().min(1).max(40),
-})
+}
+
+/** Creating one needs the whole thing. */
+const reviewBodySchema = z.object(reviewFields)
+
+/**
+ * Patching it does not. PATCH means "change these fields", so requiring the
+ * full body would make it a replacement wearing the wrong verb — and would
+ * force a client that wants to fix a typo to echo back four ratings it never
+ * touched.
+ */
+const reviewPatchSchema = z
+  .object(reviewFields)
+  .partial()
+  .refine((patch) => Object.keys(patch).length > 0, 'must change at least one field')
 
 const idSchema = z.object({ id: z.uuid('must be a review id') })
 
@@ -36,24 +51,28 @@ export async function reviewRoutes(
   app: FastifyInstance,
   options: { db: Database; config: Config }
 ) {
-  // After requireAuth, so the bucket is the account rather than the network.
-  const limited = [app.requireAuth, createWriteLimiter(options.config)]
+  // After requireAuth, so the budget belongs to the account rather than to
+  // whatever network it happens to be on. `check` refuses an account that is
+  // over its ceiling; `record` spends the budget only once a write succeeded.
+  const writeLimiter = createWriteLimiter(options.config)
+  const limited = [app.requireAuth, writeLimiter.check]
+  const countWrite = writeLimiter.record
 
-  app.post('/properties/:slug/reviews', { preHandler: limited }, async (request, reply) => {
+  app.post('/properties/:slug/reviews', { preHandler: limited, onResponse: countWrite }, async (request, reply) => {
     const { slug } = parse(z.object({ slug: slugSchema }), request.params)
     const input = parse(reviewBodySchema, request.body)
     const review = await createReview(options.db, slug, currentUser(request).id, input)
     return reply.status(201).send(review)
   })
 
-  app.patch('/reviews/:id', { preHandler: limited }, async (request) => {
+  app.patch('/reviews/:id', { preHandler: limited, onResponse: countWrite }, async (request) => {
     const { id } = parse(idSchema, request.params)
-    const input = parse(reviewBodySchema, request.body)
-    await assertOwned(options.db, id, currentUser(request).id)
-    return updateReview(options.db, id, input)
+    const patch = parse(reviewPatchSchema, request.body)
+    const current = await assertOwned(options.db, id, currentUser(request).id)
+    return updateReview(options.db, id, current, patch)
   })
 
-  app.delete('/reviews/:id', { preHandler: limited }, async (request, reply) => {
+  app.delete('/reviews/:id', { preHandler: limited, onResponse: countWrite }, async (request, reply) => {
     const { id } = parse(idSchema, request.params)
     await assertOwned(options.db, id, currentUser(request).id)
     await deleteReview(options.db, id)
@@ -73,10 +92,15 @@ export async function reviewRoutes(
  * A review with no author — seeded rows, and anything written before accounts
  * existed — can therefore be edited by nobody, since null matches no user id.
  */
-async function assertOwned(db: Database, reviewId: string, userId: string): Promise<void> {
+async function assertOwned(
+  db: Database,
+  reviewId: string,
+  userId: string
+): Promise<OwnedReview> {
   const review = await getReviewForAuthor(db, reviewId)
   if (!review) throw notFound('That review no longer exists')
   if (review.authorId !== userId) {
     throw forbidden('You can only change your own reviews')
   }
+  return review
 }

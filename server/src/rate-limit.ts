@@ -9,7 +9,6 @@ import { tooManyRequests } from './errors.ts'
  * Reading is limited per IP, generously. A campus sits behind a handful of NAT
  * addresses, so hundreds of students share one: a tight per-IP limit would lock
  * out a lecture hall while barely inconveniencing anyone on a phone hotspot.
- * Its job is to stop crude flooding, not to be clever.
  *
  * Writing is limited per authenticated account, which is the identity that
  * actually costs something to obtain — it needs a verified @illinois.edu
@@ -20,17 +19,34 @@ export async function registerRateLimits(app: FastifyInstance, config: Config) {
     global: true,
     max: config.RATE_LIMIT_MAX,
     timeWindow: config.RATE_LIMIT_WINDOW,
-    // Health checks decide whether an orchestrator kills this container.
-    // Throttling them would turn a traffic spike into a restart loop.
-    allowList: (request) => request.url === '/healthz' || request.url === '/readyz',
-    errorResponseBuilder: (_request, context) => ({
-      statusCode: 429,
-      error: { code: 'rate_limited', message: `Too many requests. Try again in ${context.after}.` },
-    }),
+    /**
+     * Health checks decide whether an orchestrator kills this container, so
+     * throttling them would turn a traffic spike into a restart loop.
+     *
+     * Matched on the routed path, not `request.url`: that carries the query
+     * string, so a probe appending a cache-buster (`/healthz?probe=1`) would
+     * miss an exact-equality check and be throttled during exactly the spike
+     * this exemption exists for.
+     */
+    allowList: (request) => {
+      const path = request.routeOptions?.url ?? request.url.split('?')[0]
+      return path === '/healthz' || path === '/readyz'
+    },
+    /**
+     * The plugin throws whatever this returns, so it must be an AppError. A
+     * plain object has no top-level `message`, and the error handler would send
+     * `message: undefined` — leaving this the only response in the API with no
+     * message at all.
+     */
+    errorResponseBuilder: (_request, context) =>
+      tooManyRequests(`Too many requests. Try again in ${context.after}.`),
   })
 }
 
 type Bucket = { count: number; resetAt: number }
+
+/** Hard ceiling on tracked accounts, so the map cannot grow without bound. */
+const MAX_BUCKETS = 50_000
 
 /**
  * A fixed-window counter keyed by account.
@@ -51,30 +67,40 @@ export function createWriteLimiter(config: Config) {
   const max = config.RATE_LIMIT_WRITE_MAX
   const buckets = new Map<string, Bucket>()
 
-  function sweep(now: number) {
+  function evict(now: number) {
     for (const [key, bucket] of buckets) {
       if (now >= bucket.resetAt) buckets.delete(key)
     }
+    // Sweeping only expired entries is not a bound: with more accounts active
+    // inside one window than the cap, nothing expires and every request pays a
+    // full scan that frees nothing. Drop the entries closest to expiry until
+    // the map is within its ceiling.
+    if (buckets.size > MAX_BUCKETS) {
+      const byExpiry = [...buckets.entries()].sort((a, b) => a[1].resetAt - b[1].resetAt)
+      for (const [key] of byExpiry.slice(0, buckets.size - MAX_BUCKETS)) {
+        buckets.delete(key)
+      }
+    }
   }
 
-  return async function writeLimit(request: FastifyRequest, reply: FastifyReply) {
-    // requireAuth runs first and has already rejected anonymous callers; this
-    // is a guard, not a fallback to IP-keyed limiting.
+  /**
+   * Rejects when the account is over its ceiling — but does not count. The
+   * budget is spent in `record`, once the request has actually succeeded.
+   */
+  async function check(request: FastifyRequest, reply: FastifyReply) {
+    // requireAuth runs first and has already rejected anonymous callers.
     const user = request.currentUser
     if (!user) return
 
-    const now = Date.now()
-    // Bounded memory: one entry per account that wrote inside the window.
-    if (buckets.size > 10_000) sweep(now)
-
     const bucket = buckets.get(user.id)
-    if (!bucket || now >= bucket.resetAt) {
-      buckets.set(user.id, { count: 1, resetAt: now + windowMs })
+    if (!bucket) return
+
+    const now = Date.now()
+    if (now >= bucket.resetAt) {
+      buckets.delete(user.id)
       return
     }
-
-    bucket.count += 1
-    if (bucket.count > max) {
+    if (bucket.count >= max) {
       const seconds = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000))
       reply.header('retry-after', String(seconds))
       throw tooManyRequests(
@@ -82,9 +108,43 @@ export function createWriteLimiter(config: Config) {
       )
     }
   }
+
+  /**
+   * Counts a write only once it has succeeded.
+   *
+   * Counting in the preHandler instead would charge for rejected attempts: two
+   * submissions failing validation would spend the budget, and the author's
+   * first valid review would then be refused for the rest of the window,
+   * having never written anything. Someone fighting a form error is the most
+   * likely person to hit that, which is precisely the wrong person to punish.
+   */
+  async function record(request: FastifyRequest, reply: FastifyReply) {
+    const user = request.currentUser
+    if (!user || reply.statusCode >= 400) return
+
+    const now = Date.now()
+    if (buckets.size >= MAX_BUCKETS) evict(now)
+
+    const bucket = buckets.get(user.id)
+    if (!bucket || now >= bucket.resetAt) {
+      buckets.set(user.id, { count: 1, resetAt: now + windowMs })
+      return
+    }
+    bucket.count += 1
+  }
+
+  return { check, record }
 }
 
-/** Accepts "30 seconds", "1 minute", "2 hours", or a plain number of ms. */
+/**
+ * Accepts "30 seconds", "1 minute", "2 hours", or a plain number of ms. The
+ * format is validated in config.ts, so an unusable value is reported as the
+ * configuration error it is rather than throwing while the app is built.
+ *
+ * Note this is narrower than the plugin's own `timeWindow` parser, which also
+ * takes "1h"/"30s". Both settings are validated against this one grammar so
+ * that the two windows cannot accept different syntaxes.
+ */
 function parseWindow(value: string): number {
   const asNumber = Number(value)
   if (Number.isFinite(asNumber) && asNumber > 0) return asNumber
