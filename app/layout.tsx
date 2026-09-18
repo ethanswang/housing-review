@@ -38,7 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <header className="border-b border-rule">
           <div className="mx-auto max-w-6xl px-5">
             <div className="rule-double flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 py-5">
-              <Link href="/" className="group">
+              <Link href="/">
                 <h1 className="font-display text-3xl leading-none tracking-tight sm:text-4xl">
                   UIUC Housing Review
                 </h1>

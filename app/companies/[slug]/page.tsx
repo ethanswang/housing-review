@@ -49,8 +49,8 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
       <section className="mt-14">
         <h3 className="font-display text-2xl">Properties</h3>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          {company.properties.map((property, index) => (
-            <PropertyCard key={property.id} property={property} index={index} />
+          {company.properties.map((property) => (
+            <PropertyCard key={property.id} property={property} />
           ))}
         </div>
       </section>

@@ -9,18 +9,12 @@ function bedroomRange(bedrooms: number[]) {
   return min === max ? `${min} BR` : `${min}–${max} BR`
 }
 
-export function PropertyCard({ property, index = 0 }: { property: PropertyWithStats; index?: number }) {
+export function PropertyCard({ property }: { property: PropertyWithStats }) {
   const beds = bedroomRange(property.bedrooms)
 
   return (
-    <article
-      className="rise group relative border border-rule bg-paper-card transition-colors hover:border-ink"
-      style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}
-    >
-      {/* Accent spine that fills in on hover. */}
-      <span className="absolute inset-y-0 left-0 w-[3px] bg-transparent transition-colors group-hover:bg-accent" />
-
-      <div className="p-5 pl-6">
+    <article className="relative border border-rule bg-paper-card transition-colors hover:border-ink">
+      <div className="p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h3 className="font-display text-2xl leading-tight">

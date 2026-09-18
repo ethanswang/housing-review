@@ -66,8 +66,8 @@ export default async function DirectoryPage({
             </div>
           ) : (
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              {properties.map((property, index) => (
-                <PropertyCard key={property.id} property={property} index={index} />
+              {properties.map((property) => (
+                <PropertyCard key={property.id} property={property} />
               ))}
             </div>
           )}
