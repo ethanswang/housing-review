@@ -9,7 +9,12 @@ import { DATABASE_URL } from './helpers.ts'
  * Read-only integration tests against the development seed. They never write,
  * so they need no transaction and cannot disturb the schema tests.
  */
-const config = loadConfig({ NODE_ENV: 'test', DATABASE_URL, LOG_LEVEL: 'silent' })
+const config = loadConfig({
+  NODE_ENV: 'test',
+  DATABASE_URL,
+  LOG_LEVEL: 'silent',
+  SUPABASE_URL: 'https://project.supabase.co',
+})
 
 let app: FastifyInstance
 let pool: Database

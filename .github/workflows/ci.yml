@@ -95,6 +95,7 @@ jobs:
           # logger, and at `silent` the failure dump below would print nothing.
           docker run -d --name api-ci -p 3001:3001 \
             -e DATABASE_URL=postgres://unused:unused@127.0.0.1:5432/unused \
+            -e SUPABASE_URL=https://placeholder.supabase.co \
             -e LOG_LEVEL=error uiuc-housing-api:ci
 
           # --retry-all-errors, not --retry-connrefused: docker publishes the

@@ -14,11 +14,13 @@
     "db:benchmark": "node scripts/benchmark.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "dev": "DATABASE_URL=${DATABASE_URL:-postgres://housing:housing_dev@localhost:5433/housing} node --watch src/server.ts",
+    "dev": "DATABASE_URL=${DATABASE_URL:-postgres://housing:housing_dev@localhost:5433/housing} SUPABASE_URL=${SUPABASE_URL:-https://placeholder.supabase.co} node --watch src/server.ts",
     "start": "node src/server.ts"
   },
   "dependencies": {
     "fastify": "^5.12.5",
+    "fastify-plugin": "^6.0.0",
+    "jose": "^6.2.12",
     "pg": "^8.23.0",
     "zod": "^4.6.5"
   },

@@ -24,9 +24,26 @@ const schema = z.object({
   LOG_LEVEL: z
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
     .default('info'),
+  // Supabase Auth issues the tokens this service verifies. The JWKS URL and the
+  // issuer are both derived from it, so there is one value to get right rather
+  // than three that can disagree.
+  SUPABASE_URL: z
+    .string()
+    .refine((value) => {
+      if (!URL.canParse(value)) return false
+      return new URL(value).protocol === 'https:'
+    }, 'must be an https:// project URL')
+    // A trailing slash would produce '//auth/v1' once the paths are appended.
+    .transform((value) => value.replace(/\/+$/, '')),
+  SUPABASE_JWT_AUDIENCE: z.string().default('authenticated'),
 })
 
-export type Config = z.infer<typeof schema>
+export type Config = z.infer<typeof schema> & {
+  /** Where Supabase publishes the public keys for its ES256 signatures. */
+  supabaseJwksUrl: string
+  /** The `iss` claim every accepted token must carry. */
+  supabaseIssuer: string
+}
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const result = schema.safeParse(env)
@@ -36,5 +53,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       .join('\n')
     throw new Error(`Invalid environment:\n${detail}`)
   }
-  return result.data
+  return {
+    ...result.data,
+    supabaseJwksUrl: `${result.data.SUPABASE_URL}/auth/v1/.well-known/jwks.json`,
+    supabaseIssuer: `${result.data.SUPABASE_URL}/auth/v1`,
+  }
 }

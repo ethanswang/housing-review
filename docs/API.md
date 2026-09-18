@@ -35,6 +35,8 @@ npm run dev                        # http://localhost:3001
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
+| `SUPABASE_URL` | **required** | The Supabase project URL, `https://` only. The JWKS URL and the expected token issuer are both derived from it. The service holds no Supabase secret — it only reads public keys — so a placeholder is fine until you sign in against a real project. |
+| `SUPABASE_JWT_AUDIENCE` | `authenticated` | The `aud` claim every accepted token must carry. |
 | `DATABASE_URL` | **required** | Connection string. Must be `postgres://` or `postgresql://`. There is no default: the service refuses to start without it. (The `db:*` npm scripts do default to the compose database, which is why they work with no setup.) |
 | `PORT` | `3001` | Listen port. |
 | `HOST` | `0.0.0.0` | Listen address. |
@@ -71,3 +73,20 @@ as a connection error.
 | --- | --- | --- |
 | `GET /healthz` | The process is up | No |
 | `GET /readyz` | This instance can serve traffic | Yes, bounded at 2s |
+
+## Authentication
+
+Supabase Auth issues ES256 tokens; this service verifies them against Supabase's published
+public keys and holds no signing secret. Send one as `Authorization: Bearer <token>`.
+
+Reads are public. `requireAuth` is applied per route rather than globally, so a route that
+forgets it stays public — the safe direction here, since nothing readable was ever private.
+
+| Response | Meaning |
+| --- | --- |
+| `401` | No token, a malformed one, a forged or expired one, or one from another issuer or audience |
+| `403` | A valid token whose email is not an `illinois.edu` address |
+| `409` | The email already belongs to another account |
+| `503` | Supabase's key set is unreachable — deliberately **not** 401, so an outage does not read as "sign in again" |
+
+`GET /api/me` returns the caller and is the quickest way to check sign-in end to end.
