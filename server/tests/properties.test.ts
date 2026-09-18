@@ -176,3 +176,29 @@ describe('GET /api/properties/:slug', () => {
     expect(response.json().error.code).toBe('validation_failed')
   })
 })
+
+describe('pagination and search edge cases', () => {
+  it('reports the real total when asked for a page past the end', async () => {
+    const body = (await get('/api/properties?perPage=3&page=9')).json()
+    expect(body.data).toHaveLength(0)
+    // Not 0: the filter still matches 8 properties, the page is simply empty.
+    expect(body.total).toBe(8)
+    expect(body.totalPages).toBe(3)
+  })
+
+  it('reports the real review total past the last review page', async () => {
+    const body = (await get('/api/properties/here-champaign?perPage=1&page=9')).json()
+    expect(body.reviews.data).toHaveLength(0)
+    expect(body.reviews.total).toBe(2)
+  })
+
+  it('treats a percent sign as a literal, not a wildcard', async () => {
+    const body = (await get('/api/properties?q=%25')).json()
+    expect(body.total).toBe(0)
+  })
+
+  it('treats an underscore as a literal, not a single-character wildcard', async () => {
+    const body = (await get('/api/properties?q=_')).json()
+    expect(body.total).toBe(0)
+  })
+})

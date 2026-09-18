@@ -73,6 +73,14 @@ const SORT_CLAUSES: Record<SortKey, string> = {
   reviews: 'review_count desc, slug asc',
 }
 
+/**
+ * `%` and `_` are wildcards to LIKE. Left unescaped, a search for "%" matches
+ * every property and scans the whole table, and "_" quietly matches any single
+ * character. Values are bound parameters either way, so this is about correct
+ * search behaviour, not injection.
+ */
+const escapeLike = (value: string) => value.replace(/[\\%_]/g, (match) => `\\${match}`)
+
 /** node-postgres returns numeric as a string to avoid precision loss. */
 const toNumber = (value: string | number | null): number | null =>
   value === null ? null : Number(value)
@@ -124,34 +132,34 @@ export async function listProperties(
   query: PropertyQuery
 ): Promise<Page<PropertySummary>> {
   const conditions: string[] = []
-  const params: unknown[] = []
+  const filterParams: unknown[] = []
 
   if (query.search) {
-    params.push(`%${query.search}%`)
-    conditions.push(`(name ilike $${params.length} or address ilike $${params.length})`)
+    filterParams.push(`%${escapeLike(query.search)}%`)
+    conditions.push(`(name ilike $${filterParams.length} or address ilike $${filterParams.length})`)
   }
   if (query.companies?.length) {
-    params.push(query.companies)
-    conditions.push(`company_slug = any($${params.length}::text[])`)
+    filterParams.push(query.companies)
+    conditions.push(`company_slug = any($${filterParams.length}::text[])`)
   }
   if (query.neighborhoods?.length) {
-    params.push(query.neighborhoods)
-    conditions.push(`neighborhood = any($${params.length}::text[])`)
+    filterParams.push(query.neighborhoods)
+    conditions.push(`neighborhood = any($${filterParams.length}::text[])`)
   }
   if (query.maxRent !== undefined) {
     // Matches when the cheapest unit is within budget, not the most expensive.
-    params.push(query.maxRent)
-    conditions.push(`rent_min <= $${params.length}`)
+    filterParams.push(query.maxRent)
+    conditions.push(`rent_min <= $${filterParams.length}`)
   }
   if (query.bedrooms?.length) {
     // Overlap: the property offers at least one of the requested sizes.
-    params.push(query.bedrooms)
-    conditions.push(`bedrooms && $${params.length}::int[]`)
+    filterParams.push(query.bedrooms)
+    conditions.push(`bedrooms && $${filterParams.length}::int[]`)
   }
 
   const where = conditions.length ? `where ${conditions.join(' and ')}` : ''
   const offset = (query.page - 1) * query.perPage
-  params.push(query.perPage, offset)
+  const params = [...filterParams, query.perPage, offset]
 
   // count(*) over() returns the total for the filter in the same round trip,
   // so paging does not cost a second query that could disagree with the first.
@@ -164,7 +172,19 @@ export async function listProperties(
     params
   )
 
-  const total = rows.length ? Number(rows[0].total_count) : 0
+  // count(*) over() only reports a total when rows come back. Asking for a
+  // page past the end would otherwise answer "total: 0", telling the client
+  // the filter matches nothing when it matches plenty. The extra query runs
+  // only on that empty-page path, so the normal case stays one round trip.
+  let total = rows.length ? Number(rows[0].total_count) : 0
+  if (!rows.length && query.page > 1) {
+    const { rows: counted } = await db.query(
+      `select count(*)::int as total from property_stats ${where}`,
+      filterParams
+    )
+    total = counted[0].total
+  }
+
   return {
     data: rows.map(toSummary),
     page: query.page,
@@ -198,7 +218,15 @@ export async function listReviewsForProperty(
     [propertyId, perPage, (page - 1) * perPage]
   )
 
-  const total = rows.length ? Number(rows[0].total_count) : 0
+  let total = rows.length ? Number(rows[0].total_count) : 0
+  if (!rows.length && page > 1) {
+    const { rows: counted } = await db.query(
+      `select count(*)::int as total from reviews where property_id = $1 and status = 'published'`,
+      [propertyId]
+    )
+    total = counted[0].total
+  }
+
   return {
     data: rows.map((row) => ({
       id: row.id,
