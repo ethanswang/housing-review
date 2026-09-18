@@ -1,0 +1,11 @@
+# Keep the runtime image to what the server actually needs to run.
+node_modules
+tests
+scripts
+seeds
+migrations
+vitest.config.ts
+tsconfig.json
+Dockerfile
+.dockerignore
+*.md

@@ -25,5 +25,20 @@ services:
       timeout: 3s
       retries: 10
 
+  api:
+    build: ./server
+    environment:
+      # `db` is the compose service name; the guard in scripts/guard.mjs treats
+      # it as local, so seeding from inside the network is allowed.
+      DATABASE_URL: postgres://housing:housing_dev@db:5432/housing
+      NODE_ENV: production
+      PORT: 3001
+      LOG_LEVEL: info
+    ports:
+      - '3001:3001'
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   db-data:
