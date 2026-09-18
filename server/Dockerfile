@@ -1,8 +1,7 @@
 # Node 24 runs TypeScript directly through type stripping, so this image has no
 # build stage and no compiled output that could drift from the source. Types are
-# enforced separately by `npm run typecheck`. There is no CI workflow yet, so
-# that is a local step until one lands — worth knowing before trusting this
-# image to be type-checked.
+# enforced separately by `npm run typecheck`, which the CI workflow runs on
+# every pull request and every push to main.
 # Pinned by digest, not by tag. `node:24-alpine` moves whenever the upstream
 # image is rebuilt, so a tag alone cannot give a reproducible build: the same
 # Dockerfile would produce different images on different days. Update this

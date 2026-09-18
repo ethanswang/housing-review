@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Only reading the repository. Without this the workflow inherits whatever the
+# repository default is, which on older settings is read/write — and the web
+# job's `npm ci` runs dependency lifecycle scripts with that token in scope.
+permissions:
+  contents: read
+
+# A second push to a branch makes the first run irrelevant. Not so on main:
+# cancelling there would leave a merged commit with no completed check, so each
+# main commit is allowed to finish.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  web:
+    name: Web app (lint, types, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npx next build
+        env:
+          # lib/supabase.ts validates its environment at import time, so the
+          # build needs values present. These are placeholders: the build never
+          # connects, because every page is dynamic and renders at request time.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+
+  api:
+    name: API (types, schema, tests)
+    runs-on: ubuntu-latest
+
+    # A real Postgres, not a mock: the schema tests assert constraint and
+    # trigger behaviour, and the endpoint tests run actual SQL against views.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: housing
+          POSTGRES_PASSWORD: housing_dev
+          POSTGRES_DB: housing
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U housing -d housing"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://housing:housing_dev@localhost:5432/housing
+
+    defaults:
+      run:
+        working-directory: server
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - name: Apply migrations
+        run: npm run db:migrate
+      - name: Load development data
+        run: npm run db:seed
+      - run: npm test
+
+  image:
+    name: Container builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the API image
+        run: docker build -t uiuc-housing-api:ci ./server
+      - name: It starts and reports liveness with no database reachable
+        run: |
+          # LOG_LEVEL=error, not silent: a failed boot is reported through the
+          # logger, and at `silent` the failure dump below would print nothing.
+          docker run -d --name api-ci -p 3001:3001 \
+            -e DATABASE_URL=postgres://unused:unused@127.0.0.1:5432/unused \
+            -e LOG_LEVEL=error uiuc-housing-api:ci
+
+          # --retry-all-errors, not --retry-connrefused: docker publishes the
+          # port before the process inside listens, so early connections are
+          # accepted and reset rather than refused. curl exits 56 on a reset and
+          # does not treat it as retryable, which fails instantly.
+          if ! curl -sf --retry 30 --retry-delay 1 --retry-all-errors \
+                 http://127.0.0.1:3001/healthz; then
+            echo '--- container logs ---'; docker logs api-ci; exit 1
+          fi
+
+          # The image's own HEALTHCHECK must agree. It reads PORT and calls
+          # /healthz, which never touches the database — so a container with no
+          # database at all still has to report healthy. If liveness ever starts
+          # depending on the database, this step fails here rather than during
+          # a real outage.
+          # The image's HEALTHCHECK has a 30s interval, so the first probe does
+          # not fire until t=30s. A 30-iteration loop finishes at roughly the
+          # same moment: measured healthy on iteration 29 of 30, one second of
+          # slack. A loaded runner would fail a container that is perfectly
+          # fine — the same false failure this step was rewritten to stop.
+          for _ in $(seq 1 90); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' api-ci)
+            [ "$status" = healthy ] && break
+            [ "$status" = unhealthy ] && break
+            sleep 1
+          done
+          echo "docker-reported health: $status"
+          if [ "$status" != healthy ]; then
+            echo '--- container logs ---'; docker logs api-ci; exit 1
+          fi
+
+          docker rm -f api-ci
