@@ -1,0 +1,154 @@
+# Amazon Linux 2023 for arm64, resolved at plan time so the stack is not pinned
+# to an AMI id that goes stale.
+data "aws_ssm_parameter" "al2023" {
+  name = "/aws/service/ami-al2023/ami-al2023-latest-arm64"
+}
+
+resource "aws_security_group" "api" {
+  name        = "${var.name}-api"
+  description = "API instance"
+  vpc_id      = aws_vpc.main.id
+
+  tags = { Name = "${var.name}-api" }
+}
+
+resource "aws_vpc_security_group_ingress_rule" "api_http" {
+  security_group_id = aws_security_group.api.id
+  cidr_ipv4         = var.api_ingress_cidr
+  from_port         = 80
+  to_port           = 80
+  ip_protocol       = "tcp"
+  description       = "API traffic. Vercel's egress addresses are not fixed, so the frontend cannot be allow-listed by address."
+}
+
+# Optional and off by default. Session Manager gives a shell through IAM with
+# no inbound port at all, which is strictly better than an open 22.
+resource "aws_vpc_security_group_ingress_rule" "api_ssh" {
+  count = var.ssh_ingress_cidr == "" ? 0 : 1
+
+  security_group_id = aws_security_group.api.id
+  cidr_ipv4         = var.ssh_ingress_cidr
+  from_port         = 22
+  to_port           = 22
+  ip_protocol       = "tcp"
+  description       = "SSH, restricted to one address"
+}
+
+resource "aws_vpc_security_group_egress_rule" "api_all" {
+  security_group_id = aws_security_group.api.id
+  cidr_ipv4         = "0.0.0.0/0"
+  ip_protocol       = "-1"
+  description       = "Outbound: the database, ECR, Secrets Manager, CloudWatch, and Supabase's public keys"
+}
+
+resource "aws_iam_role" "api" {
+  name = "${var.name}-api"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+# A shell through IAM, audited in CloudTrail, with no inbound port open.
+resource "aws_iam_role_policy_attachment" "session_manager" {
+  role       = aws_iam_role.api.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+# Scoped to the one secret and the one log group this instance actually uses,
+# rather than the managed policies that would grant every secret in the account.
+resource "aws_iam_role_policy" "api" {
+  name = "${var.name}-api"
+  role = aws_iam_role.api.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = aws_secretsmanager_secret.database.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:BatchCheckLayerAvailability",
+        ]
+        Resource = aws_ecr_repository.api.arn
+      },
+      {
+        # Exchanging credentials for a registry token is account-wide by
+        # definition; it grants nothing on its own.
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+        ]
+        Resource = "${aws_cloudwatch_log_group.api.arn}:*"
+      },
+    ]
+  })
+}
+
+resource "aws_iam_instance_profile" "api" {
+  name = "${var.name}-api"
+  role = aws_iam_role.api.name
+}
+
+resource "aws_instance" "api" {
+  ami                    = data.aws_ssm_parameter.al2023.value
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.public[0].id
+  vpc_security_group_ids = [aws_security_group.api.id]
+  iam_instance_profile   = aws_iam_instance_profile.api.name
+
+  user_data = templatefile("${path.module}/user-data.sh.tftpl", {
+    region       = var.region
+    secret_arn   = aws_secretsmanager_secret.database.arn
+    image        = "${aws_ecr_repository.api.repository_url}:latest"
+    log_group    = aws_cloudwatch_log_group.api.name
+    supabase_url = var.supabase_url
+  })
+
+  # Replaces the instance when the startup script changes, so a change to how
+  # the service runs is applied rather than sitting in state until the next
+  # manual reboot.
+  user_data_replace_on_change = true
+
+  root_block_device {
+    volume_size = 20 # within the 30GB free-tier allowance
+    volume_type = "gp3"
+    encrypted   = true
+  }
+
+  metadata_options {
+    # IMDSv2 only: v1 is what makes a server-side request forgery bug in the
+    # application enough to read the instance's credentials.
+    http_tokens   = "required"
+    http_endpoint = "enabled"
+  }
+
+  tags = { Name = "${var.name}-api" }
+
+  depends_on = [aws_secretsmanager_secret_version.database]
+}
+
+# A fixed address, so redeploying the instance does not change where the
+# frontend points.
+resource "aws_eip" "api" {
+  instance = aws_instance.api.id
+  domain   = "vpc"
+  tags     = { Name = "${var.name}-api" }
+}

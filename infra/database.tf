@@ -1,0 +1,113 @@
+resource "aws_db_subnet_group" "main" {
+  name       = "${var.name}-db"
+  subnet_ids = aws_subnet.private[*].id
+}
+
+resource "aws_security_group" "database" {
+  name        = "${var.name}-db"
+  description = "Postgres, reachable only from the API instance"
+  vpc_id      = aws_vpc.main.id
+
+  tags = { Name = "${var.name}-db" }
+}
+
+# Referenced by security group rather than by address: the instance can be
+# replaced, and its private IP with it, without this rule needing to change.
+resource "aws_vpc_security_group_ingress_rule" "database_from_api" {
+  security_group_id            = aws_security_group.database.id
+  referenced_security_group_id = aws_security_group.api.id
+  from_port                    = 5432
+  to_port                      = 5432
+  ip_protocol                  = "tcp"
+  description                  = "Postgres from the API instance only"
+}
+
+resource "random_password" "database" {
+  length = 32
+  # RDS rejects '/', '@', '"' and spaces in a master password.
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+resource "aws_secretsmanager_secret" "database" {
+  name                    = "${var.name}/database"
+  description             = "Master credentials and connection string for the API database"
+  recovery_window_in_days = 0 # A student project should be able to destroy and recreate cleanly.
+}
+
+resource "aws_secretsmanager_secret_version" "database" {
+  secret_id = aws_secretsmanager_secret.database.id
+
+  # The connection string is assembled here so the instance never has to build
+  # one, and so the password exists in exactly one place.
+  secret_string = jsonencode({
+    username     = var.db_username
+    password     = random_password.database.result
+    host         = aws_db_instance.main.address
+    port         = aws_db_instance.main.port
+    dbname       = var.db_name
+    database_url = "postgres://${var.db_username}:${urlencode(random_password.database.result)}@${aws_db_instance.main.address}:${aws_db_instance.main.port}/${var.db_name}?sslmode=require"
+  })
+}
+
+resource "aws_db_parameter_group" "main" {
+  name   = "${var.name}-pg17"
+  family = "postgres17"
+
+  # The planner default of 4.0 models a spinning disk. On gp3 storage it
+  # refuses the trigram indexes behind property search: measured locally at
+  # 50k properties, 23ms sequential scan against 1.5ms using the index. See
+  # docs/DATABASE.md.
+  parameter {
+    name  = "random_page_cost"
+    value = "1.1"
+  }
+
+  # Refuse any connection that is not TLS.
+  parameter {
+    name         = "rds.force_ssl"
+    value        = "1"
+    apply_method = "pending-reboot"
+  }
+}
+
+resource "aws_db_instance" "main" {
+  identifier     = var.name
+  engine         = "postgres"
+  engine_version = "17"
+  instance_class = var.db_instance_class
+
+  db_name  = var.db_name
+  username = var.db_username
+  password = random_password.database.result
+
+  # 20GB of gp3 is the free-tier allowance.
+  allocated_storage     = 20
+  max_allocated_storage = 50
+  storage_type          = "gp3"
+  storage_encrypted     = true
+
+  db_subnet_group_name   = aws_db_subnet_group.main.name
+  vpc_security_group_ids = [aws_security_group.database.id]
+  parameter_group_name   = aws_db_parameter_group.main.name
+
+  # Private subnets with no internet route; this makes that explicit rather
+  # than incidental.
+  publicly_accessible = false
+
+  # Single AZ: free tier does not cover a standby, and this is a student
+  # project where an hour of downtime during a failover is acceptable.
+  multi_az = false
+
+  backup_retention_period = 7
+  backup_window           = "07:00-08:00"
+  maintenance_window      = "Mon:08:00-Mon:09:00"
+
+  auto_minor_version_upgrade = true
+  deletion_protection        = false
+  skip_final_snapshot        = true
+
+  # Postgres logs into CloudWatch, which is where production debugging starts.
+  enabled_cloudwatch_logs_exports = ["postgresql"]
+
+  tags = { Name = var.name }
+}

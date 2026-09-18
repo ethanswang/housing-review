@@ -1,0 +1,66 @@
+#!/bin/bash
+set -euxo pipefail
+
+dnf -y update
+dnf -y install docker awscli-2 jq
+systemctl enable --now docker
+
+# Credentials are read at start time from Secrets Manager, never baked into the
+# image or written to disk in plaintext. The unit re-reads them on every restart,
+# so rotating the password is a restart rather than a redeploy.
+cat >/usr/local/bin/api-start <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+
+REGION="${region}"
+SECRET_ARN="${secret_arn}"
+IMAGE="${image}"
+LOG_GROUP="${log_group}"
+
+aws ecr get-login-password --region "$REGION" \
+  | docker login --username AWS --password-stdin "$${IMAGE%%/*}"
+
+docker pull "$IMAGE"
+
+SECRET=$(aws secretsmanager get-secret-value --region "$REGION" \
+  --secret-id "$SECRET_ARN" --query SecretString --output text)
+DATABASE_URL=$(printf '%s' "$SECRET" | jq -r .database_url)
+
+docker rm -f api >/dev/null 2>&1 || true
+
+exec docker run --rm --name api \
+  -p 80:3001 \
+  -e NODE_ENV=production \
+  -e PORT=3001 \
+  -e DATABASE_URL="$DATABASE_URL" \
+  -e SUPABASE_URL="${supabase_url}" \
+  -e LOG_LEVEL=info \
+  -e TRUST_PROXY_HOPS=0 \
+  --log-driver=awslogs \
+  --log-opt awslogs-region="$REGION" \
+  --log-opt awslogs-group="$LOG_GROUP" \
+  --log-opt awslogs-stream=api \
+  "$IMAGE"
+RUNNER
+chmod +x /usr/local/bin/api-start
+
+cat >/etc/systemd/system/api.service <<'UNIT'
+[Unit]
+Description=UIUC Housing Review API
+After=docker.service
+Requires=docker.service
+
+[Service]
+ExecStart=/usr/local/bin/api-start
+ExecStop=/usr/bin/docker stop api
+Restart=always
+# On a fresh stack no image has been pushed yet, so this fails until the first
+# deploy. Backing off keeps it retrying without filling the log with attempts.
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable --now api.service
