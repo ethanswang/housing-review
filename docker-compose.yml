@@ -28,12 +28,18 @@ services:
   api:
     build: ./server
     environment:
-      # `db` is the compose service name; the guard in scripts/guard.mjs treats
-      # it as local, so seeding from inside the network is allowed.
+      # `db` is the compose service name, reachable on the compose network.
+      # Migrations and seeding run from the host, not from this container: the
+      # image excludes migrations/, seeds/ and scripts/, and --omit=dev leaves
+      # out node-pg-migrate.
       DATABASE_URL: postgres://housing:housing_dev@db:5432/housing
       NODE_ENV: production
       PORT: 3001
       LOG_LEVEL: info
+      # Nothing proxies this service — the port is published straight to the
+      # host — so no X-Forwarded-For header should be believed. Trusting one
+      # hop here would let any client forge request.ip.
+      TRUST_PROXY_HOPS: 0
     ports:
       - '3001:3001'
     depends_on:

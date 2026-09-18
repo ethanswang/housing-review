@@ -7,9 +7,14 @@ Postgres directly.
 
 ```bash
 docker compose up -d --wait        # Postgres and the API
-cd server && npm run db:migrate && npm run db:seed
+cd server && npm install           # migrations need node-pg-migrate, a dev dependency
+npm run db:migrate && npm run db:seed
 curl localhost:3001/api/properties
 ```
+
+Migrations run from the host rather than from the container: the image deliberately excludes
+`migrations/`, `seeds/` and `scripts/`, and installs without dev dependencies, so
+`node-pg-migrate` is not in it.
 
 The database must be migrated before the endpoints return anything useful. `/healthz` and
 `/readyz` work regardless, which is the point of them.
@@ -30,12 +35,12 @@ npm run dev                        # http://localhost:3001
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `DATABASE_URL` | compose database on port 5433 | Connection string. Must be `postgres://` or `postgresql://`; validated at boot. |
+| `DATABASE_URL` | **required** | Connection string. Must be `postgres://` or `postgresql://`. There is no default: the service refuses to start without it. (The `db:*` npm scripts do default to the compose database, which is why they work with no setup.) |
 | `PORT` | `3001` | Listen port. |
 | `HOST` | `0.0.0.0` | Listen address. |
 | `NODE_ENV` | `development` | `production` enables proxy trust. |
 | `LOG_LEVEL` | `info` | pino level. |
-| `TRUST_PROXY_HOPS` | `1` | Proxy hops to trust for `X-Forwarded-For`. |
+| `TRUST_PROXY_HOPS` | `1` | Proxy hops to trust for `X-Forwarded-For`. Set to `0` wherever nothing proxies the service, as compose does — otherwise any client can forge `request.ip`. |
 
 A bad environment fails at boot with the specific problem named, rather than surfacing later
 as a connection error.
