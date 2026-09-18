@@ -3,6 +3,7 @@ import type { Config } from './config.ts'
 import type { Database } from './db.ts'
 import { AppError } from './errors.ts'
 import { healthRoutes } from './routes/health.ts'
+import { propertyRoutes } from './routes/properties.ts'
 
 /**
  * Framework-raised client errors carry a status but no code of ours. Flattening
@@ -121,6 +122,7 @@ export function buildApp({ config, db }: AppDependencies): FastifyInstance {
   })
 
   app.register(healthRoutes, { db })
+  app.register(propertyRoutes, { db, prefix: '/api' })
 
   return app
 }
