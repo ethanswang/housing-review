@@ -96,8 +96,15 @@ describe('reviews', () => {
     const property = await insertProperty(db)
     const review = await insertReview(db, property)
     await db.query(`update reviews set status = 'hidden' where id = $1`, [review])
-    const { rows } = await db.query('select created_at, updated_at from reviews where id = $1', [review])
-    expect(rows[0].updated_at.getTime()).toBeGreaterThan(rows[0].created_at.getTime())
+    // Compared in SQL, not JavaScript: Postgres keeps microseconds, while
+    // Date.getTime() truncates to milliseconds. An insert and an update inside
+    // the same millisecond then look identical, which made this test fail
+    // intermittently depending on where it landed relative to a tick.
+    const { rows } = await db.query(
+      'select (updated_at > created_at) as advanced from reviews where id = $1',
+      [review]
+    )
+    expect(rows[0].advanced).toBe(true)
   })
 
   it('deletes reviews when the property is deleted', async () => {
