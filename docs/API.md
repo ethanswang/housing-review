@@ -45,6 +45,13 @@ as a connection error.
 - **No build stage.** Node 24 runs TypeScript directly through type stripping, so there is no
   compiled output that can drift from source. `tsc --noEmit` enforces types in CI instead.
 - **Runs as `node` (uid 1000)**, not root.
+- **The base image is pinned by digest.** A tag such as `node:24-alpine` moves when upstream
+  rebuilds, so the same Dockerfile would otherwise produce different images on different days.
+  To update it: `docker pull node:24-alpine`, read the new digest with
+  `docker image inspect node:24-alpine --format '{{index .RepoDigests 0}}'`, and commit the
+  change, so a base image bump is reviewable rather than silent.
+- **Dependencies install with `--ignore-scripts`**, since none of `pg`, `fastify` or `zod`
+  need lifecycle scripts and those run arbitrary code at build time.
 - **Dependencies install in their own layer**, so a code-only change rebuilds in seconds.
 - **`HEALTHCHECK` calls `/healthz`, not `/readyz`.** Liveness must not depend on the database:
   if it did, a database blip would make Docker restart healthy containers, turning a

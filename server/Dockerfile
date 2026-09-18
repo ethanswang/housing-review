@@ -1,7 +1,12 @@
 # Node 24 runs TypeScript directly through type stripping, so this image has no
 # build stage and no compiled output that could drift from the source. Types are
 # still enforced, by `tsc --noEmit` in CI rather than at image build time.
-FROM node:24-alpine
+# Pinned by digest, not by tag. `node:24-alpine` moves whenever the upstream
+# image is rebuilt, so a tag alone cannot give a reproducible build: the same
+# Dockerfile would produce different images on different days. Update this
+# deliberately (`docker pull node:24-alpine` then re-read the digest), so a base
+# image change is a reviewable commit rather than a silent one.
+FROM node@sha256:760e44b64c78674d9c79fa32e63c0ba8f817f79791e1aa32e07669bb0bfeaeaa
 
 ENV NODE_ENV=production
 WORKDIR /app
@@ -9,7 +14,9 @@ WORKDIR /app
 # Manifests first: this layer stays cached unless dependencies actually change,
 # so a code-only change rebuilds in seconds rather than reinstalling.
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+# --ignore-scripts: dependency lifecycle scripts run arbitrary code at build
+# time, and none of pg, fastify or zod need them.
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 COPY src ./src
 
