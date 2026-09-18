@@ -11,7 +11,25 @@ const app = buildApp({ config, db })
  * then close the pool. Without this, a deploy drops requests that were already
  * being served.
  */
+let shuttingDown = false
+
 async function shutdown(signal: string) {
+  // A second signal (Ctrl-C twice, or SIGTERM followed by SIGINT) would
+  // otherwise close an already-closing instance and exit(1), dropping the
+  // in-flight requests this ordered shutdown exists to protect.
+  if (shuttingDown) {
+    app.log.warn({ signal }, 'shutdown already in progress')
+    return
+  }
+  shuttingDown = true
+
+  // One long-lived request must not keep the process alive until SIGKILL.
+  const deadline = setTimeout(() => {
+    app.log.error('shutdown timed out; forcing exit')
+    process.exit(1)
+  }, 10_000)
+  deadline.unref()
+
   app.log.info({ signal }, 'shutting down')
   try {
     await app.close()

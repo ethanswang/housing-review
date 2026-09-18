@@ -9,9 +9,18 @@ const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   HOST: z.string().default('0.0.0.0'),
   PORT: z.coerce.number().int().positive().max(65535).default(3001),
-  DATABASE_URL: z
-    .string()
-    .refine((value) => URL.canParse(value), 'must be a valid connection URL'),
+  // URL.canParse alone is far too permissive: it accepts 'hello:world' and
+  // 'localhost:5432'. Checking the protocol is what catches the mistakes that
+  // actually happen — a missing scheme, or 'postgress://'.
+  DATABASE_URL: z.string().refine((value) => {
+    if (!URL.canParse(value)) return false
+    const { protocol } = new URL(value)
+    return protocol === 'postgres:' || protocol === 'postgresql:'
+  }, 'must be a postgres:// or postgresql:// connection URL'),
+  // How many proxy hops to trust for X-Forwarded-For. Trusting *any* peer lets
+  // a client forge its own IP, which hands out a fresh rate-limit bucket per
+  // forged value and poisons audit logs.
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(1),
   LOG_LEVEL: z
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
     .default('info'),

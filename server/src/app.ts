@@ -4,6 +4,26 @@ import type { Database } from './db.ts'
 import { AppError } from './errors.ts'
 import { healthRoutes } from './routes/health.ts'
 
+/**
+ * Framework-raised client errors carry a status but no code of ours. Flattening
+ * the whole 4xx range to 'bad_request' would make the code field useless the
+ * moment rate limiting or auth exists: a client could not tell throttling from
+ * a malformed body.
+ */
+const CLIENT_ERROR_CODES: Record<number, string> = {
+  400: 'bad_request',
+  401: 'unauthorized',
+  403: 'forbidden',
+  404: 'not_found',
+  405: 'method_not_allowed',
+  406: 'not_acceptable',
+  409: 'conflict',
+  413: 'payload_too_large',
+  415: 'unsupported_media_type',
+  422: 'unprocessable_entity',
+  429: 'rate_limited',
+}
+
 export type AppDependencies = {
   config: Config
   db: Database
@@ -17,12 +37,36 @@ export function buildApp({ config, db }: AppDependencies): FastifyInstance {
   const app = Fastify({
     logger: {
       level: config.LOG_LEVEL,
-      // Never log credentials or bearer tokens, in any environment.
-      redact: ['req.headers.authorization', 'req.headers.cookie'],
+      // Fastify's default request serializer logs no headers at all, so
+      // nothing leaks today. These paths cover the shapes a future serializer
+      // or an explicit request.log.info({ headers }) would produce.
+      redact: [
+        'req.headers.authorization',
+        'req.headers.cookie',
+        'headers.authorization',
+        'headers.cookie',
+        '*.authorization',
+      ],
     },
-    // Trust the proxy in front of the container so client IPs and protocol are
-    // taken from X-Forwarded-*, which rate limiting and logging depend on.
-    trustProxy: config.NODE_ENV === 'production',
+    // Trust exactly the proxies in front of the container, by hop count.
+    // `true` would accept X-Forwarded-For from any peer, letting a client
+    // forge request.ip — a fresh rate-limit bucket per forged value.
+    trustProxy:
+      config.NODE_ENV === 'production'
+        ? (_address: string, hop: number) => hop < config.TRUST_PROXY_HOPS
+        : false,
+  })
+
+  /**
+   * pg.Pool emits 'error' when an *idle* connection dies — a database restart,
+   * a failover, an idle-connection reaper. EventEmitter throws on an unhandled
+   * 'error', so without this the process exits. That would defeat the whole
+   * liveness/readiness split below: the container would already be dead before
+   * any probe was consulted. The pool itself recovers; it only needs someone
+   * listening.
+   */
+  db.on('error', (error: Error) => {
+    app.log.error({ err: error }, 'idle database client error')
   })
 
   app.setNotFoundHandler((request, reply) => {
@@ -62,9 +106,12 @@ export function buildApp({ config, db }: AppDependencies): FastifyInstance {
     // and say so, rather than being labelled an internal error.
     if (error.statusCode && error.statusCode >= 400 && error.statusCode < 500) {
       request.log.info({ err: error, statusCode: error.statusCode }, 'request rejected')
-      return reply
-        .status(error.statusCode)
-        .send({ error: { code: 'bad_request', message: error.message } })
+      return reply.status(error.statusCode).send({
+        error: {
+          code: CLIENT_ERROR_CODES[error.statusCode] ?? 'client_error',
+          message: error.message,
+        },
+      })
     }
 
     request.log.error({ err: error }, 'unhandled error')
