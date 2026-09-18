@@ -8,6 +8,7 @@ import { healthRoutes } from './routes/health.ts'
 import { meRoutes } from './routes/me.ts'
 import { companyRoutes } from './routes/companies.ts'
 import { propertyRoutes } from './routes/properties.ts'
+import { reviewRoutes } from './routes/reviews.ts'
 
 /**
  * Framework-raised client errors carry a status but no code of ours. Flattening
@@ -140,6 +141,7 @@ export function buildApp({ config, db, keys }: AppDependencies): FastifyInstance
   app.register(meRoutes, { prefix: '/api' })
   app.register(propertyRoutes, { db, prefix: '/api' })
   app.register(companyRoutes, { db, prefix: '/api' })
+  app.register(reviewRoutes, { db, prefix: '/api' })
 
   return app
 }
