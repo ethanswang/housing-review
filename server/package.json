@@ -13,10 +13,14 @@
     "db:seed": "node scripts/seed.mjs",
     "db:benchmark": "node scripts/benchmark.mjs",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev": "DATABASE_URL=${DATABASE_URL:-postgres://housing:housing_dev@localhost:5433/housing} node --watch src/server.ts",
+    "start": "node src/server.ts"
   },
   "dependencies": {
-    "pg": "^8.23.0"
+    "fastify": "^5.12.5",
+    "pg": "^8.23.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^24.13.5",
