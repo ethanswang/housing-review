@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A second push to the same branch makes the first run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web app (lint, types, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npx next build
+        env:
+          # lib/supabase.ts validates its environment at import time, so the
+          # build needs values present. These are placeholders: the build never
+          # connects, because every page is dynamic and renders at request time.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+
+  api:
+    name: API (types, schema, tests)
+    runs-on: ubuntu-latest
+
+    # A real Postgres, not a mock: the schema tests assert constraint and
+    # trigger behaviour, and the endpoint tests run actual SQL against views.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: housing
+          POSTGRES_PASSWORD: housing_dev
+          POSTGRES_DB: housing
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U housing -d housing"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://housing:housing_dev@localhost:5432/housing
+
+    defaults:
+      run:
+        working-directory: server
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - name: Apply migrations
+        run: npm run db:migrate
+      - name: Load development data
+        run: npm run db:seed
+      - run: npm test
+
+  image:
+    name: Container builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the API image
+        run: docker build -t uiuc-housing-api:ci ./server
+      - name: It starts and reports liveness
+        run: |
+          docker run -d --name api-ci -p 3001:3001 \
+            -e DATABASE_URL=postgres://unused:unused@127.0.0.1:5432/unused \
+            -e LOG_LEVEL=silent uiuc-housing-api:ci
+          # /healthz deliberately does not touch the database, so it must answer
+          # even with no database reachable. That is the property being checked.
+          curl -sf --retry 20 --retry-delay 1 --retry-connrefused http://127.0.0.1:3001/healthz
+          docker rm -f api-ci
