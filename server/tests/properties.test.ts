@@ -202,3 +202,40 @@ describe('pagination and search edge cases', () => {
     expect(body.total).toBe(0)
   })
 })
+
+describe('query parsing tolerates what real clients send', () => {
+  it('treats an empty q as no search rather than an error', async () => {
+    const response = await get('/api/properties?q=')
+    expect(response.statusCode).toBe(200)
+    expect(response.json().total).toBe(8)
+  })
+
+  it('treats empty paging parameters as absent', async () => {
+    const response = await get('/api/properties?page=&perPage=&maxRent=&sort=')
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+    expect(body.page).toBe(1)
+    expect(body.perPage).toBe(24)
+    expect(body.total).toBe(8)
+  })
+
+  it('accepts repeated keys as the multi-value form', async () => {
+    const body = (await get('/api/properties?company=jsm&company=roland-realty')).json()
+    expect(body.total).toBe(4)
+  })
+
+  it('accepts repeated keys and comma lists interchangeably', async () => {
+    const repeated = (await get('/api/properties?beds=1&beds=4')).json()
+    const comma = (await get('/api/properties?beds=1,4')).json()
+    expect(repeated.total).toBe(comma.total)
+    expect(repeated.total).toBeGreaterThan(0)
+  })
+
+  it('still rejects a genuinely invalid bedroom filter', async () => {
+    expect((await get('/api/properties?beds=studio')).statusCode).toBe(400)
+  })
+
+  it('still rejects an unknown sort key', async () => {
+    expect((await get('/api/properties?sort=cheapest')).statusCode).toBe(400)
+  })
+})

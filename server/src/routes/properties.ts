@@ -8,37 +8,62 @@ import {
   listReviewsForProperty,
 } from '../repositories/properties.ts'
 
-/** Multi-value parameters are comma separated: ?company=jsm,roland-realty */
-const commaList = z
-  .string()
-  .transform((value) => value.split(',').map((part) => part.trim()).filter(Boolean))
+/**
+ * Query parsing has to tolerate what real clients send, not only what a
+ * well-behaved one sends. Two shapes matter:
+ *
+ *   ?q=                        a form submitted with an empty search box
+ *   ?company=a&company=b       the standard repeated-key multi-value form
+ *
+ * The first must mean "no filter", not an error page. The second arrives from
+ * Fastify as an array.
+ */
+const blankToUndefined = (value: unknown) =>
+  value === '' || (Array.isArray(value) && value.length === 0) ? undefined : value
+
+/** Accepts repeated keys, comma-separated values, or both. */
+const stringList = z
+  .union([z.string(), z.array(z.string())])
+  .transform((value) => {
+    const parts = (Array.isArray(value) ? value : [value])
+      .flatMap((part) => part.split(','))
+      .map((part) => part.trim())
+      .filter(Boolean)
+    return parts.length ? parts : undefined
+  })
+
+const searchTerm = z
+  .union([z.string(), z.array(z.string())])
+  .transform((value) => (Array.isArray(value) ? (value[0] ?? '') : value).trim())
+  .refine((value) => value.length <= 100, 'must be at most 100 characters')
+  .transform((value) => (value.length ? value : undefined))
+
+const bedroomList = stringList.refine(
+  (values) =>
+    values === undefined ||
+    values.every((value) => /^\d+$/.test(value) && Number(value) <= 20),
+  'bedroom counts must be whole numbers between 0 and 20'
+)
 
 const listQuerySchema = z.object({
-  q: z.string().trim().min(1).max(100).optional(),
-  company: commaList.optional(),
-  hood: commaList.optional(),
-  maxRent: z.coerce.number().int().positive().max(100_000).optional(),
-  // Split and convert in one transform: piping a string[] into z.coerce.number()
-  // does not typecheck, because coercion accepts unknown rather than string.
-  beds: z
-    .string()
-    .transform((value) =>
-      value.split(',').map((part) => part.trim()).filter(Boolean).map(Number)
-    )
-    .refine(
-      (values) => values.every((n) => Number.isInteger(n) && n >= 0 && n <= 20),
-      'bedroom counts must be whole numbers between 0 and 20'
-    )
-    .optional(),
-  sort: z.enum(['rating', 'price', 'reviews']).default('rating'),
-  page: z.coerce.number().int().min(1).max(10_000).default(1),
+  q: searchTerm.optional(),
+  company: stringList.optional(),
+  hood: stringList.optional(),
+  beds: bedroomList.optional(),
+  // .optional() goes *inside* the preprocess, not outside it. An outer optional
+  // tests the raw input: for `?page=` that is '', which is not undefined, so it
+  // never short-circuits, and the inner schema then receives the preprocessed
+  // undefined and coerces it to NaN.
+  maxRent: z.preprocess(blankToUndefined, z.coerce.number().int().positive().max(100_000).optional()),
+  sort: z.preprocess(blankToUndefined, z.enum(['rating', 'price', 'reviews']).optional()),
+  page: z.preprocess(blankToUndefined, z.coerce.number().int().min(1).max(10_000).optional()),
   // Capped so a single request cannot ask for the entire table.
-  perPage: z.coerce.number().int().min(1).max(100).default(24),
+  perPage: z.preprocess(blankToUndefined, z.coerce.number().int().min(1).max(100).optional()),
 })
 
 const reviewQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).max(10_000).default(1),
-  perPage: z.coerce.number().int().min(1).max(100).default(20),
+  page: z.preprocess(blankToUndefined, z.coerce.number().int().min(1).max(10_000).optional()),
+  perPage: z.preprocess(blankToUndefined, z.coerce.number().int().min(1).max(100).optional()),
 })
 
 const slugSchema = z
@@ -66,10 +91,10 @@ export async function propertyRoutes(app: FastifyInstance, options: { db: Databa
       companies: query.company,
       neighborhoods: query.hood,
       maxRent: query.maxRent,
-      bedrooms: query.beds,
-      sort: query.sort,
-      page: query.page,
-      perPage: query.perPage,
+      bedrooms: query.beds?.map(Number),
+      sort: query.sort ?? 'rating',
+      page: query.page ?? 1,
+      perPage: query.perPage ?? 24,
     })
   })
 
@@ -82,8 +107,8 @@ export async function propertyRoutes(app: FastifyInstance, options: { db: Databa
     const reviews = await listReviewsForProperty(
       options.db,
       property.id,
-      query.page,
-      query.perPage
+      query.page ?? 1,
+      query.perPage ?? 20
     )
     return { ...property, reviews }
   })

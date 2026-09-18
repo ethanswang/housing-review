@@ -178,8 +178,17 @@ export async function listProperties(
   // only on that empty-page path, so the normal case stays one round trip.
   let total = rows.length ? Number(rows[0].total_count) : 0
   if (!rows.length && query.page > 1) {
+    // Counted against the base tables rather than property_stats: every filter
+    // the WHERE can reference is available from this join, and counting through
+    // the view would run the per-property review aggregate for every matching
+    // row only to discard it.
     const { rows: counted } = await db.query(
-      `select count(*)::int as total from property_stats ${where}`,
+      `select count(*)::int as total from (
+         select p.name, p.address, p.neighborhood, p.rent_min, p.bedrooms,
+                c.slug as company_slug
+         from properties p
+         left join management_companies c on c.id = p.company_id
+       ) as filtered ${where}`,
       filterParams
     )
     total = counted[0].total
