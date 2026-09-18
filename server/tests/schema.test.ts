@@ -1,13 +1,11 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import type { Client } from 'pg'
-import {
-  VALID_BODY, connect, insertCompany, insertProperty, insertReview, insertUser,
-} from './helpers.js'
+import { connect, insertCompany, insertProperty, insertReview, insertUser } from './helpers.js'
 
 let db: Client
 
 beforeAll(async () => { db = await connect() })
-afterAll(async () => { await db.end() })
+afterAll(async () => { await db?.end() })
 beforeEach(async () => { await db.query('begin') })
 afterEach(async () => { await db.query('rollback') })
 
@@ -23,6 +21,14 @@ describe('users', () => {
   it('treats emails case-insensitively for uniqueness', async () => {
     await insertUser(db, 'dupe@illinois.edu')
     await expect(insertUser(db, 'DUPE@illinois.edu')).rejects.toMatchObject({ code: '23505' })
+  })
+
+  it('rejects an address with a second @ before the domain', async () => {
+    await expect(insertUser(db, 'attacker@evil.com@illinois.edu')).rejects.toMatchObject({ code: '23514' })
+  })
+
+  it('rejects an empty local part', async () => {
+    await expect(insertUser(db, '@illinois.edu')).rejects.toMatchObject({ code: '23514' })
   })
 
   it('rejects an unknown role', async () => {
@@ -68,6 +74,30 @@ describe('reviews', () => {
     await expect(
       insertReview(db, property, { author_id: author, is_sample: true })
     ).rejects.toMatchObject({ code: '23514' })
+  })
+
+  it('lets an author post again after their review was removed', async () => {
+    const property = await insertProperty(db)
+    const author = await insertUser(db)
+    const first = await insertReview(db, property, { author_id: author })
+    await db.query(`update reviews set status = 'removed' where id = $1`, [first])
+    await expect(insertReview(db, property, { author_id: author })).resolves.toBeTruthy()
+  })
+
+  it('still blocks a duplicate while the first review is only hidden', async () => {
+    const property = await insertProperty(db)
+    const author = await insertUser(db)
+    const first = await insertReview(db, property, { author_id: author })
+    await db.query(`update reviews set status = 'hidden' where id = $1`, [first])
+    await expect(insertReview(db, property, { author_id: author })).rejects.toMatchObject({ code: '23505' })
+  })
+
+  it('advances updated_at when a review is modified', async () => {
+    const property = await insertProperty(db)
+    const review = await insertReview(db, property)
+    await db.query(`update reviews set status = 'hidden' where id = $1`, [review])
+    const { rows } = await db.query('select created_at, updated_at from reviews where id = $1', [review])
+    expect(rows[0].updated_at.getTime()).toBeGreaterThan(rows[0].created_at.getTime())
   })
 
   it('deletes reviews when the property is deleted', async () => {
@@ -195,11 +225,5 @@ describe('properties', () => {
     await db.query('delete from management_companies where id = $1', [company])
     const { rows } = await db.query('select company_id from properties where id = $1', [property])
     expect(rows[0].company_id).toBeNull()
-  })
-})
-
-describe('seed body length', () => {
-  it('uses a body long enough for the constraint', () => {
-    expect(VALID_BODY.length).toBeGreaterThanOrEqual(20)
   })
 })

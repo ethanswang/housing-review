@@ -12,7 +12,7 @@ docker compose up -d --wait      # Postgres 17 on localhost:5433
 cd server
 npm install
 npm run db:migrate               # apply migrations
-npm run db:seed                  # load development data
+npm run db:seed                  # load development data (refuses non-local databases)
 npm test                         # constraint and aggregate tests
 npm run db:benchmark             # EXPLAIN ANALYZE at volume, then rolls back
 ```
@@ -22,6 +22,22 @@ npm run db:benchmark             # EXPLAIN ANALYZE at volume, then rolls back
 never collides with a Postgres already running on 5432.
 
 To start over: `docker compose down -v && docker compose up -d --wait`.
+
+## Trust model
+
+The API service owns this database and connects as its own role. **Authorization is enforced
+in the API, not by row-level security**, because no untrusted client ever holds a connection
+to it. That is a deliberate change from the Supabase-era schema, where the browser's anon key
+reached PostgREST directly and RLS was the only thing standing between a visitor and the
+tables.
+
+The consequence is a rule worth stating plainly: **these migrations must never be applied to
+the Supabase project.** PostgREST would publish `users` and `review_reports` to the anon key
+with no policies at all. The views are declared `security_invoker = true` so that if RLS is
+ever introduced, the caller's policies apply rather than the view owner's.
+
+Destructive scripts (`db:seed`, `db:benchmark`) refuse to run against any host that is not
+local, and say so, rather than trusting whatever `DATABASE_URL` happens to be exported.
 
 ## Tables
 
@@ -64,9 +80,14 @@ seeded demo rows, have no author. An ownership check compares `author_id` to the
 authenticated user, and `null` never matches, so those rows are readable but not editable
 by anyone.
 
-- `reviews_one_per_author_property` is `unique (author_id, property_id)`. Postgres treats
-  nulls as distinct, so this limits a real person to one review per property while still
-  allowing several authorless legacy rows on the same property.
+- `reviews_one_per_author_property` is a **partial unique index** on
+  `(author_id, property_id) where status <> 'removed'`. Postgres treats nulls as distinct, so
+  this limits a real person to one review per property while still allowing several
+  authorless legacy rows on the same property. It excludes removed rows deliberately:
+  otherwise moderation would permanently bar that author from ever reviewing that building
+  again, turning one removal into a lifetime ban on a single property. A hidden review still
+  blocks a duplicate, because hiding is temporary. It is an index rather than a table
+  constraint because constraints cannot carry a `WHERE` clause.
 - `reviews_sample_has_no_author` stops a real user's review from being labelled sample data.
 - `status` (`published` / `hidden` / `removed`) drives moderation. Aggregates count only
   `published` rows, so hiding a review immediately changes the scores.
@@ -93,7 +114,8 @@ Each index exists for a specific query rather than as a precaution.
 | `properties_bedrooms_idx` | GIN index for the array-overlap bedroom filter. |
 | `properties_company_id_idx` | A company's property list. |
 | `reviews_property_created_idx` | Both the per-property average and the newest-first review page, from one composite index on `(property_id, created_at desc)`. |
-| `reviews_author_idx` | "My reviews", partial on `author_id is not null` so legacy rows are not indexed. |
+| `reviews_author_idx` | "My reviews" including removed ones, which the partial unique index above does not cover. Partial on `author_id is not null`, since legacy rows have no author to look up. |
+| `review_reports_reporter_idx` | `reporter_id` cascades from `users`; without it, deleting an account sequentially scans this table. Also serves "reports I filed". |
 | `review_reports_open_idx` | The moderation queue, partial on `status = 'open'` — the only rows it reads. |
 
 ### Measured, not assumed
@@ -128,8 +150,11 @@ parameter group — or search quietly degrades into a table scan.
 
 ## Aggregates
 
-`property_stats` and `company_stats` compute review counts and per-category averages in
-SQL. Application code does not average anything.
+`property_stats` and `company_stats` compute review counts and per-category averages in SQL,
+so that application code never has to average anything itself.
+
+Nothing reads these views yet. The deployed Next.js app still queries Supabase directly and
+computes averages in JavaScript; the views are consumed when the API service lands.
 
 Both use `LEFT JOIN LATERAL` rather than `GROUP BY`. With a lateral join, conditions on
 `properties` (search, area, rent, bedrooms) restrict the property scan *before* any review
@@ -171,7 +196,8 @@ constraints in this schema.
 | --- | --- | --- | --- |
 | Ratings are 1–5 | `required` inputs | request validation | `check` constraint |
 | Body length 20–2000 | `minLength` | request validation | `check` constraint |
-| University email only | — | checked at sign-in | `check` constraint |
+| University email only | — | checked at sign-in | `check` constraint, anchored at both ends |
+| Lease term at most 40 characters | `maxLength` | request validation | `check` constraint |
 | One review per property | UI hides the form | ownership + conflict check | `unique` constraint |
 | Only the author edits a review | UI hides controls | authoritative check | `author_id` comparison |
 
@@ -181,7 +207,7 @@ line, and the only one nothing can bypass.
 ## Migrations
 
 ```bash
-npm run migrate create add-something -- -j sql   # new migration
+npm run migrate:create add-something             # new SQL migration in server/migrations/
 npm run db:migrate                               # apply
 npm run db:rollback                              # revert the most recent
 ```

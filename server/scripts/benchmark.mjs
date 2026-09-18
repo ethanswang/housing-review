@@ -7,14 +7,19 @@
 // The point is to check that the indexes in the initial migration are actually
 // chosen by the planner at a size the seed data cannot demonstrate.
 import pg from 'pg'
+import { assertLocalDatabase } from './guard.mjs'
 
 const PROPERTIES = Number(process.env.BENCH_PROPERTIES ?? 5000)
 const REVIEWS_EACH = Number(process.env.BENCH_REVIEWS_EACH ?? 10)
 const URL = process.env.DATABASE_URL ?? 'postgres://housing:housing_dev@localhost:5433/housing'
 
+// Inserts tens of thousands of rows before rolling back; not for a real database.
+assertLocalDatabase(URL, 'run the benchmark')
+
 const client = new pg.Client({ connectionString: URL })
 await client.connect()
 await client.query('begin')
+let completed = false
 try {
   console.log(`generating ${PROPERTIES} properties x ${REVIEWS_EACH} reviews...`)
   await client.query(
@@ -69,8 +74,15 @@ try {
     console.log(`\n### ${label}  —  ${time}`)
     for (const scan of scans) console.log('   ', scan)
   }
+  completed = true
 } finally {
-  await client.query('rollback')
-  await client.end()
-  console.log('\nrolled back — development data untouched')
+  // Report what actually happened: a crash mid-run must not print success.
+  try {
+    await client.query('rollback')
+  } catch (rollbackError) {
+    console.error('rollback failed:', rollbackError.message)
+  } finally {
+    await client.end()
+  }
+  console.log(completed ? '\nrolled back — development data untouched' : '\nfailed; transaction rolled back')
 }

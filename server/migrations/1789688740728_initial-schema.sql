@@ -1,13 +1,32 @@
 -- Up Migration
+--
+-- TRUST MODEL: this schema is owned by the API service, which connects as its
+-- own database role. Authorization is enforced in the API, not by row-level
+-- security, because no untrusted client ever holds a connection to this
+-- database. That is a deliberate departure from the Supabase-era schema, where
+-- the browser's anon key reached PostgREST directly and RLS was the only guard.
+--
+-- Consequently these migrations must NOT be applied to the Supabase project:
+-- PostgREST would expose users and reviews to the anon key with no policies.
 
 -- pg_trgm powers the `ilike '%term%'` property search; citext gives
 -- case-insensitive unique emails without lower() indexes everywhere.
 create extension if not exists pg_trgm;
 create extension if not exists citext;
 
--- Identity is issued by Supabase Auth (ES256 JWT). We store the token's `sub`
--- claim as the primary key so a row survives an email change, and keep a local
--- copy of the email for display and for the university-domain rule.
+-- Keeps updated_at honest. Without it the column silently equals created_at
+-- forever, and anything built on it (cache keys, "recently edited") is wrong.
+create function set_updated_at() returns trigger language plpgsql as $$
+begin
+  -- clock_timestamp(), not now(): now() is the transaction start time, so a
+  -- row updated in the same transaction it was created in would show no change.
+  new.updated_at = clock_timestamp();
+  return new;
+end;
+$$;
+
+-- Identity is issued by Supabase Auth, which signs ES256 JWTs. The token's
+-- `sub` claim is the primary key, so a row survives an email change.
 create table users (
   id           uuid primary key,
   email        citext not null unique,
@@ -16,9 +35,10 @@ create table users (
                  check (role in ('student', 'moderator', 'admin')),
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now(),
-  -- The API enforces this too, at sign-in. Keeping it here means no code path,
-  -- including a future admin script, can create a non-university account.
-  constraint users_illinois_email check (email ~* '@([a-z0-9-]+\.)*illinois\.edu$')
+  -- Anchored at both ends: an unanchored pattern would accept an empty local
+  -- part, and `attacker@evil.com@illinois.edu`.
+  constraint users_illinois_email
+    check (email ~* '^[^@[:space:]]+@([a-z0-9-]+\.)*illinois\.edu$')
 );
 
 create table management_companies (
@@ -49,7 +69,7 @@ create table reviews (
   id            uuid primary key default gen_random_uuid(),
   property_id   uuid not null references properties(id) on delete cascade,
   -- Nullable on purpose: reviews written before accounts existed, and the
-  -- seeded demo rows, have no author. A null author can never pass an
+  -- seeded demo rows, have no author. A null author can never satisfy an
   -- ownership check, so those rows are readable but not editable by anyone.
   author_id     uuid references users(id) on delete set null,
   maintenance   smallint not null check (maintenance between 1 and 5),
@@ -63,9 +83,6 @@ create table reviews (
   is_sample     boolean not null default false,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
-  -- One review per person per property. Postgres treats nulls as distinct, so
-  -- this constrains real authors without blocking multiple legacy rows.
-  constraint reviews_one_per_author_property unique (author_id, property_id),
   constraint reviews_sample_has_no_author check (not is_sample or author_id is null)
 );
 
@@ -81,15 +98,22 @@ create table review_reports (
   resolved_by uuid references users(id) on delete set null,
   resolved_at timestamptz,
   created_at  timestamptz not null default now(),
-  -- A person may report a given review once.
   constraint review_reports_one_per_reporter unique (review_id, reporter_id),
-  -- Resolution metadata and status cannot disagree.
   constraint review_reports_resolution_consistent
     check ((status = 'open') = (resolved_at is null))
 );
 
+create trigger users_set_updated_at before update on users
+  for each row execute function set_updated_at();
+create trigger management_companies_set_updated_at before update on management_companies
+  for each row execute function set_updated_at();
+create trigger properties_set_updated_at before update on properties
+  for each row execute function set_updated_at();
+create trigger reviews_set_updated_at before update on reviews
+  for each row execute function set_updated_at();
+
 -- Indexes -------------------------------------------------------------------
--- Each one exists for a named query; see docs/DATABASE.md.
+-- Each one exists for a named query; see docs/DATABASE.md for measurements.
 
 create index properties_company_id_idx on properties (company_id);
 create index properties_neighborhood_idx on properties (neighborhood);
@@ -98,17 +122,31 @@ create index properties_bedrooms_idx on properties using gin (bedrooms);
 create index properties_name_trgm_idx on properties using gin (name gin_trgm_ops);
 create index properties_address_trgm_idx on properties using gin (address gin_trgm_ops);
 
+-- One review per person per property, but a removed review must not lock the
+-- author out of that property forever: moderation would otherwise be a
+-- permanent ban on a single building. A partial unique index, rather than a
+-- table constraint, because constraints cannot carry a WHERE clause.
+create unique index reviews_one_per_author_property
+  on reviews (author_id, property_id)
+  where status <> 'removed';
+
 -- Serves both the per-property average and the newest-first review page.
 create index reviews_property_created_idx on reviews (property_id, created_at desc);
+
+-- "My reviews", including removed ones, which the partial unique index above
+-- does not cover. Partial because legacy rows have no author to look up.
 create index reviews_author_idx on reviews (author_id) where author_id is not null;
+
+-- reporter_id cascades from users; without this, deleting an account
+-- sequentially scans this table. Also serves "reports I filed".
+create index review_reports_reporter_idx on review_reports (reporter_id);
 
 -- The moderation queue only ever reads open reports.
 create index review_reports_open_idx on review_reports (created_at desc) where status = 'open';
 
 -- Aggregates ----------------------------------------------------------------
--- Averages are computed in SQL rather than in application code. LEFT JOIN
--- LATERAL rather than GROUP BY so filters on properties (search, area, rent,
--- bedrooms) apply before any review row is read.
+-- Averages are computed in SQL. LEFT JOIN LATERAL rather than GROUP BY so
+-- filters on properties apply before any review row is read.
 
 create view property_stats with (security_invoker = true) as
 select p.id, p.slug, p.name, p.address, p.neighborhood,
@@ -119,11 +157,11 @@ select p.id, p.slug, p.name, p.address, p.neighborhood,
 from properties p
 left join management_companies c on c.id = p.company_id
 left join lateral (
-  select count(*)::int                             as review_count,
-         round(avg(r.overall), 1)                  as avg_overall,
-         round(avg(r.maintenance), 1)              as avg_maintenance,
-         round(avg(r.communication), 1)            as avg_communication,
-         round(avg(r.value), 1)                    as avg_value
+  select count(*)::int                  as review_count,
+         round(avg(r.overall), 1)       as avg_overall,
+         round(avg(r.maintenance), 1)   as avg_maintenance,
+         round(avg(r.communication), 1) as avg_communication,
+         round(avg(r.value), 1)         as avg_value
   from reviews r
   where r.property_id = p.id and r.status = 'published'
 ) s on true;
@@ -154,3 +192,4 @@ drop table if exists reviews;
 drop table if exists properties;
 drop table if exists management_companies;
 drop table if exists users;
+drop function if exists set_updated_at();

@@ -7,12 +7,13 @@
     "node": ">=24"
   },
   "scripts": {
+    "migrate:create": "node-pg-migrate create -j sql -m migrations",
     "db:migrate": "DATABASE_URL=${DATABASE_URL:-postgres://housing:housing_dev@localhost:5433/housing} node-pg-migrate up",
     "db:rollback": "DATABASE_URL=${DATABASE_URL:-postgres://housing:housing_dev@localhost:5433/housing} node-pg-migrate down",
     "db:seed": "node scripts/seed.mjs",
+    "db:benchmark": "node scripts/benchmark.mjs",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
-    "db:benchmark": "node scripts/benchmark.mjs"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "pg": "^8.23.0"

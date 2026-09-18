@@ -3,10 +3,16 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import pg from 'pg'
+import { assertLocalDatabase } from './guard.mjs'
 
 const DEFAULT_URL = 'postgres://housing:housing_dev@localhost:5433/housing'
+const connectionString = process.env.DATABASE_URL ?? DEFAULT_URL
+
+// seeds/dev.sql truncates every table before inserting.
+assertLocalDatabase(connectionString, 'seed (truncates all tables)')
+
 const sql = readFileSync(fileURLToPath(new URL('../seeds/dev.sql', import.meta.url)), 'utf8')
-const client = new pg.Client({ connectionString: process.env.DATABASE_URL ?? DEFAULT_URL })
+const client = new pg.Client({ connectionString })
 
 await client.connect()
 try {
