@@ -1,0 +1,13 @@
+# Local state contains the generated database password in plaintext.
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Not committed on purpose. OpenTofu and Terraform resolve providers from
+# different registries, so a lock file written by one can break the other, and
+# this configuration is meant to work with either. Commit it once the team has
+# settled on one tool — reproducible provider versions are worth more than
+# portability at that point.
+.terraform.lock.hcl
+*.tfvars
+!example.tfvars
