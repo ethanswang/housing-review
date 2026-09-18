@@ -1,5 +1,5 @@
 import type { Database } from '../db.ts'
-import { type Averages, type Page, escapeLike, toNumber, toPage } from './shared.ts'
+import { type Averages, type Page, escapeLike, toNumber, toPage, totalForPage } from './shared.ts'
 
 /**
  * Every property read lives here. Routes never build SQL, and nothing outside
@@ -146,15 +146,11 @@ export async function listProperties(
     params
   )
 
-  // count(*) over() only reports a total when rows come back. Asking for a page
-  // past the end would otherwise answer "total: 0", telling the client the
-  // filter matches nothing when it matches plenty.
-  let total = rows.length ? Number(rows[0].total_count) : 0
-  if (!rows.length && query.page > 1) {
-    // Counted against the base tables rather than property_stats: every filter
-    // the WHERE can reference is available from this join, and counting through
-    // the view would run the per-property review aggregate for every matching
-    // row only to discard it.
+  // Counted against the base tables rather than property_stats: every filter the
+  // WHERE can reference is available from this join, and counting through the
+  // view would run the per-property review aggregate for every matching row
+  // only to discard it.
+  const total = await totalForPage(rows, query.page, async () => {
     const { rows: counted } = await db.query(
       `select count(*)::int as total from (
          select p.name, p.address, p.neighborhood, p.rent_min, p.bedrooms,
@@ -164,8 +160,8 @@ export async function listProperties(
        ) as filtered ${where}`,
       filterParams
     )
-    total = counted[0].total
-  }
+    return counted[0].total
+  })
 
   return toPage(rows.map(toSummary), query.page, query.perPage, total)
 }
@@ -194,14 +190,13 @@ export async function listReviewsForProperty(
     [propertyId, perPage, (page - 1) * perPage]
   )
 
-  let total = rows.length ? Number(rows[0].total_count) : 0
-  if (!rows.length && page > 1) {
+  const total = await totalForPage(rows, page, async () => {
     const { rows: counted } = await db.query(
       `select count(*)::int as total from reviews where property_id = $1 and status = 'published'`,
       [propertyId]
     )
-    total = counted[0].total
-  }
+    return counted[0].total
+  })
 
   return toPage(
     rows.map((row) => ({

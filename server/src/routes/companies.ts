@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { Database } from '../db.ts'
 import { notFound } from '../errors.ts'
 import {
+  type CompanyDetail,
   getCompanyBySlug,
   listCompanies,
   listCompanyProperties,
@@ -33,7 +34,9 @@ export async function companyRoutes(app: FastifyInstance, options: { db: Databas
     })
   })
 
-  app.get('/companies/:slug', async (request) => {
+  // Annotated so the declared response contract is enforced by the compiler
+  // rather than merely documented next to code that could drift from it.
+  app.get('/companies/:slug', async (request): Promise<CompanyDetail> => {
     const { slug } = parse(z.object({ slug: slugSchema }), request.params)
     const company = await getCompanyBySlug(options.db, slug)
     if (!company) throw notFound(`No management company with slug "${slug}"`)

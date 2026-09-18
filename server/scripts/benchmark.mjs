@@ -41,8 +41,20 @@ try {
      where p.slug like 'bench-%'`,
     [REVIEWS_EACH]
   )
+  // Companies too: every sort key on /api/companies is computed per company
+  // before the limit applies, so no index can avoid a full pass. Unmeasured,
+  // that cost is invisible until it is not.
+  await client.query(`
+    insert into management_companies (name, slug)
+    select 'Company ' || g, 'bench-co-' || g from generate_series(1, 500) g`)
+  await client.query(`
+    update properties set company_id = c.id
+    from (select id, row_number() over () as n from management_companies where slug like 'bench-co-%') c
+    where properties.slug like 'bench-%'
+      and c.n = 1 + (abs(hashtext(properties.slug)) % 500)`)
   await client.query('analyze properties')
   await client.query('analyze reviews')
+  await client.query('analyze management_companies')
 
   const { rows: counts } = await client.query(
     'select (select count(*) from properties) as properties, (select count(*) from reviews) as reviews'
@@ -58,6 +70,9 @@ try {
        where neighborhood = 'Campustown' and rent_min <= 900 and bedrooms && '{2,3}'::int[]
        order by avg_overall desc nulls last, slug limit 24`,
     'one property page': `select * from property_stats where slug = 'bench-4242'`,
+    'company list, sorted by rating': `select * from company_stats
+       order by avg_overall desc nulls last, slug limit 24`,
+    'one company page': `select * from company_stats where slug = 'bench-co-42'`,
     'review page for one property': `select r.* from reviews r
        join properties p on p.id = r.property_id
        where p.slug = 'bench-4242' and r.status = 'published'

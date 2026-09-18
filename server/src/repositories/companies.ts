@@ -1,6 +1,6 @@
 import type { Database } from '../db.ts'
 import { type PropertySummary, toSummary } from './properties.ts'
-import { type Averages, type Page, toNumber, toPage } from './shared.ts'
+import { type Averages, type Page, toNumber, toPage, totalForPage } from './shared.ts'
 
 export type CompanySortKey = 'rating' | 'name' | 'properties' | 'reviews'
 
@@ -72,13 +72,12 @@ export async function listCompanies(
     [query.perPage, offset]
   )
 
-  let total = rows.length ? Number(rows[0].total_count) : 0
-  if (!rows.length && query.page > 1) {
+  const total = await totalForPage(rows, query.page, async () => {
     const { rows: counted } = await db.query(
       'select count(*)::int as total from management_companies'
     )
-    total = counted[0].total
-  }
+    return counted[0].total
+  })
 
   return toPage(rows.map(toCompany), query.page, query.perPage, total)
 }
@@ -107,14 +106,13 @@ export async function listCompanyProperties(
     [companyId, perPage, (page - 1) * perPage]
   )
 
-  let total = rows.length ? Number(rows[0].total_count) : 0
-  if (!rows.length && page > 1) {
+  const total = await totalForPage(rows, page, async () => {
     const { rows: counted } = await db.query(
       'select count(*)::int as total from properties where company_id = $1',
       [companyId]
     )
-    total = counted[0].total
-  }
+    return counted[0].total
+  })
 
   return toPage(rows.map(toSummary), page, perPage, total)
 }
