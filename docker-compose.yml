@@ -1,0 +1,29 @@
+# Local development database. The production database is managed separately;
+# this exists so `docker compose up -d` gives every contributor an identical
+# Postgres without installing one.
+services:
+  db:
+    image: postgres:17-alpine
+    # random_page_cost defaults to 4.0, which models a spinning disk. On SSD
+    # storage (Docker Desktop here, gp3 volumes in production) the planner
+    # otherwise refuses the trigram indexes and sequentially scans instead:
+    # measured 23ms vs 1.3ms for a property search over 50k rows. Keeping the
+    # value here means local plans match production plans.
+    command: postgres -c random_page_cost=1.1
+    environment:
+      POSTGRES_USER: housing
+      POSTGRES_PASSWORD: housing_dev
+      POSTGRES_DB: housing
+    # 5433 on the host so this never collides with a Postgres already on 5432.
+    ports:
+      - '5433:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U housing -d housing']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db-data:

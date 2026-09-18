@@ -1,0 +1,32 @@
+{
+  "name": "uiuc-housing-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "migrate:create": "node-pg-migrate create -j sql -m migrations",
+    "db:migrate": "DATABASE_URL=${DATABASE_URL:-postgres://housing:housing_dev@localhost:5433/housing} node-pg-migrate up",
+    "db:rollback": "DATABASE_URL=${DATABASE_URL:-postgres://housing:housing_dev@localhost:5433/housing} node-pg-migrate down",
+    "db:seed": "node scripts/seed.mjs",
+    "db:benchmark": "node scripts/benchmark.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "dev": "DATABASE_URL=${DATABASE_URL:-postgres://housing:housing_dev@localhost:5433/housing} node --watch src/server.ts",
+    "start": "node src/server.ts"
+  },
+  "dependencies": {
+    "fastify": "^5.12.5",
+    "pg": "^8.23.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.5",
+    "@types/pg": "^8.23.1",
+    "node-pg-migrate": "^9.0.0",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.1"
+  }
+}
