@@ -129,3 +129,33 @@ jobs:
           fi
 
           docker rm -f api-ci
+
+  infra:
+    name: Infrastructure (format, validate)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install OpenTofu
+        # Downloaded and checksum-verified rather than pulled in as a
+        # third-party action, so the whole supply chain for this job is two
+        # commands you can read.
+        run: |
+          VERSION=1.12.6
+          ZIP="tofu_${VERSION}_linux_amd64.zip"
+          BASE="https://github.com/opentofu/opentofu/releases/download/v${VERSION}"
+          curl -sSLo "$ZIP" "$BASE/$ZIP"
+          curl -sSLo sums.txt "$BASE/tofu_${VERSION}_SHA256SUMS"
+          grep " $ZIP$" sums.txt | sha256sum -c -
+          unzip -oq "$ZIP" tofu
+          sudo install -m 0755 tofu /usr/local/bin/tofu
+          rm -f "$ZIP" sums.txt tofu
+      - run: tofu fmt -check -diff
+      - name: Validate
+        # -backend=false: validation needs the providers, not credentials or
+        # state, so this runs without any AWS access at all.
+        run: |
+          tofu init -backend=false -input=false
+          tofu validate
