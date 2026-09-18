@@ -29,8 +29,11 @@ export type Property = {
   company_id: string | null
 }
 
+/** The categories shown as bars. `overall` is displayed separately as the headline score. */
+export const SUB_RATING_KEYS = ['maintenance', 'communication', 'value'] as const
+
 /** The four things students are asked to rate. Order is display order. */
-export const RATING_KEYS = ['overall', 'maintenance', 'communication', 'value'] as const
+export const RATING_KEYS = ['overall', ...SUB_RATING_KEYS] as const
 export type RatingKey = (typeof RATING_KEYS)[number]
 
 export const RATING_LABELS: Record<RatingKey, string> = {

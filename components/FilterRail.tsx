@@ -76,81 +76,81 @@ export function FilterRail({ filters, options }: { filters: PropertyFilters; opt
             )}
           </div>
 
-      <Group title="Sort by">
-        <select
-          value={filters.sort ?? 'rating'}
-          onChange={(e) => apply({ ...filters, sort: e.target.value as PropertyFilters['sort'] })}
-          className="w-full border border-rule bg-paper-card px-3 py-2 text-sm"
-        >
-          <option value="rating">Highest rated</option>
-          <option value="price">Lowest price</option>
-          <option value="reviews">Most reviewed</option>
-        </select>
-      </Group>
+          <Group title="Sort by">
+            <select
+              value={filters.sort ?? 'rating'}
+              onChange={(e) => apply({ ...filters, sort: e.target.value as PropertyFilters['sort'] })}
+              className="w-full border border-rule bg-paper-card px-3 py-2 text-sm"
+            >
+              <option value="rating">Highest rated</option>
+              <option value="price">Lowest price</option>
+              <option value="reviews">Most reviewed</option>
+            </select>
+          </Group>
 
-      <Group title="Management company">
-        {options.companies.map((company) => (
-          <Check
-            key={company.slug}
-            label={company.name}
-            checked={filters.companies?.includes(company.slug) ?? false}
-            onChange={() => apply({ ...filters, companies: toggle(filters.companies, company.slug) })}
-          />
-        ))}
-      </Group>
+          <Group title="Management company">
+            {options.companies.map((company) => (
+              <Check
+                key={company.slug}
+                label={company.name}
+                checked={filters.companies?.includes(company.slug) ?? false}
+                onChange={() => apply({ ...filters, companies: toggle(filters.companies, company.slug) })}
+              />
+            ))}
+          </Group>
 
-      <Group title="Area">
-        {options.neighborhoods.map((hood) => (
-          <Check
-            key={hood}
-            label={hood}
-            checked={filters.neighborhoods?.includes(hood) ?? false}
-            onChange={() => apply({ ...filters, neighborhoods: toggle(filters.neighborhoods, hood) })}
-          />
-        ))}
-      </Group>
+          <Group title="Area">
+            {options.neighborhoods.map((hood) => (
+              <Check
+                key={hood}
+                label={hood}
+                checked={filters.neighborhoods?.includes(hood) ?? false}
+                onChange={() => apply({ ...filters, neighborhoods: toggle(filters.neighborhoods, hood) })}
+              />
+            ))}
+          </Group>
 
-      <Group title="Max rent">
-        <input
-          type="range"
-          min={400}
-          max={rentCeiling}
-          step={25}
-          value={rent}
-          onChange={(e) => setRent(Number(e.target.value))}
-          onMouseUp={() => apply({ ...filters, maxRent: rent >= rentCeiling ? undefined : rent })}
-          onTouchEnd={() => apply({ ...filters, maxRent: rent >= rentCeiling ? undefined : rent })}
-          onKeyUp={() => apply({ ...filters, maxRent: rent >= rentCeiling ? undefined : rent })}
-          className="w-full accent-accent"
-          aria-label="Maximum rent per month"
-        />
-        <p className="tnum font-mono text-xs text-ink-soft">
-          {rent >= rentCeiling ? 'Any price' : `Up to $${rent.toLocaleString()}/mo`}
-        </p>
-      </Group>
+          <Group title="Max rent">
+            <input
+              type="range"
+              min={400}
+              max={rentCeiling}
+              step={25}
+              value={rent}
+              onChange={(e) => setRent(Number(e.target.value))}
+              onMouseUp={() => apply({ ...filters, maxRent: rent >= rentCeiling ? undefined : rent })}
+              onTouchEnd={() => apply({ ...filters, maxRent: rent >= rentCeiling ? undefined : rent })}
+              onKeyUp={() => apply({ ...filters, maxRent: rent >= rentCeiling ? undefined : rent })}
+              className="w-full accent-accent"
+              aria-label="Maximum rent per month"
+            />
+            <p className="tnum font-mono text-xs text-ink-soft">
+              {rent >= rentCeiling ? 'Any price' : `Up to $${rent.toLocaleString()}/mo`}
+            </p>
+          </Group>
 
-      <Group title="Bedrooms">
-        <div className="flex flex-wrap gap-2">
-          {options.bedrooms.map((count) => {
-            const active = filters.bedrooms?.includes(count) ?? false
-            return (
-              <button
-                key={count}
-                type="button"
-                onClick={() => apply({ ...filters, bedrooms: toggle(filters.bedrooms, count) })}
-                aria-pressed={active}
-                className={`tnum min-w-10 border px-3 py-1.5 font-mono text-xs transition-colors ${
-                  active
-                    ? 'border-accent bg-accent text-paper-card'
-                    : 'border-rule bg-paper-card hover:border-ink'
-                }`}
-              >
-                {count}
-              </button>
-            )
-          })}
-        </div>
-      </Group>
+          <Group title="Bedrooms">
+            <div className="flex flex-wrap gap-2">
+              {options.bedrooms.map((count) => {
+                const active = filters.bedrooms?.includes(count) ?? false
+                return (
+                  <button
+                    key={count}
+                    type="button"
+                    onClick={() => apply({ ...filters, bedrooms: toggle(filters.bedrooms, count) })}
+                    aria-pressed={active}
+                    className={`tnum min-w-10 border px-3 py-1.5 font-mono text-xs transition-colors ${
+                      active
+                        ? 'border-accent bg-accent text-paper-card'
+                        : 'border-rule bg-paper-card hover:border-ink'
+                    }`}
+                  >
+                    {count}
+                  </button>
+                )
+              })}
+            </div>
+          </Group>
 
           {hasActiveFilters(filters) && (
             <button
