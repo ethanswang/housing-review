@@ -3,9 +3,13 @@
 The API runs on AWS. The frontend stays on Vercel. Everything here is OpenTofu/Terraform in
 `infra/`, applied by hand — there is no automated deploy pipeline yet.
 
-> **Status: written and validated, not yet applied.** `tofu validate` passes, but nothing in
-> this document has been run against a real AWS account. `tofu plan` will surface anything
-> that only an API call can catch.
+> **Status: applied and serving.** The stack is running in `us-east-2`: EC2 `t4g.micro` with
+> the container, RDS PostgreSQL 17.9 (encrypted, private, one-day backups), and the schema
+> migrated. `/healthz`, `/readyz`, `/api/properties` and `/api/companies` all answer, writes
+> refuse unauthenticated callers, and logs reach CloudWatch.
+>
+> The database holds the schema and no rows. Seeding is deliberately not done here: the seed
+> truncates every table, and `scripts/guard.mjs` refuses any non-local host for that reason.
 
 ## Shape
 
@@ -120,7 +124,10 @@ aws ecr get-login-password --region us-east-2 | docker login --username AWS --pa
 # --platform is not optional. The instance is t4g, which is arm64; an image
 # built on an x86 laptop or on x86 CI will not run there, and the failure looks
 # like a container that exits immediately with no useful message.
-docker buildx build --platform linux/arm64 -t "$REPO:latest" --push ./server
+# Braces are not optional in zsh: it reads `$REPO:l` as the lowercase modifier,
+# so "$REPO:latest" expands to "<repo>atest" and the push fails against a
+# repository that does not exist.
+docker buildx build --platform linux/arm64 -t "${REPO}:latest" --push ./server
 
 aws ssm send-command \
   --instance-ids "$(tofu -chdir=infra output -raw api_instance_id)" \
@@ -129,7 +136,9 @@ aws ssm send-command \
 ```
 
 Migrations run separately, from a machine that can reach the database — the instance itself,
-over Session Manager, since RDS is not reachable from outside the VPC:
+since RDS is not reachable from outside the VPC. The image deliberately excludes the migration
+tooling, so the practical route is to send the SQL through Session Manager and apply it with a
+throwaway `postgres` container, mounting the certificate bundle so TLS still verifies:
 
 ```bash
 aws ssm start-session --target "$(tofu -chdir=infra output -raw api_instance_id)"

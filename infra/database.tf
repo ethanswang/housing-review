@@ -110,7 +110,7 @@ resource "aws_db_instance" "main" {
   # project where an hour of downtime during a failover is acceptable.
   multi_az = false
 
-  backup_retention_period = 7
+  backup_retention_period = var.backup_retention_days
   backup_window           = "07:00-08:00"
   maintenance_window      = "Mon:08:00-Mon:09:00"
 

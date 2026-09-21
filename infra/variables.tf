@@ -55,3 +55,9 @@ variable "api_ingress_cidr" {
   type        = string
   default     = "0.0.0.0/0"
 }
+
+variable "backup_retention_days" {
+  description = "Automated backup retention. The credit-based free plan caps this, and RDS rejects a larger value with FreeTierRestrictionError rather than clamping it. Raise it on a paid plan; 7 is a reasonable target."
+  type        = number
+  default     = 1
+}
