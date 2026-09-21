@@ -185,7 +185,8 @@ describe('POST /api/properties/:slug/reviews', () => {
 
   it('rejects a missing rating rather than defaulting it', async () => {
     const { bearer } = await signIn()
-    const { overall, ...withoutOverall } = VALID
+    const withoutOverall: Record<string, unknown> = { ...VALID }
+    delete withoutOverall.overall
     const response = await post(`/api/properties/${propertySlug}/reviews`, withoutOverall, bearer)
     expect(response.statusCode).toBe(400)
   })
