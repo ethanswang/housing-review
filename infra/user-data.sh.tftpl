@@ -14,7 +14,11 @@ CADDY_VERSION=2.11.4
 cd /tmp
 curl -fsSLO --retry 5 "https://github.com/caddyserver/caddy/releases/download/v$${CADDY_VERSION}/caddy_$${CADDY_VERSION}_linux_arm64.tar.gz"
 curl -fsSLO --retry 5 "https://github.com/caddyserver/caddy/releases/download/v$${CADDY_VERSION}/caddy_$${CADDY_VERSION}_checksums.txt"
-grep " caddy_$${CADDY_VERSION}_linux_arm64.tar.gz$" "caddy_$${CADDY_VERSION}_checksums.txt" | sha256sum -c -
+# sha512sum, not sha256sum: Caddy publishes 128-hex-character SHA-512 digests,
+# and sha256sum rejects them outright with "no properly formatted SHA256
+# checksum lines found" — which aborts this script and, because user-data runs
+# exactly once, leaves an instance that never installs anything.
+grep " caddy_$${CADDY_VERSION}_linux_arm64.tar.gz$" "caddy_$${CADDY_VERSION}_checksums.txt" | sha512sum -c -
 tar -xzf "caddy_$${CADDY_VERSION}_linux_arm64.tar.gz" caddy
 install -m 0755 caddy /usr/local/bin/caddy
 rm -f caddy caddy_$${CADDY_VERSION}_*
@@ -23,15 +27,19 @@ id caddy >/dev/null 2>&1 || useradd --system --home /var/lib/caddy --shell /usr/
 mkdir -p /etc/caddy /var/lib/caddy
 chown -R caddy:caddy /var/lib/caddy
 
-cat >/etc/caddy/Caddyfile <<CADDYEOF
+# The global block is emitted only when there is an address to put in it: a
+# bare `email` directive with no argument is a Caddyfile parse error, so an
+# unset acme_email would stop Caddy starting at all.
+ACME_EMAIL="${acme_email}"
 {
-  email ${acme_email}
-}
+  if [ -n "$ACME_EMAIL" ]; then
+    printf '{\n  email %s\n}\n\n' "$ACME_EMAIL"
+  fi
+  printf '%s {\n  reverse_proxy 127.0.0.1:3001\n}\n' "${api_domain}"
+} >/etc/caddy/Caddyfile
 
-${api_domain} {
-  reverse_proxy 127.0.0.1:3001
-}
-CADDYEOF
+# Fail here, loudly and early, rather than leaving a service that will not start.
+/usr/local/bin/caddy validate --config /etc/caddy/Caddyfile
 
 cat >/etc/systemd/system/caddy.service <<'CADDYUNIT'
 [Unit]
