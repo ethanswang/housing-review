@@ -20,7 +20,9 @@ resource "aws_vpc_security_group_ingress_rule" "api_http" {
   from_port         = 80
   to_port           = 80
   ip_protocol       = "tcp"
-  description       = "API traffic. Vercel's egress addresses are not fixed, so the frontend cannot be allow-listed by address."
+  # AWS restricts rule descriptions to a-zA-Z0-9 and a short punctuation set
+  # that excludes the apostrophe, so this wording avoids one deliberately.
+  description = "API traffic. Vercel egress addresses are not fixed, so the frontend cannot be allow-listed by address."
 }
 
 # Optional and off by default. Session Manager gives a shell through IAM with
@@ -40,7 +42,7 @@ resource "aws_vpc_security_group_egress_rule" "api_all" {
   security_group_id = aws_security_group.api.id
   cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "-1"
-  description       = "Outbound: the database, ECR, Secrets Manager, CloudWatch, and Supabase's public keys"
+  description       = "Outbound: the database, ECR, Secrets Manager, CloudWatch, and the Supabase public keys"
 }
 
 resource "aws_iam_role" "api" {
