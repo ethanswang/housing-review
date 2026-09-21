@@ -25,7 +25,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
 
       <header className="mt-6 flex flex-wrap items-start justify-between gap-6 border-b-2 border-ink pb-6">
         <div>
-          <h2 className="font-display text-4xl leading-tight sm:text-5xl">{property.name}</h2>
+          <h2 className="text-4xl leading-tight sm:text-5xl">{property.name}</h2>
           <p className="label mt-2">
             {property.company ? (
               <Link href={`/companies/${property.company.slug}`} className="hover:text-accent">
@@ -58,7 +58,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
       )}
 
       <section className="mt-14">
-        <h3 className="font-display text-2xl">Write a review</h3>
+        <h3 className="text-2xl">Write a review</h3>
         <p className="mt-2 text-sm text-ink-soft">No account needed. Takes about a minute.</p>
         <div className="mt-6">
           <ReviewForm propertyId={property.id} slug={property.slug} />
@@ -67,7 +67,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
 
       <section className="mt-16">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="font-display text-2xl">
+          <h3 className="text-2xl">
             {property.reviewCount} {property.reviewCount === 1 ? 'review' : 'reviews'}
           </h3>
           {sampleCount > 0 && (

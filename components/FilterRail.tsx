@@ -58,13 +58,13 @@ export function FilterRail({ filters, options }: { filters: PropertyFilters; opt
         className="border-b border-ink lg:border-b-0"
       >
         <summary className="flex cursor-pointer list-none items-baseline justify-between py-2 lg:hidden [&::-webkit-details-marker]:hidden">
-          <h2 className="font-display text-xl">Refine</h2>
+          <h2 className="text-xl">Refine</h2>
           <span className="label">{open ? 'Hide' : 'Filter & sort'}</span>
         </summary>
 
         <div className="flex flex-col gap-7 pb-6 lg:pb-0">
           <div className="hidden items-baseline justify-between border-b border-ink pb-2 lg:flex">
-            <h2 className="font-display text-xl">Refine</h2>
+            <h2 className="text-xl">Refine</h2>
             {hasActiveFilters(filters) && (
               <button
                 type="button"
