@@ -1,6 +1,11 @@
 output "api_url" {
-  description = "Where the API answers. Point the frontend here."
-  value       = "http://${aws_eip.api.public_ip}"
+  description = "Where the API answers. Point the frontend here. Requires an A record for api_domain pointing at api_ip."
+  value       = "https://${var.api_domain}"
+}
+
+output "api_ip" {
+  description = "The address api_domain must resolve to."
+  value       = aws_eip.api.public_ip
 }
 
 output "api_instance_id" {

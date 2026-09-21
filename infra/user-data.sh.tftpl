@@ -2,9 +2,72 @@
 set -euxo pipefail
 
 dnf -y update
-dnf -y install docker awscli-2 jq
+dnf -y install docker awscli-2 jq tar
 systemctl enable --now docker
 
+# --- TLS terminator -------------------------------------------------------
+# Caddy obtains and renews a Let's Encrypt certificate on its own, so nothing
+# here has an expiry date a human has to remember. Installed from the release
+# tarball with its checksum verified, rather than from a third-party repository,
+# so the whole supply chain for it is visible in this file.
+CADDY_VERSION=2.11.4
+cd /tmp
+curl -fsSLO --retry 5 "https://github.com/caddyserver/caddy/releases/download/v$${CADDY_VERSION}/caddy_$${CADDY_VERSION}_linux_arm64.tar.gz"
+curl -fsSLO --retry 5 "https://github.com/caddyserver/caddy/releases/download/v$${CADDY_VERSION}/caddy_$${CADDY_VERSION}_checksums.txt"
+# sha512sum, not sha256sum: Caddy publishes 128-hex-character SHA-512 digests,
+# and sha256sum rejects them outright with "no properly formatted SHA256
+# checksum lines found" — which aborts this script and, because user-data runs
+# exactly once, leaves an instance that never installs anything.
+grep " caddy_$${CADDY_VERSION}_linux_arm64.tar.gz$" "caddy_$${CADDY_VERSION}_checksums.txt" | sha512sum -c -
+tar -xzf "caddy_$${CADDY_VERSION}_linux_arm64.tar.gz" caddy
+install -m 0755 caddy /usr/local/bin/caddy
+rm -f caddy caddy_$${CADDY_VERSION}_*
+
+id caddy >/dev/null 2>&1 || useradd --system --home /var/lib/caddy --shell /usr/sbin/nologin caddy
+mkdir -p /etc/caddy /var/lib/caddy
+chown -R caddy:caddy /var/lib/caddy
+
+# The global block is emitted only when there is an address to put in it: a
+# bare `email` directive with no argument is a Caddyfile parse error, so an
+# unset acme_email would stop Caddy starting at all.
+ACME_EMAIL="${acme_email}"
+{
+  if [ -n "$ACME_EMAIL" ]; then
+    printf '{\n  email %s\n}\n\n' "$ACME_EMAIL"
+  fi
+  printf '%s {\n  reverse_proxy 127.0.0.1:3001\n}\n' "${api_domain}"
+} >/etc/caddy/Caddyfile
+
+# Fail here, loudly and early, rather than leaving a service that will not start.
+/usr/local/bin/caddy validate --config /etc/caddy/Caddyfile
+
+cat >/etc/systemd/system/caddy.service <<'CADDYUNIT'
+[Unit]
+Description=Caddy
+After=network.target
+
+[Service]
+User=caddy
+Group=caddy
+ExecStart=/usr/local/bin/caddy run --environ --config /etc/caddy/Caddyfile
+ExecReload=/usr/local/bin/caddy reload --config /etc/caddy/Caddyfile --force
+Restart=on-failure
+# Binding 80 and 443 without running as root.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+ProtectSystem=full
+Environment=XDG_DATA_HOME=/var/lib/caddy
+Environment=XDG_CONFIG_HOME=/var/lib/caddy
+
+[Install]
+WantedBy=multi-user.target
+CADDYUNIT
+
+systemctl daemon-reload
+systemctl enable --now caddy.service
+
+# --- API ------------------------------------------------------------------
 # Credentials are read at start time from Secrets Manager, never baked into the
 # image or written to disk in plaintext. The unit re-reads them on every restart,
 # so rotating the password is a restart rather than a redeploy.
@@ -37,14 +100,17 @@ DATABASE_URL=$(printf '%s' "$SECRET" | jq -r .database_url)
 
 docker rm -f api >/dev/null 2>&1 || true
 
+# Bound to the loopback interface, not 0.0.0.0: the only way in is through
+# Caddy, so there is no plaintext port reachable from the internet even though
+# the security group would allow one.
 exec docker run --rm --name api \
-  -p 80:3001 \
+  -p 127.0.0.1:3001:3001 \
   -e NODE_ENV=production \
   -e PORT=3001 \
   -e DATABASE_URL="$DATABASE_URL" \
   -e SUPABASE_URL="${supabase_url}" \
   -e LOG_LEVEL=info \
-  -e TRUST_PROXY_HOPS=0 \
+  -e TRUST_PROXY_HOPS=1 \
   -v "$(dirname "$CA_PATH")":"$(dirname "$CA_PATH")":ro \
   --log-driver=awslogs \
   --log-opt awslogs-region="$REGION" \

@@ -67,6 +67,21 @@ Node's Mozilla trust store — which contains none of the three `Amazon RDS ... 
 certificates. With `rds.force_ssl = 1` there is no fallback to plaintext either, so the symptom
 would have been a container that starts, passes `/healthz`, and fails every request.
 
+**TLS terminates at Caddy on the instance.** It obtains and renews a Let's Encrypt
+certificate by itself, so nothing here has an expiry date a person has to remember, and it
+costs nothing — a load balancer would be about $16 a month for the same job at this size.
+Caddy is installed from the release tarball with its checksum verified rather than from a
+third-party repository, so the supply chain for it is readable in one file.
+
+The API container binds to `127.0.0.1` rather than `0.0.0.0`, so the only route in is through
+Caddy and there is no plaintext port reachable from the internet even though the security
+group would permit one. Port 80 stays open because the ACME challenge is served there and
+Caddy redirects it to HTTPS.
+
+**`api_domain` must resolve to the instance before the first apply.** Let's Encrypt validates
+over HTTP against whatever the name points at, so pointing it elsewhere means the certificate
+is never issued and the API answers nothing — the container is no longer listening publicly.
+
 **IMDSv2 required.** Version 1 is what turns a request-forgery bug in the application into
 credential theft.
 
@@ -205,8 +220,5 @@ topic and subscribe an address to actually be told.
 
 - **Continuous deployment.** Images are built and pushed by hand. The GitHub Actions workflow
   builds the image but does not push it; wiring that up needs an OIDC role in this account.
-- **TLS on the API.** It answers on port 80. A browser calling it from an HTTPS page will be
-  blocked as mixed content, so this has to be solved before the frontend can use it —
-  CloudFront in front, or a certificate on the instance.
 - **A notification target for the alarms.**
 - **A remote state backend.** State is local, which is fine for one operator and wrong for two.
