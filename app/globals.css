@@ -32,7 +32,18 @@ body {
   font-family: var(--font-body);
 }
 
-/* Small-caps mono label used for every piece of metadata on the site. */
+/* Small-caps mono label used for every piece of metadata on the site.
+
+   These rules sit outside any @layer, while Tailwind's utilities are inside
+   `@layer utilities`. Unlayered declarations win over layered ones no matter
+   their specificity, so `.label` cannot be overridden by a utility class:
+   `className="label normal-case"` still renders uppercase. Three places in the
+   components try exactly that and silently lose.
+
+   Wrapping this file's rules in `@layer components` would make those overrides
+   work — and would change how the rating labels, the anonymity note and the
+   sample badge render everywhere at once. That is a design decision, so it is
+   written down here rather than made in passing. */
 .label {
   font-family: var(--font-mono);
   font-size: 0.6875rem;

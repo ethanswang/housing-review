@@ -11,9 +11,7 @@ export function ScoreNumeral({
   const large = size === 'lg'
   if (score === null) {
     return (
-      <div className={large ? 'text-5xl' : 'text-4xl'}>
-        <span className="font-display text-muted">—</span>
-      </div>
+      <div className={`font-display text-muted ${large ? 'text-5xl' : 'text-4xl'}`}>—</div>
     )
   }
   return (
@@ -32,7 +30,7 @@ export function ScoreNumeral({
 function Bar({ label, score }: { label: string; score: number | null }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="label w-[7.5rem] shrink-0 normal-case tracking-normal text-ink-soft">
+      <span className="label w-30 shrink-0 normal-case tracking-normal text-ink-soft">
         {label}
       </span>
       <span className="h-[3px] flex-1 bg-rule-soft">

@@ -24,7 +24,7 @@ export function PropertyCard({ property }: { property: PropertyWithStats }) {
                 {property.name}
               </Link>
             </h3>
-            <p className="label mt-1.5 truncate">
+            <p className="label mt-1 truncate">
               {property.company?.name ?? 'Independent'} · {property.neighborhood}
             </p>
           </div>

@@ -59,9 +59,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
 
       <section className="mt-14">
         <h3 className="font-display text-2xl">Write a review</h3>
-        <p className="mt-1.5 text-sm text-ink-soft">
-          No account needed. Takes about a minute.
-        </p>
+        <p className="mt-2 text-sm text-ink-soft">No account needed. Takes about a minute.</p>
         <div className="mt-6">
           <ReviewForm propertyId={property.id} slug={property.slug} />
         </div>
