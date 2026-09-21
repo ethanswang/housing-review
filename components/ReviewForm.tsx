@@ -56,7 +56,7 @@ export function ReviewForm({ propertyId, slug }: { propertyId: string; slug: str
           placeholder="What should the next tenant know? Repairs, the office, noise, what you actually paid."
           className="border border-rule bg-paper-card px-3 py-2 text-sm leading-relaxed"
         />
-        <span className="label normal-case tracking-normal">
+        <span className="text-xs text-muted">
           Posted anonymously. Please don&rsquo;t name individual employees.
         </span>
       </label>
@@ -70,7 +70,7 @@ export function ReviewForm({ propertyId, slug }: { propertyId: string; slug: str
       <button
         type="submit"
         disabled={pending}
-        className="self-start bg-ink px-6 py-3 font-mono text-xs tracking-[0.12em] text-paper uppercase transition-colors hover:bg-accent disabled:opacity-50"
+        className="self-start bg-ink px-6 py-3 text-xs tracking-[0.12em] text-paper uppercase transition-colors hover:bg-accent disabled:opacity-50"
       >
         {pending ? 'Posting…' : 'Post review'}
       </button>
@@ -97,7 +97,7 @@ function StarInput({ name, label, hint }: { name: string; label: string; hint: s
               className="sr-only"
             />
             <span
-              className={`tnum flex size-9 items-center justify-center border font-mono text-xs transition-colors ${
+              className={`tnum flex size-9 items-center justify-center border text-xs transition-colors ${
                 value >= score
                   ? 'border-accent bg-accent text-paper-card'
                   : 'border-rule bg-paper-card hover:border-ink'

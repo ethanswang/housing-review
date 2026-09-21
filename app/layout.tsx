@@ -1,11 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Instrument_Serif, Public_Sans, IBM_Plex_Mono } from 'next/font/google'
+import { Instrument_Serif, Public_Sans } from 'next/font/google'
 import './globals.css'
 
 const display = Instrument_Serif({
   weight: ['400'],
-  style: ['normal', 'italic'],
   subsets: ['latin'],
   variable: '--font-instrument-serif',
 })
@@ -13,12 +12,6 @@ const display = Instrument_Serif({
 const body = Public_Sans({
   subsets: ['latin'],
   variable: '--font-public-sans',
-})
-
-const mono = IBM_Plex_Mono({
-  weight: ['400', '500'],
-  subsets: ['latin'],
-  variable: '--font-plex-mono',
 })
 
 export const metadata: Metadata = {
@@ -33,7 +26,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
+    <html lang="en" className={`${display.variable} ${body.variable}`}>
       <body className="min-h-screen flex flex-col antialiased">
         <header className="border-b border-rule">
           <div className="mx-auto max-w-6xl px-5">

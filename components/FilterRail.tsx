@@ -124,7 +124,7 @@ export function FilterRail({ filters, options }: { filters: PropertyFilters; opt
               className="w-full accent-accent"
               aria-label="Maximum rent per month"
             />
-            <p className="tnum font-mono text-xs text-ink-soft">
+            <p className="tnum text-xs text-ink-soft">
               {rent >= rentCeiling ? 'Any price' : `Up to $${rent.toLocaleString()}/mo`}
             </p>
           </Group>
@@ -139,7 +139,7 @@ export function FilterRail({ filters, options }: { filters: PropertyFilters; opt
                     type="button"
                     onClick={() => apply({ ...filters, bedrooms: toggle(filters.bedrooms, count) })}
                     aria-pressed={active}
-                    className={`tnum min-w-10 border px-3 py-1.5 font-mono text-xs transition-colors ${
+                    className={`tnum min-w-10 border px-3 py-1.5 text-xs transition-colors ${
                       active
                         ? 'border-accent bg-accent text-paper-card'
                         : 'border-rule bg-paper-card hover:border-ink'

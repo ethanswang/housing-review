@@ -24,8 +24,7 @@ export default async function DirectoryPage({
     <div className="mx-auto max-w-6xl px-5 py-10">
       <section className="max-w-3xl">
         <h2 className="font-display text-4xl leading-[1.1] sm:text-5xl">
-          Find out what it&rsquo;s actually like
-          <span className="text-accent"> to live there.</span>
+          Find out what it&rsquo;s actually like to live there.
         </h2>
         <p className="mt-4 max-w-xl text-[0.9375rem] leading-relaxed text-ink-soft">
           Apartment reviews written by Illinois students, scored on the things that decide whether a
