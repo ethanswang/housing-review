@@ -23,7 +23,7 @@ export default async function DirectoryPage({
   return (
     <div className="mx-auto max-w-6xl px-5 py-10">
       <section className="max-w-3xl">
-        <h2 className="text-4xl leading-[1.1] sm:text-5xl">
+        <h2 className="text-4xl leading-[1.1]">
           Find out what it&rsquo;s actually like to live there.
         </h2>
         <p className="mt-4 max-w-xl text-[0.9375rem] leading-relaxed text-ink-soft">
