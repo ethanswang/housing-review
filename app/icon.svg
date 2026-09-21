@@ -1,17 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="House">
   <!--
-    Drawn here rather than rendered from an emoji font: colour emoji fonts carry
-    their own licences, and a hand-drawn glyph can use the site's own palette.
-    Not the university's mark, deliberately — this site states that it is not
-    affiliated with the University of Illinois, so using its logo would imply an
-    endorsement that does not exist.
+    The emoji is embedded as a codepoint, not as glyph artwork, so the viewer's
+    own emoji font draws it. Nothing licensed is shipped, and there is no
+    university trademark here either: this site states it is not affiliated
+    with the University of Illinois.
 
-    The newsprint tile is opaque on purpose. A navy silhouette on a transparent
-    background disappears against a dark browser tab strip.
+    Consequence worth knowing: it renders differently on macOS, Windows and
+    Android, because each supplies its own font.
+
+    The newsprint tile stays. A glyph on a transparent ground disappears
+    against a dark browser tab strip.
   -->
   <rect width="32" height="32" rx="5" fill="#f7f4ed"/>
-  <!-- Roof and body as one silhouette, so it holds together at 16px. -->
-  <path d="M16 5 4.5 14.6h3.1V27h16.8V14.6h3.1L16 5Z" fill="#13294b"/>
-  <!-- The single accent, matching the one the rest of the site uses. -->
-  <rect x="13.4" y="18.6" width="5.2" height="8.4" fill="#ff5f05"/>
+  <text x="16" y="16" font-size="21" text-anchor="middle" dominant-baseline="central">🏠</text>
 </svg>
