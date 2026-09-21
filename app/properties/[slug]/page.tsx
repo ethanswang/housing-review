@@ -37,7 +37,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
             · {property.neighborhood}
           </p>
           <p className="mt-3 text-sm text-ink-soft">{property.address}</p>
-          <p className="tnum mt-1 font-mono text-xs text-ink-soft">
+          <p className="tnum mt-1 text-xs text-ink-soft">
             ${property.rent_min.toLocaleString()}–{property.rent_max.toLocaleString()}/mo ·{' '}
             {property.bedrooms.join(', ')} BR
           </p>

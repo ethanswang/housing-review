@@ -19,11 +19,6 @@
 
   --font-display: var(--font-instrument-serif), Georgia, serif;
   --font-body:    var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono:    var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
-}
-
-html {
-  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -32,20 +27,16 @@ body {
   font-family: var(--font-body);
 }
 
-/* Small-caps mono label used for every piece of metadata on the site.
+/* The small-caps rule used for every piece of metadata on the site. Caps of
+   the text face at 11px with open tracking — the newspaper convention; it does
+   not need a separate typeface to read as metadata.
 
    These rules sit outside any @layer, while Tailwind's utilities are inside
    `@layer utilities`. Unlayered declarations win over layered ones no matter
    their specificity, so `.label` cannot be overridden by a utility class:
-   `className="label normal-case"` still renders uppercase. Three places in the
-   components try exactly that and silently lose.
-
-   Wrapping this file's rules in `@layer components` would make those overrides
-   work — and would change how the rating labels, the anonymity note and the
-   sample badge render everywhere at once. That is a design decision, so it is
-   written down here rather than made in passing. */
+   `className="label normal-case"` still renders uppercase. Anything that wants
+   to differ from this convention should not use `.label`. */
 .label {
-  font-family: var(--font-mono);
   font-size: 0.6875rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -57,7 +48,9 @@ body {
   border-bottom: 3px double var(--color-ink);
 }
 
-/* Numerals in scores and prices should line up column to column. */
+/* Figures that form a column — rating values, prices — line up digit to digit.
+   Public Sans ships a real `tnum` feature; the display face does not, so the
+   headline score numeral is a display object rather than a tabular one. */
 .tnum {
   font-variant-numeric: tabular-nums;
 }

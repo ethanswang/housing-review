@@ -36,7 +36,7 @@ export function PropertyCard({ property }: { property: PropertyWithStats }) {
           </div>
         </div>
 
-        <p className="tnum mt-3 font-mono text-xs text-ink-soft">
+        <p className="tnum mt-3 text-xs text-ink-soft">
           ${property.rent_min.toLocaleString()}–{property.rent_max.toLocaleString()}/mo
           {beds ? ` · ${beds}` : ''}
         </p>
