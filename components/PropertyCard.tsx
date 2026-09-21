@@ -17,7 +17,7 @@ export function PropertyCard({ property }: { property: PropertyWithStats }) {
       <div className="p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h3 className="font-display text-2xl leading-tight">
+            <h3 className="text-2xl leading-tight">
               <Link href={`/properties/${property.slug}`} className="hover:text-accent">
                 {/* Stretched link makes the whole card clickable without nesting anchors. */}
                 <span className="absolute inset-0" aria-hidden />

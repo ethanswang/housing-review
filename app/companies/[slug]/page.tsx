@@ -21,7 +21,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
       <header className="mt-6 flex flex-wrap items-start justify-between gap-6 border-b-2 border-ink pb-6">
         <div>
           <p className="label">Management company</p>
-          <h2 className="mt-1 font-display text-4xl leading-tight sm:text-5xl">{company.name}</h2>
+          <h2 className="mt-1 text-4xl leading-tight sm:text-5xl">{company.name}</h2>
           <p className="mt-3 text-sm text-ink-soft">
             {company.properties.length}{' '}
             {company.properties.length === 1 ? 'property' : 'properties'} listed
@@ -47,7 +47,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
       )}
 
       <section className="mt-14">
-        <h3 className="font-display text-2xl">Properties</h3>
+        <h3 className="text-2xl">Properties</h3>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           {company.properties.map((property) => (
             <PropertyCard key={property.id} property={property} />

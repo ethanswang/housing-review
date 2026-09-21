@@ -23,7 +23,7 @@ export default async function DirectoryPage({
   return (
     <div className="mx-auto max-w-6xl px-5 py-10">
       <section className="max-w-3xl">
-        <h2 className="font-display text-4xl leading-[1.1] sm:text-5xl">
+        <h2 className="text-4xl leading-[1.1] sm:text-5xl">
           Find out what it&rsquo;s actually like to live there.
         </h2>
         <p className="mt-4 max-w-xl text-[0.9375rem] leading-relaxed text-ink-soft">
@@ -56,7 +56,7 @@ export default async function DirectoryPage({
 
           {properties.length === 0 ? (
             <div className="border border-dashed border-rule px-6 py-16 text-center">
-              <p className="font-display text-2xl">Nothing matches those filters.</p>
+              <p className="text-2xl">Nothing matches those filters.</p>
               <p className="mt-2 text-sm text-ink-soft">
                 {hasActiveFilters(filters)
                   ? 'Try widening the price range or clearing a filter.'

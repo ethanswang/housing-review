@@ -25,9 +25,9 @@ export function SearchBox({ filters }: { filters: PropertyFilters }) {
         type="search"
         value={term}
         onChange={(e) => setTerm(e.target.value)}
-        placeholder="Search a building or street — try “Green” or “HERE”"
+        placeholder="Search a building or street — try “Green”"
         aria-label="Search properties by name or address"
-        className="min-w-0 flex-1 bg-transparent py-3 font-display text-2xl placeholder:text-muted focus:outline-none sm:text-3xl"
+        className="min-w-0 flex-1 bg-transparent py-3 text-2xl placeholder:text-muted focus:outline-none sm:text-3xl"
       />
       <button type="submit" className="label shrink-0 px-2 hover:text-accent">
         Search

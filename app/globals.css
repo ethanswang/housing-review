@@ -3,6 +3,7 @@
 /* ---------------------------------------------------------------------------
    UIUC Housing Review — "student paper data desk"
    Newsprint ground, Illini navy ink, Illini orange as the one sharp accent.
+   One typeface throughout: hierarchy comes from size and weight, not family.
    Editorial rules and tabular density over cards-on-grey.
 --------------------------------------------------------------------------- */
 
@@ -17,7 +18,6 @@
   --color-accent:     #ff5f05;
   --color-accent-dim: #ffe4d1;
 
-  --font-display: var(--font-instrument-serif), Georgia, serif;
   --font-body:    var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -51,6 +51,10 @@ body {
 /* Figures that form a column — rating values, prices — line up digit to digit.
    Public Sans ships a real `tnum` feature; the display face does not, so the
    headline score numeral is a display object rather than a tabular one. */
+/* Public Sans carries a real `tnum` feature, so this genuinely switches its
+   proportional digits to tabular ones and figures line up column to column.
+   Worth noting because it did not always: the display serif this replaced had
+   no numeric features at all, so `.tnum` on the score numerals was inert. */
 .tnum {
   font-variant-numeric: tabular-nums;
 }

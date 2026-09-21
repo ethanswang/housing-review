@@ -19,7 +19,7 @@ export function ReviewForm({ propertyId, slug }: { propertyId: string; slug: str
   if (state.success) {
     return (
       <div className="border border-accent bg-accent-dim px-6 py-8 text-center">
-        <p className="font-display text-2xl">Thanks — your review is live.</p>
+        <p className="text-2xl">Thanks — your review is live.</p>
       </div>
     )
   }

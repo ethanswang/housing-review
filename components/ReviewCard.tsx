@@ -5,7 +5,7 @@ export function ReviewCard({ review }: { review: Review }) {
   return (
     <article className="border-t border-rule py-6">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <span className="font-display text-2xl leading-none">{review.overall.toFixed(1)}</span>
+        <span className="tnum text-2xl leading-none">{review.overall.toFixed(1)}</span>
         <span className="label">Lease {review.lease_term}</span>
         {review.is_sample && <SampleBadge />}
       </div>

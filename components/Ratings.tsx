@@ -12,11 +12,11 @@ export function ScoreNumeral({
   // otherwise an unreviewed card sits visibly lighter than its neighbours.
   const scale = size === 'lg' ? 'text-6xl' : 'text-[2.75rem]'
   if (score === null) {
-    return <div className={`font-display leading-none text-muted ${scale}`}>—</div>
+    return <div className={`tnum leading-none text-muted ${scale}`}>—</div>
   }
   return (
     <div className="flex items-baseline gap-1">
-      <span className={`font-display leading-none ${scale}`}>{score.toFixed(1)}</span>
+      <span className={`tnum leading-none ${scale}`}>{score.toFixed(1)}</span>
       <span className="label">/5</span>
     </div>
   )
