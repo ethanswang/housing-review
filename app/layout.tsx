@@ -45,7 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </Link>
               <p className="label">Free · Student-run · Not affiliated with the University</p>
             </div>
-            <p className="py-2.5 font-mono text-[0.6875rem] tracking-[0.12em] text-muted uppercase">
+            <p className="label py-2.5">
               Champaign — Urbana · Rated on maintenance, communication &amp; value
             </p>
           </div>
