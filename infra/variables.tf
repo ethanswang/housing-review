@@ -61,3 +61,14 @@ variable "backup_retention_days" {
   type        = number
   default     = 1
 }
+
+variable "api_domain" {
+  description = "Hostname the API answers on, e.g. api.uiuchousing.com. An A record for it must point at the instance's elastic IP before the certificate can be issued: Let's Encrypt validates over HTTP on port 80, so a name that resolves elsewhere fails."
+  type        = string
+}
+
+variable "acme_email" {
+  description = "Address Let's Encrypt uses for expiry warnings. Optional, but without it there is nowhere to send the notice that renewal has been failing."
+  type        = string
+  default     = ""
+}

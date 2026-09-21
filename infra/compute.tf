@@ -27,6 +27,15 @@ resource "aws_vpc_security_group_ingress_rule" "api_http" {
 
 # Optional and off by default. Session Manager gives a shell through IAM with
 # no inbound port at all, which is strictly better than an open 22.
+resource "aws_vpc_security_group_ingress_rule" "api_https" {
+  security_group_id = aws_security_group.api.id
+  cidr_ipv4         = var.api_ingress_cidr
+  from_port         = 443
+  to_port           = 443
+  ip_protocol       = "tcp"
+  description       = "HTTPS. Port 80 stays open alongside it because the ACME challenge is served there and Caddy redirects it."
+}
+
 resource "aws_vpc_security_group_ingress_rule" "api_ssh" {
   count = var.ssh_ingress_cidr == "" ? 0 : 1
 
@@ -125,6 +134,8 @@ resource "aws_instance" "api" {
     log_group    = aws_cloudwatch_log_group.api.name
     supabase_url = var.supabase_url
     region_ca    = local.rds_ca_path
+    api_domain   = var.api_domain
+    acme_email   = var.acme_email
   })
 
   # Replaces the instance when the startup script changes, so a change to how
