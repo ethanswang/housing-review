@@ -104,7 +104,7 @@ export function createWriteLimiter(config: Config) {
       const seconds = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000))
       reply.header('retry-after', String(seconds))
       throw tooManyRequests(
-        `You have submitted too many reviews. Try again in ${seconds} seconds.`
+        `You have made too many changes. Try again in ${seconds} seconds.`
       )
     }
   }

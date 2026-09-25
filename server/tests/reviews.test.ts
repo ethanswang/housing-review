@@ -386,3 +386,102 @@ describe('GET /api/me/reviews', () => {
     expect((await get('/api/me/reviews', bearer)).json()).toEqual([])
   })
 })
+
+describe('POST /api/reviews/:id/reports', () => {
+  /** A published review by someone other than the reporter. */
+  async function publishedReview(): Promise<string> {
+    const author = await signIn()
+    return (await post(`/api/properties/${propertySlug}/reviews`, VALID, author.bearer)).json().id
+  }
+
+  it('refuses an anonymous report', async () => {
+    const id = await publishedReview()
+    expect((await post(`/api/reviews/${id}/reports`, { reason: 'spam' })).statusCode).toBe(401)
+  })
+
+  it('files a report, open, against the review', async () => {
+    const id = await publishedReview()
+    const { bearer } = await signIn()
+
+    const response = await post(
+      `/api/reviews/${id}/reports`,
+      { reason: 'personal_info', details: '  Names the building manager.  ' },
+      bearer
+    )
+    expect(response.statusCode).toBe(201)
+    expect(response.json()).toMatchObject({
+      reviewId: id,
+      reason: 'personal_info',
+      details: 'Names the building manager.',
+      status: 'open',
+    })
+  })
+
+  it('does not change what readers see', async () => {
+    const id = await publishedReview()
+    const { bearer } = await signIn()
+    await post(`/api/reviews/${id}/reports`, { reason: 'spam' }, bearer)
+
+    // Reporting queues a review for a moderator; it must not hide it, or three
+    // accounts could take down any review they disliked.
+    expect((await get(`/api/properties/${propertySlug}`)).json().reviewCount).toBe(1)
+  })
+
+  it('refuses a second report of the same review by the same person', async () => {
+    const id = await publishedReview()
+    const { bearer } = await signIn()
+    await post(`/api/reviews/${id}/reports`, { reason: 'spam' }, bearer)
+
+    const again = await post(`/api/reviews/${id}/reports`, { reason: 'other' }, bearer)
+    expect(again.statusCode).toBe(409)
+    expect(again.json().error.code).toBe('already_reported')
+  })
+
+  it('treats blank details as none', async () => {
+    const id = await publishedReview()
+    const { bearer } = await signIn()
+    const response = await post(`/api/reviews/${id}/reports`, { reason: 'spam', details: '   ' }, bearer)
+    expect(response.statusCode).toBe(201)
+    expect(response.json().details).toBeNull()
+  })
+
+  it('rejects a reason outside the fixed list', async () => {
+    const id = await publishedReview()
+    const { bearer } = await signIn()
+    const response = await post(`/api/reviews/${id}/reports`, { reason: 'dislike' }, bearer)
+    expect(response.statusCode).toBe(400)
+    expect(response.json().error.code).toBe('validation_failed')
+  })
+
+  it('rejects details over 1000 characters', async () => {
+    const id = await publishedReview()
+    const { bearer } = await signIn()
+    const response = await post(
+      `/api/reviews/${id}/reports`,
+      { reason: 'other', details: 'x'.repeat(1001) },
+      bearer
+    )
+    expect(response.statusCode).toBe(400)
+  })
+
+  it('returns 404 for a review that does not exist', async () => {
+    const { bearer } = await signIn()
+    const response = await post(`/api/reviews/${crypto.randomUUID()}/reports`, { reason: 'spam' }, bearer)
+    expect(response.statusCode).toBe(404)
+  })
+
+  it('returns 404 for a review readers cannot see', async () => {
+    const { bearer } = await signIn()
+    for (const status of ['hidden', 'removed']) {
+      const id = await publishedReview()
+      await pool.query('update reviews set status = $2 where id = $1', [id, status])
+      const response = await post(`/api/reviews/${id}/reports`, { reason: 'spam' }, bearer)
+      expect(response.statusCode, status).toBe(404)
+    }
+  })
+
+  it('rejects a malformed id before touching the database', async () => {
+    const { bearer } = await signIn()
+    expect((await post('/api/reviews/not-a-uuid/reports', { reason: 'spam' }, bearer)).statusCode).toBe(400)
+  })
+})
