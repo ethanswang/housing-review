@@ -218,6 +218,35 @@ describe('per-account write limit', () => {
     expect(accepted.statusCode).toBe(201)
   })
 
+  it('charges a report to the same budget as a review', async () => {
+    // A separate budget would let one account push twice the ceiling into the
+    // system: its reviews, then as many reports again.
+    const author = await signIn()
+    const review = await app().inject({
+      method: 'POST',
+      url: `/api/properties/${propertySlug}/reviews`,
+      payload: REVIEW,
+      headers: { authorization: author },
+    })
+
+    const reporter = await signIn()
+    const report = await app().inject({
+      method: 'POST',
+      url: `/api/reviews/${review.json().id}/reports`,
+      payload: { reason: 'spam' },
+      headers: { authorization: reporter },
+    })
+    expect(report.statusCode).toBe(201)
+
+    const afterReport = await app().inject({
+      method: 'POST',
+      url: `/api/properties/${propertySlug}/reviews`,
+      payload: REVIEW,
+      headers: { authorization: reporter },
+    })
+    expect(afterReport.statusCode).toBe(429)
+  })
+
   it('still refuses an unauthenticated write with 401, not 429', async () => {
     const response = await app().inject({
       method: 'POST',
