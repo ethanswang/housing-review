@@ -25,6 +25,17 @@ resource "aws_cloudwatch_log_metric_filter" "api_errors" {
   }
 }
 
+# Where every alarm below is sent.
+resource "aws_sns_topic" "alarms" {
+  name = "${var.name}-alarms"
+}
+
+resource "aws_sns_topic_subscription" "alarm_email" {
+  topic_arn = aws_sns_topic.alarms.arn
+  protocol  = "email"
+  endpoint  = var.alarm_email
+}
+
 resource "aws_cloudwatch_metric_alarm" "api_errors" {
   alarm_name          = "${var.name}-api-errors"
   comparison_operator = "GreaterThanThreshold"
@@ -36,6 +47,8 @@ resource "aws_cloudwatch_metric_alarm" "api_errors" {
   namespace           = var.name
   alarm_description   = "More than ten errors logged in five minutes"
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alarms.arn]
+  ok_actions          = [aws_sns_topic.alarms.arn]
 }
 
 resource "aws_cloudwatch_metric_alarm" "database_storage" {
@@ -49,6 +62,8 @@ resource "aws_cloudwatch_metric_alarm" "database_storage" {
   namespace           = "AWS/RDS"
   alarm_description   = "Less than 2GiB of database storage left"
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alarms.arn]
+  ok_actions          = [aws_sns_topic.alarms.arn]
 
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.main.identifier

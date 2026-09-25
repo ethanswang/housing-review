@@ -67,6 +67,11 @@ variable "api_domain" {
   type        = string
 }
 
+variable "alarm_email" {
+  description = "Where CloudWatch alarms are sent. Required rather than optional: an alarm with no destination is how an outage goes unnoticed. AWS emails a confirmation link after apply, and nothing is delivered until it is clicked."
+  type        = string
+}
+
 variable "acme_email" {
   description = "Address Let's Encrypt uses for expiry warnings. Optional, but without it there is nowhere to send the notice that renewal has been failing."
   type        = string
