@@ -133,7 +133,7 @@ Based on StreetEasy's result list and Airbnb's filter sheet.
 
 **Empty (no data):** "No properties have been added yet."
 
-**Loading:** `app/loading.tsx` renders six skeleton rows: two grey bars on the left and a 32px square on the right, in `rule`, with a gentle pulse that's off under `prefers-reduced-motion`.
+**Loading:** `app/(directory)/loading.tsx` renders six skeleton rows: two grey bars on the left and a 32px square on the right, in `rule`, with a gentle pulse that's off under `prefers-reduced-motion`.
 
 ### 5.3 Listing detail (`/properties/[slug]`)
 Based on Airbnb's detail page structure and Letterboxd's review column.
@@ -163,7 +163,7 @@ Based on Airbnb's detail page structure and Letterboxd's review column.
 - Replaces the summary and list with "No reviews yet — lived here? Be the first." in `title`.
 - Adds one line of `meta`, "Takes about a minute. No account needed.", and a primary button "Write the first review" that jumps to the form.
 
-**Loading:** `app/properties/[slug]/loading.tsx` shows skeleton blocks for the title, the summary (with three bar tracks), and three review rows.
+**Loading:** no skeleton, on purpose. A `loading.tsx` makes Next.js commit a `200` before the page runs, so a missing property would be served as a soft 404 instead of a real `404`. For the same reason the directory's skeleton sits inside the `(directory)` route group, which scopes it to `/` alone.
 
 ### 5.4 Review card
 A divider above each review, with no box, background, or shadow (Letterboxd style).
@@ -213,7 +213,7 @@ Same structure as listing detail: name, rating summary with the averaging note, 
   - `app/layout.tsx` (header)
   - the three pages
   - all six components
-  - new: `app/loading.tsx`, `app/properties/[slug]/loading.tsx`
+  - new: `app/(directory)/loading.tsx`; the directory page moved into that route group
   - `components/PropertyCard.tsx` is renamed to `PropertyRow.tsx`
   - the mobile sheet lives inside `FilterRail.tsx`, so every filter control still goes through a single `apply()`
 - **Unchanged:**
