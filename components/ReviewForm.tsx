@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from 'react'
 import { submitReview, type ReviewFormState } from '@/app/actions'
-import { RATING_KEYS, RATING_LABELS, type RatingKey } from '@/lib/types'
+import { RATING_LABELS, SUB_RATING_KEYS, type RatingKey } from '@/lib/types'
 
 const initialState: ReviewFormState = { error: null, success: false }
 
@@ -13,56 +13,58 @@ const HINTS: Record<RatingKey, string> = {
   value: 'Worth what you paid?',
 }
 
+const inputClass = 'rounded-lg border border-rule-strong bg-surface px-4 text-body'
+
 export function ReviewForm({ propertyId, slug }: { propertyId: string; slug: string }) {
   const [state, formAction, pending] = useActionState(submitReview, initialState)
 
   if (state.success) {
     return (
-      <div className="border border-accent bg-accent-dim px-6 py-8 text-center">
-        <p className="text-2xl">Thanks — your review is live.</p>
+      <div role="status" className="border-t border-rule py-6">
+        <p className="text-title font-semibold">Thanks — your review is live.</p>
+        <p className="mt-1 text-meta text-muted">It now appears at the top of the reviews above.</p>
       </div>
     )
   }
 
+  // Field names are unchanged (submitReview reads fields by name); only the
+  // order on screen moved, so it reads top to bottom like a short survey.
   return (
-    <form action={formAction} className="flex flex-col gap-6">
+    <form action={formAction} className="flex flex-col gap-8">
       <input type="hidden" name="property_id" value={propertyId} />
       <input type="hidden" name="slug" value={slug} />
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        {RATING_KEYS.map((key) => (
-          <StarInput key={key} name={key} label={RATING_LABELS[key]} hint={HINTS[key]} />
+      <label className="flex flex-col gap-2">
+        <span className="text-body font-semibold">When did you live here?</span>
+        <input name="lease_term" required placeholder="2024-25" className={`h-12 md:max-w-48 ${inputClass}`} />
+      </label>
+
+      <RatingInput name="overall" label={RATING_LABELS.overall} hint={HINTS.overall} />
+
+      <div className="flex flex-col gap-8">
+        {SUB_RATING_KEYS.map((key) => (
+          <RatingInput key={key} name={key} label={RATING_LABELS[key]} hint={HINTS[key]} />
         ))}
       </div>
 
       <label className="flex flex-col gap-2">
-        <span className="label">Lease year</span>
-        <input
-          name="lease_term"
-          required
-          placeholder="2024-25"
-          className="border border-rule bg-paper-card px-3 py-2 text-sm"
-        />
-      </label>
-
-      <label className="flex flex-col gap-2">
-        <span className="label">Your review</span>
+        <span className="text-body font-semibold">Your review</span>
         <textarea
           name="body"
           required
           minLength={20}
           maxLength={2000}
-          rows={5}
+          rows={6}
           placeholder="What should the next tenant know? Repairs, the office, noise, what you actually paid."
-          className="border border-rule bg-paper-card px-3 py-2 text-sm leading-relaxed"
+          className={`py-3 ${inputClass}`}
         />
-        <span className="text-xs text-muted">
+        <span className="text-meta text-muted">
           Posted anonymously. Please don&rsquo;t name individual employees.
         </span>
       </label>
 
       {state.error && (
-        <p role="alert" className="border-l-2 border-accent bg-accent-dim px-3 py-2 text-sm">
+        <p role="alert" className="border-l-2 border-ink pl-3 text-body">
           {state.error}
         </p>
       )}
@@ -70,7 +72,7 @@ export function ReviewForm({ propertyId, slug }: { propertyId: string; slug: str
       <button
         type="submit"
         disabled={pending}
-        className="self-start bg-ink px-6 py-3 text-xs tracking-[0.12em] text-paper uppercase transition-colors hover:bg-accent disabled:opacity-50"
+        className="h-12 rounded-lg bg-accent px-6 text-body font-semibold text-surface transition-colors hover:bg-accent-dark disabled:opacity-50 md:self-start"
       >
         {pending ? 'Posting…' : 'Post review'}
       </button>
@@ -78,14 +80,18 @@ export function ReviewForm({ propertyId, slug }: { propertyId: string; slug: str
   )
 }
 
-/** Five radio buttons styled as a rating strip; still a real radio group underneath. */
-function StarInput({ name, label, hint }: { name: string; label: string; hint: string }) {
+/**
+ * Five radio buttons shown as a segmented 1–5 control. Only the chosen number
+ * fills, so it reads as "a score of 4", not a row of stars. Still a real radio
+ * group underneath, so arrow keys and screen readers work natively.
+ */
+function RatingInput({ name, label, hint }: { name: string; label: string; hint: string }) {
   const [value, setValue] = useState(0)
   return (
     <fieldset>
-      <legend className="label">{label}</legend>
-      <p className="mt-0.5 text-xs text-muted">{hint}</p>
-      <div className="mt-2 flex gap-1.5">
+      <legend className="text-body font-semibold">{label}</legend>
+      <p className="text-meta text-muted">{hint}</p>
+      <div className="mt-2 flex gap-1">
         {[1, 2, 3, 4, 5].map((score) => (
           <label key={score} className="cursor-pointer">
             <input
@@ -94,13 +100,13 @@ function StarInput({ name, label, hint }: { name: string; label: string; hint: s
               value={score}
               required
               onChange={() => setValue(score)}
-              className="sr-only"
+              className="peer sr-only"
             />
             <span
-              className={`tnum flex size-9 items-center justify-center border text-xs transition-colors ${
-                value >= score
-                  ? 'border-accent bg-accent text-paper-card'
-                  : 'border-rule bg-paper-card hover:border-ink'
+              className={`tnum flex size-11 items-center justify-center rounded-lg border text-body transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent ${
+                value === score
+                  ? 'border-accent bg-accent font-semibold text-surface'
+                  : 'border-rule-strong bg-surface hover:border-ink'
               }`}
             >
               {score}

@@ -20,16 +20,19 @@ export function SearchBox({ filters }: { filters: PropertyFilters }) {
   }
 
   return (
-    <form onSubmit={submit} className="flex border-b-2 border-ink" role="search">
+    <form onSubmit={submit} className="flex gap-2" role="search">
       <input
         type="search"
         value={term}
         onChange={(e) => setTerm(e.target.value)}
-        placeholder="Search a building or street — try “Green”"
+        placeholder="Building or street"
         aria-label="Search properties by name or address"
-        className="min-w-0 flex-1 bg-transparent py-3 text-2xl placeholder:text-muted focus:outline-none sm:text-3xl"
+        className="h-12 min-w-0 flex-1 rounded-lg border border-rule-strong bg-surface px-4 text-body placeholder:text-muted"
       />
-      <button type="submit" className="label shrink-0 px-2 hover:text-accent">
+      <button
+        type="submit"
+        className="h-12 shrink-0 rounded-lg bg-accent px-5 text-body font-semibold text-surface hover:bg-accent-dark"
+      >
         Search
       </button>
     </form>

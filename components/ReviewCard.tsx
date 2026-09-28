@@ -1,25 +1,40 @@
-import { RATING_LABELS, SUB_RATING_KEYS, type Review } from '@/lib/types'
-import { SampleBadge } from './Ratings'
+import type { Review } from '@/lib/types'
+import { SampleBadge, SubRatingsInline } from './Ratings'
 
+/** "Mar 2025". Fixed time zone so the month doesn't depend on the server's locale. */
+function postedMonth(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', {
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'America/Chicago',
+  })
+}
+
+/**
+ * One review in a divided list. The overall score sits in its own narrow column
+ * so scores and text can each be scanned straight down the page.
+ */
 export function ReviewCard({ review }: { review: Review }) {
   return (
-    <article className="border-t border-rule py-6">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <span className="tnum text-2xl leading-none">{review.overall.toFixed(1)}</span>
-        <span className="label">Lease {review.lease_term}</span>
-        {review.is_sample && <SampleBadge />}
+    <article className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-3 border-t border-rule py-6">
+      <p className="tnum text-title font-semibold">
+        <span aria-hidden>{review.overall}</span>
+        <span className="sr-only">Overall {review.overall} out of 5</span>
+      </p>
+
+      <div className="flex max-w-[65ch] flex-col gap-4">
+        <p className="flex min-h-7 flex-wrap items-center gap-x-2 gap-y-1 text-meta text-muted">
+          {/* lease_term is stored as "2024-25"; the en dash is display only. */}
+          <span>Lived here {review.lease_term.replace('-', '–')}</span>
+          <span aria-hidden>·</span>
+          <span>Posted {postedMonth(review.created_at)}</span>
+          {review.is_sample && <SampleBadge />}
+        </p>
+
+        <p className="text-body break-words">{review.body}</p>
+
+        <SubRatingsInline ratings={review} />
       </div>
-
-      <p className="mt-3 max-w-2xl text-[0.9375rem] leading-relaxed">{review.body}</p>
-
-      <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-1">
-        {SUB_RATING_KEYS.map((key) => (
-          <div key={key} className="flex items-baseline gap-1.5">
-            <dt className="label">{RATING_LABELS[key]}</dt>
-            <dd className="tnum text-xs">{review[key]}/5</dd>
-          </div>
-        ))}
-      </dl>
     </article>
   )
 }
