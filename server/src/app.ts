@@ -58,6 +58,8 @@ export async function buildApp({ config, db, keys }: AppDependencies): Promise<F
         'headers.authorization',
         'headers.cookie',
         '*.authorization',
+        'req.headers["x-frontend-secret"]',
+        'headers["x-frontend-secret"]',
       ],
     },
     // Trust exactly the proxies in front of the container, by hop count.

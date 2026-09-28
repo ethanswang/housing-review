@@ -47,6 +47,19 @@ describe('configuration', () => {
     expect(loadConfig({ DATABASE_URL: 'postgres://u@h:5432/d', SUPABASE_URL: 'https://p.supabase.co' }).DATABASE_URL).toBeTruthy()
   })
 
+  it('rejects a frontend secret too short to resist guessing', () => {
+    expect(() =>
+      loadConfig({ DATABASE_URL, SUPABASE_URL: 'https://p.supabase.co', FRONTEND_SECRET: 'short' })
+    ).toThrow(/FRONTEND_SECRET/)
+  })
+
+  it('treats a blank frontend secret as unset', () => {
+    // An empty value in a compose file or an unfilled template must not become
+    // a secret that the empty string matches.
+    const parsed = loadConfig({ DATABASE_URL, SUPABASE_URL: 'https://p.supabase.co', FRONTEND_SECRET: '' })
+    expect(parsed.FRONTEND_SECRET).toBeUndefined()
+  })
+
   it('rejects a malformed rate limit window at boot', () => {
     expect(() =>
       loadConfig({ DATABASE_URL, SUPABASE_URL: 'https://p.supabase.co', RATE_LIMIT_WINDOW: '1 min' })
