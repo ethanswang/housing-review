@@ -127,6 +127,15 @@ tofu apply
 password in plaintext**, so it must not be committed; a remote backend with encryption is the
 right answer once more than one person deploys.
 
+## The database cannot be destroyed by accident
+
+`deletion_protection` is on and a final snapshot is taken on deletion, because the instance
+holds the only copy of every review and automated backups are kept for a day at most. A
+`tofu destroy`, or any change that forces the instance to be replaced, fails until
+`deletion_protection` is set to `false` and applied on its own first — a deliberate,
+reviewable step rather than a side effect of another change. Even then, deletion leaves the
+`<name>-final` snapshot behind; delete it by hand if you really mean to lose the data.
+
 ## Deploying the API
 
 The instance pulls `:latest` from ECR on start, so a deploy is: push an image, restart the
@@ -210,8 +219,10 @@ starts, which is where startup failures live.
 
 Two alarms exist. One fires when more than ten errors are logged in five minutes — the
 container restarts on failure, so a crash loop is otherwise invisible. The other fires when the
-database has under 2GiB of storage left. Neither has a notification target yet; add an SNS
-topic and subscribe an address to actually be told.
+database has under 2GiB of storage left. Both email `alarm_email` through an SNS topic, on
+firing and again on recovery. AWS sends a confirmation link to that address after the first
+apply, and **nothing is delivered until it is clicked** — check that the subscription shows
+as confirmed in the SNS console rather than assuming it.
 
 `/healthz` answers without touching the database, so it stays up during a database outage.
 `/readyz` checks the database and is the one to look at when the API is running but failing.
@@ -220,5 +231,4 @@ topic and subscribe an address to actually be told.
 
 - **Continuous deployment.** Images are built and pushed by hand. The GitHub Actions workflow
   builds the image but does not push it; wiring that up needs an OIDC role in this account.
-- **A notification target for the alarms.**
 - **A remote state backend.** State is local, which is fine for one operator and wrong for two.

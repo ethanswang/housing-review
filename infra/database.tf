@@ -115,8 +115,14 @@ resource "aws_db_instance" "main" {
   maintenance_window      = "Mon:08:00-Mon:09:00"
 
   auto_minor_version_upgrade = true
-  deletion_protection        = false
-  skip_final_snapshot        = true
+
+  # This holds the only copy of every review. A `tofu destroy`, or a change
+  # that forces replacement, would otherwise delete it outright with backups
+  # of a day at most. Tearing the stack down now takes a deliberate edit here
+  # first, and still leaves a snapshot behind.
+  deletion_protection       = true
+  skip_final_snapshot       = false
+  final_snapshot_identifier = "${var.name}-final"
 
   # Postgres logs into CloudWatch, which is where production debugging starts.
   enabled_cloudwatch_logs_exports = ["postgresql"]
