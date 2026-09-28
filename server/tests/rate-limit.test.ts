@@ -32,6 +32,20 @@ const globalConfig = loadConfig({
   RATE_LIMIT_WRITE_MAX: '100000',
 })
 
+const FRONTEND_SECRET = 'f'.repeat(40)
+
+/**
+ * The Next.js server calls the API on behalf of every visitor, so without the
+ * forwarded address all of them would share the server's per-IP bucket.
+ */
+const frontendConfig = loadConfig({
+  ...base,
+  RATE_LIMIT_MAX: '2',
+  RATE_LIMIT_WINDOW: '1 minute',
+  RATE_LIMIT_WRITE_MAX: '100000',
+  FRONTEND_SECRET,
+})
+
 /** Per-IP ceiling out of the way, so only the per-account write limit can fire. */
 const writeConfig = loadConfig({
   ...base,
@@ -42,6 +56,7 @@ const writeConfig = loadConfig({
 
 let globalApp: FastifyInstance
 let writeApp: FastifyInstance
+let frontendApp: FastifyInstance
 let pool: Database
 let signingKey: Awaited<ReturnType<typeof generateKeyPair>>['privateKey']
 let propertySlug: string
@@ -78,8 +93,10 @@ beforeAll(async () => {
   pool = createPool(DATABASE_URL)
   globalApp = await buildApp({ config: globalConfig, db: pool, keys })
   writeApp = await buildApp({ config: writeConfig, db: pool, keys })
+  frontendApp = await buildApp({ config: frontendConfig, db: pool, keys })
   await globalApp.ready()
   await writeApp.ready()
+  await frontendApp.ready()
 
   propertySlug = `rl-test-${crypto.randomUUID().slice(0, 8)}`
   const { rows } = await pool.query(
@@ -96,6 +113,7 @@ afterAll(async () => {
   await pool?.query("delete from users where email like '%test.illinois.edu'")
   await globalApp?.close()
   await writeApp?.close()
+  await frontendApp?.close()
   await pool?.end()
 })
 
@@ -254,5 +272,71 @@ describe('per-account write limit', () => {
       payload: REVIEW,
     })
     expect(response.statusCode).toBe(401)
+  })
+})
+
+describe('per-IP limit behind the frontend server', () => {
+  /**
+   * Each case uses its own source address, so buckets spent by one case never
+   * leak into the next. The source stands in for the frontend server.
+   */
+  const fetchAs = (
+    app: FastifyInstance,
+    source: string,
+    headers: Record<string, string> = {}
+  ) =>
+    app.inject({ method: 'GET', url: `/api/properties/${propertySlug}`, remoteAddress: source, headers })
+
+  const statuses = async (app: FastifyInstance, source: string, visitors: Record<string, string>[]) => {
+    const codes = []
+    for (const headers of visitors) codes.push((await fetchAs(app, source, headers)).statusCode)
+    return codes
+  }
+
+  it('gives each forwarded visitor their own bucket when the secret matches', async () => {
+    const as = (ip: string) => ({ 'x-frontend-secret': FRONTEND_SECRET, 'x-client-ip': ip })
+    // Visitor A spends their two requests and is refused on the third...
+    expect(await statuses(frontendApp, '10.0.0.1', [as('198.51.100.1'), as('198.51.100.1'), as('198.51.100.1')]))
+      .toEqual([200, 200, 429])
+    // ...while visitor B, arriving through the same server, is unaffected.
+    expect(await statuses(frontendApp, '10.0.0.1', [as('198.51.100.2')])).toEqual([200])
+  })
+
+  it('accepts an IPv6 visitor address', async () => {
+    const as = (ip: string) => ({ 'x-frontend-secret': FRONTEND_SECRET, 'x-client-ip': ip })
+    expect(await statuses(frontendApp, '10.0.0.6', [as('2001:db8::1'), as('2001:db8::1'), as('2001:db8::2')]))
+      .toEqual([200, 200, 200])
+  })
+
+  it('ignores a forwarded address that comes without the secret', async () => {
+    // Otherwise any client could claim a fresh address on every request and
+    // never be limited at all.
+    const visitors = ['198.51.100.3', '198.51.100.4', '198.51.100.5'].map((ip) => ({ 'x-client-ip': ip }))
+    expect(await statuses(frontendApp, '10.0.0.2', visitors)).toEqual([200, 200, 429])
+  })
+
+  it('ignores a forwarded address that comes with the wrong secret', async () => {
+    const visitors = ['198.51.100.6', '198.51.100.7', '198.51.100.8'].map((ip) => ({
+      'x-frontend-secret': 'g'.repeat(40),
+      'x-client-ip': ip,
+    }))
+    expect(await statuses(frontendApp, '10.0.0.3', visitors)).toEqual([200, 200, 429])
+  })
+
+  it('falls back to the connecting address when the forwarded one is not an IP', async () => {
+    const visitors = ['one', 'two', 'three'].map((value) => ({
+      'x-frontend-secret': FRONTEND_SECRET,
+      'x-client-ip': value,
+    }))
+    expect(await statuses(frontendApp, '10.0.0.4', visitors)).toEqual([200, 200, 429])
+  })
+
+  it('ignores forwarded addresses entirely when no secret is configured', async () => {
+    // globalApp has no FRONTEND_SECRET and a ceiling of three.
+    const visitors = ['198.51.100.9', '198.51.100.10', '198.51.100.11', '198.51.100.12'].map((ip) => ({
+      'x-frontend-secret': FRONTEND_SECRET,
+      'x-client-ip': ip,
+    }))
+    expect(await statuses(globalApp, '10.0.0.5', visitors)).toEqual([200, 200, 200, 429])
   })
 })

@@ -23,30 +23,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={body.variable}>
       <body className="min-h-screen flex flex-col antialiased">
         <header className="border-b border-rule">
-          <div className="mx-auto max-w-6xl px-5">
-            <div className="rule-double flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 py-5">
-              <Link href="/">
-                <h1 className="text-3xl leading-none tracking-tight sm:text-4xl">
-                  UIUC Housing Review
-                </h1>
-              </Link>
-              <p className="label">Free · Student-run · Not affiliated with the University</p>
-            </div>
-            <p className="label py-2.5">
-              Champaign — Urbana · Rated on maintenance, communication &amp; value
+          <div className="mx-auto flex max-w-6xl flex-wrap items-baseline justify-between gap-x-6 px-4 py-3 md:px-6">
+            <Link href="/" className="flex min-h-11 items-center text-title font-semibold tracking-tight">
+              UIUC Housing Review
+            </Link>
+            <p className="pb-1 text-meta text-muted">
+              Student-run · Not affiliated with UIUC or any landlord
             </p>
           </div>
         </header>
 
         <main className="flex-1">{children}</main>
 
-        <footer className="mt-20 border-t border-rule">
-          <div className="mx-auto max-w-6xl px-5 py-8">
-            <p className="max-w-2xl text-sm leading-relaxed text-ink-soft">
+        <footer className="mt-16 border-t border-rule">
+          <div className="mx-auto max-w-6xl px-4 py-8 md:px-6">
+            <p className="max-w-2xl text-meta text-ink-soft">
               Reviews are written by students and reflect their own experiences. This site is not
               affiliated with the University of Illinois or with any management company.
             </p>
-            <p className="label mt-4">Built for the r/UIUC community</p>
+            <p className="mt-4 text-meta text-muted">Built for the r/UIUC community</p>
           </div>
         </footer>
       </body>

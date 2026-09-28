@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { RatingBars, ScoreNumeral } from '@/components/Ratings'
+import { RatingSummary } from '@/components/Ratings'
 import { ReviewCard } from '@/components/ReviewCard'
 import { ReviewForm } from '@/components/ReviewForm'
 import { getPropertyBySlug } from '@/lib/queries'
@@ -17,78 +17,107 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
 
   const sampleCount = property.reviews.filter((r) => r.is_sample).length
 
-  return (
-    <div className="mx-auto max-w-4xl px-5 py-10">
-      <Link href="/" className="label hover:text-accent">
-        ← All properties
-      </Link>
+  const hasReviews = property.reviewCount > 0
 
-      <header className="mt-6 flex flex-wrap items-start justify-between gap-6 border-b-2 border-ink pb-6">
-        <div>
-          <h2 className="text-4xl leading-tight sm:text-5xl">{property.name}</h2>
-          <p className="label mt-2">
+  return (
+    <div className="mx-auto max-w-6xl px-4 pt-2 md:px-6 md:pt-6 lg:grid lg:grid-cols-[minmax(0,42rem)_20rem] lg:justify-between lg:gap-x-12">
+      <header className="lg:col-start-1">
+        <Link href="/" className="inline-flex h-11 items-center text-meta text-ink-soft hover:text-ink">
+          ← All properties
+        </Link>
+        <h1 className="mt-2 text-heading font-semibold md:text-display">{property.name}</h1>
+        <p className="mt-1 text-meta text-muted">{property.address}</p>
+      </header>
+
+      {/* Mobile: directly under the title so it lands above the fold.
+          Desktop: a sticky column beside everything else. */}
+      <aside
+        id="summary"
+        className="mt-6 border-y border-rule py-6 lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-8 lg:self-start lg:rounded-lg lg:border lg:bg-surface lg:p-6"
+      >
+        {hasReviews ? (
+          <>
+            <RatingSummary averages={property.averages} reviewCount={property.reviewCount} />
+            <a
+              href="#write-review"
+              className="mt-6 flex h-11 w-full items-center justify-center rounded-lg border border-rule-strong bg-surface text-body font-semibold hover:border-ink"
+            >
+              Write a review
+            </a>
+          </>
+        ) : (
+          <>
+            <p className="text-title font-semibold text-balance">No reviews yet — lived here? Be the first.</p>
+            <p className="mt-1 text-meta text-muted">Takes about a minute. No account needed.</p>
+            <a
+              href="#write-review"
+              className="mt-4 flex h-12 w-full items-center justify-center rounded-lg bg-accent text-body font-semibold text-surface hover:bg-accent-dark"
+            >
+              Write the first review
+            </a>
+          </>
+        )}
+      </aside>
+
+      <div className="lg:col-start-1">
+        <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-rule bg-rule">
+          <Fact label="Rent">
+            <span className="tnum">
+              ${property.rent_min.toLocaleString()}–{property.rent_max.toLocaleString()}/mo
+            </span>
+          </Fact>
+          <Fact label="Bedrooms">{property.bedrooms.join(', ')}</Fact>
+          <Fact label="Area">{property.neighborhood}</Fact>
+          {/* The link stretches over the whole cell so the tap target is the cell. */}
+          <Fact label="Managed by">
             {property.company ? (
-              <Link href={`/companies/${property.company.slug}`} className="hover:text-accent">
+              <Link href={`/companies/${property.company.slug}`} className="text-accent underline underline-offset-2 after:absolute after:inset-0">
                 {property.company.name}
               </Link>
             ) : (
               'Independent'
-            )}{' '}
-            · {property.neighborhood}
-          </p>
-          <p className="mt-3 text-sm text-ink-soft">{property.address}</p>
-          <p className="tnum mt-1 text-xs text-ink-soft">
-            ${property.rent_min.toLocaleString()}–{property.rent_max.toLocaleString()}/mo ·{' '}
-            {property.bedrooms.join(', ')} BR
-          </p>
-        </div>
+            )}
+          </Fact>
+        </dl>
 
-        <div className="text-right">
-          <ScoreNumeral score={property.averages.overall} size="lg" />
-          <p className="label mt-1">
-            {property.reviewCount} {property.reviewCount === 1 ? 'review' : 'reviews'}
-          </p>
-        </div>
-      </header>
-
-      {property.reviewCount > 0 && (
-        <section className="mt-8 max-w-lg">
-          <RatingBars averages={property.averages} />
-        </section>
-      )}
-
-      <section className="mt-14">
-        <h3 className="text-2xl">Write a review</h3>
-        <p className="mt-2 text-sm text-ink-soft">No account needed. Takes about a minute.</p>
-        <div className="mt-6">
-          <ReviewForm propertyId={property.id} slug={property.slug} />
-        </div>
-      </section>
-
-      <section className="mt-16">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="text-2xl">
-            {property.reviewCount} {property.reviewCount === 1 ? 'review' : 'reviews'}
-          </h3>
-          {sampleCount > 0 && (
-            <p className="label">
-              {sampleCount} sample {sampleCount === 1 ? 'entry' : 'entries'} for demonstration
-            </p>
-          )}
-        </div>
-
-        {property.reviews.length === 0 ? (
-          <p className="mt-6 border border-dashed border-rule px-6 py-12 text-center text-sm text-ink-soft">
-            No reviews yet. Yours would be the first.
-          </p>
-        ) : (
-          <div className="mt-2">
-            {property.reviews.map((review) => (
-              <ReviewCard key={review.id} review={review} />
-            ))}
-          </div>
+        {hasReviews && (
+          <section className="mt-10" aria-labelledby="reviews-heading">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <h2 id="reviews-heading" className="text-title font-semibold">
+                {property.reviewCount} {property.reviewCount === 1 ? 'review' : 'reviews'}
+              </h2>
+              <p className="text-meta text-muted">Newest first</p>
+            </div>
+            {sampleCount > 0 && (
+              <p className="mt-1 text-meta text-muted">
+                {sampleCount} sample {sampleCount === 1 ? 'entry' : 'entries'} for demonstration
+              </p>
+            )}
+            <div className="mt-4">
+              {property.reviews.map((review) => (
+                <ReviewCard key={review.id} review={review} />
+              ))}
+            </div>
+          </section>
         )}
-      </section>
+
+        <section id="write-review" className="mt-10 scroll-mt-4 border-t border-ink pt-6">
+          <h2 className="text-title font-semibold">Write a review</h2>
+          <p className="mt-1 text-meta text-muted">Posted anonymously · takes about a minute</p>
+          <div className="mt-6">
+            <ReviewForm propertyId={property.id} slug={property.slug} />
+          </div>
+        </section>
+      </div>
+    </div>
+  )
+}
+
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="relative bg-bg px-4 py-3">
+      <dt className="text-meta text-muted">{label}</dt>
+      <dd className="text-body font-semibold">{children}</dd>
     </div>
   )
 }

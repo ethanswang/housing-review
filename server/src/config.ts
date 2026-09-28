@@ -45,6 +45,16 @@ const schema = z.object({
     // A trailing slash would produce '//auth/v1' once the paths are appended.
     .transform((value) => value.replace(/\/+$/, '')),
   SUPABASE_JWT_AUDIENCE: z.string().default('authenticated'),
+  // Shared with the Next.js server, which calls this API on behalf of every
+  // visitor from a handful of its own addresses. A request carrying it may name
+  // the visitor's address for the per-IP limit; without it every visitor would
+  // share one bucket. Optional: unset, forwarded addresses are simply ignored.
+  // Blank counts as unset, so an unfilled template cannot become a secret that
+  // the empty string matches.
+  FRONTEND_SECRET: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.string().min(32, 'must be at least 32 characters').optional()
+  ),
   // Per-IP ceiling on all traffic. Deliberately generous: a university campus
   // sits behind a handful of NAT addresses, so hundreds of students share an
   // IP and a tight limit here would lock out a lecture hall, not an attacker.

@@ -46,6 +46,7 @@ npm run dev                        # http://localhost:3001
 | `RATE_LIMIT_WINDOW` | `1 minute` | Window for the per-IP limit. `"30 seconds"`, `"2 hours"`, or milliseconds. |
 | `RATE_LIMIT_WRITE_MAX` | `20` | Writes per **account** per window — reviews and reports share one budget. This is the limit with teeth — an account needs a verified `illinois.edu` address. |
 | `RATE_LIMIT_WRITE_WINDOW` | `1 hour` | Window for the per-account write limit. |
+| `FRONTEND_SECRET` | unset | Shared with the Next.js server; at least 32 characters. See *Requests from the frontend server* below. Blank is treated as unset. |
 | `TRUST_PROXY_HOPS` | `1` | Proxy hops to trust for `X-Forwarded-For`. Set to `0` wherever nothing proxies the service, as compose does — otherwise any client can forge `request.ip`. |
 
 A bad environment fails at boot with the specific problem named, rather than surfacing later
@@ -124,6 +125,17 @@ The account is the identity that costs something to obtain, since it requires a 
 university address.
 
 Both return `429` with `error.code = "rate_limited"` and a `Retry-After` header.
+
+### Requests from the frontend server
+
+The Next.js server calls this API on behalf of every visitor, from a handful of its own
+addresses. Keyed by those, every visitor would share one bucket, and one busy minute would
+lock out the whole site. So a request carrying `x-frontend-secret` equal to `FRONTEND_SECRET`
+may name the visitor in `x-client-ip`, and is limited under that address instead.
+
+Without a matching secret the header is ignored; otherwise any client could claim a new
+address per request and never be limited. A value that is not an IP address falls back to the
+connecting address. The secret is compared in constant time and redacted from logs.
 
 The per-account counter lives in the API process, so running N instances permits N times the
 limit. That is acceptable for a single service and is the point at which a shared store (Redis,

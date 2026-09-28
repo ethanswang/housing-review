@@ -1,3 +1,5 @@
+import { createHash, timingSafeEqual } from 'node:crypto'
+import { isIP } from 'node:net'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import rateLimit from '@fastify/rate-limit'
 import type { Config } from './config.ts'
@@ -19,6 +21,7 @@ export async function registerRateLimits(app: FastifyInstance, config: Config) {
     global: true,
     max: config.RATE_LIMIT_MAX,
     timeWindow: config.RATE_LIMIT_WINDOW,
+    keyGenerator: clientAddress(config.FRONTEND_SECRET),
     /**
      * Health checks decide whether an orchestrator kills this container, so
      * throttling them would turn a traffic spike into a restart loop.
@@ -42,6 +45,36 @@ export async function registerRateLimits(app: FastifyInstance, config: Config) {
       tooManyRequests(`Too many requests. Try again in ${context.after}.`),
   })
 }
+
+/**
+ * The address a request is limited under.
+ *
+ * Normally the connecting address. The Next.js server is the exception: it
+ * calls this API for every visitor, so keyed by its own address they would all
+ * share one bucket and a busy minute would lock out the whole site. It proves
+ * who it is with the shared secret and names the visitor in `x-client-ip`.
+ *
+ * Without the secret the header is ignored — otherwise any client could claim a
+ * fresh address per request and never be limited. The comparison hashes both
+ * sides first, so it runs in constant time regardless of length.
+ */
+function clientAddress(secret: string | undefined) {
+  const expected = secret ? digest(secret) : null
+
+  return (request: FastifyRequest): string => {
+    if (!expected) return request.ip
+
+    const presented = request.headers['x-frontend-secret']
+    const forwarded = request.headers['x-client-ip']
+    if (typeof presented !== 'string' || typeof forwarded !== 'string') return request.ip
+    if (!timingSafeEqual(digest(presented), expected)) return request.ip
+
+    const address = forwarded.trim()
+    return isIP(address) ? address : request.ip
+  }
+}
+
+const digest = (value: string) => createHash('sha256').update(value).digest()
 
 type Bucket = { count: number; resetAt: number }
 

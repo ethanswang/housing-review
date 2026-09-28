@@ -1,70 +1,69 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   UIUC Housing Review — "student paper data desk"
-   Newsprint ground, Illini navy ink, Illini orange as the one sharp accent.
-   One typeface throughout: hierarchy comes from size and weight, not family.
-   Editorial rules and tabular density over cards-on-grey.
+   UIUC Housing Review — see DESIGN.md for the reasoning behind every token.
+   Neutral ground, one green accent reserved for things you can tap.
+   Five type sizes, 4px spacing (Tailwind's default scale), no card boxes.
 --------------------------------------------------------------------------- */
 
 @theme {
-  --color-paper:      #f7f4ed;
-  --color-paper-card: #fffdf8;
-  --color-ink:        #13294b;
-  --color-ink-soft:   #4a5568;
-  --color-muted:      #7d766a;
-  --color-rule:       #ddd6c8;
-  --color-rule-soft:  #ebe5d9;
-  --color-accent:     #ff5f05;
-  --color-accent-dim: #ffe4d1;
+  --color-bg:          #fafaf7;
+  --color-surface:     #ffffff;
+  --color-ink:         #1c1b19;
+  --color-ink-soft:    #45433f;
+  --color-muted:       #6b6862;
+  --color-rule:        #e4e2dc;
+  --color-rule-strong: #8c8983;
+  --color-accent:      #1f6b4a;
+  --color-accent-dark: #17543a;
 
-  --font-body:    var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+
+  /* The whole type scale. Nothing else is used. */
+  --text-meta:                 0.8125rem;
+  --text-meta--line-height:    1.125rem;
+  --text-body:                 1rem;
+  --text-body--line-height:    1.625rem;
+  --text-title:                1.25rem;
+  --text-title--line-height:   1.75rem;
+  --text-heading:              1.75rem;
+  --text-heading--line-height: 2.125rem;
+  --text-display:              2.5rem;
+  --text-display--line-height: 2.75rem;
 }
 
 body {
-  background-color: var(--color-paper);
+  background-color: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-body);
 }
 
-/* The small-caps rule used for every piece of metadata on the site. Caps of
-   the text face at 11px with open tracking — the newspaper convention; it does
-   not need a separate typeface to read as metadata.
-
-   These rules sit outside any @layer, while Tailwind's utilities are inside
-   `@layer utilities`. Unlayered declarations win over layered ones no matter
-   their specificity, so `.label` cannot be overridden by a utility class:
-   `className="label normal-case"` still renders uppercase. Anything that wants
-   to differ from this convention should not use `.label`. */
-.label {
-  font-size: 0.6875rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
-
-/* Editorial double rule, used under the masthead. */
-.rule-double {
-  border-bottom: 3px double var(--color-ink);
-}
-
 /* Figures that form a column — rating values, prices — line up digit to digit.
-   Public Sans ships a real `tnum` feature; the display face does not, so the
-   headline score numeral is a display object rather than a tabular one. */
-/* Public Sans carries a real `tnum` feature, so this genuinely switches its
-   proportional digits to tabular ones and figures line up column to column.
-   Worth noting because it did not always: the display serif this replaced had
-   no numeric features at all, so `.tnum` on the score numerals was inert. */
+   Public Sans ships a real `tnum` feature. */
 .tnum {
   font-variant-numeric: tabular-nums;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  * { transition-duration: 0.01ms !important; }
+/* Loading skeleton block. The pulse is dropped under reduced motion below.
+   Declared with @utility so it sits in Tailwind's utilities layer and
+   `rounded-lg` etc. can still override the radius. */
+@utility skeleton {
+  background-color: var(--color-rule);
+  border-radius: 4px;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% { opacity: 0.55; }
 }
 
-/* Focus ring that matches the accent rather than the browser default. */
-:where(a, button, input, select, textarea):focus-visible {
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation: none !important;
+  }
+}
+
+:where(a, button, input, select, textarea, summary):focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
