@@ -139,6 +139,18 @@ describe('parseCatalog', () => {
     )
   })
 
+  it('rejects a company website that is not http or https', () => {
+    for (const website of ['javascript:alert(1)', 'ftp://example.com']) {
+      expect(() =>
+        parseCatalog({ companies: [{ slug: 'co', name: 'Co', website }], properties: [] })
+      ).toThrow(/website/)
+    }
+    expect(
+      parseCatalog({ companies: [{ slug: 'co', name: 'Co', website: 'https://co.example' }], properties: [] })
+        .companies[0]!.website
+    ).toBe('https://co.example')
+  })
+
   it('rejects the same slug twice', () => {
     expect(() => parseCatalog({ companies: [], properties: [property, property] })).toThrow(
       /duplicate slug "a-place"/

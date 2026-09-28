@@ -27,7 +27,9 @@ const slug = z
 const companySchema = z.object({
   slug,
   name: z.string().trim().min(1).max(120),
-  website: z.url().optional(),
+  // http(s) only. z.url() alone accepts `javascript:alert(1)`, which becomes a
+  // script the moment any page renders the website as a link.
+  website: z.url({ protocol: /^https?$/, error: 'must be an http:// or https:// URL' }).optional(),
 })
 
 const propertySchema = z
