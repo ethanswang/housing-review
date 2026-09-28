@@ -5,6 +5,7 @@ import type { Database } from '../db.ts'
 import { forbidden, notFound } from '../errors.ts'
 import type { OwnedReview } from '../repositories/reviews.ts'
 import {
+  createReport,
   createReview,
   deleteReview,
   getReviewForAuthor,
@@ -47,6 +48,17 @@ const reviewPatchSchema = z
 
 const idSchema = z.object({ id: z.uuid('must be a review id') })
 
+/** Mirrors the review_reports reason and details constraints. */
+const reportBodySchema = z.object({
+  reason: z.enum(['spam', 'harassment', 'not_a_tenant', 'personal_info', 'other']),
+  details: z
+    .string()
+    .trim()
+    .max(1000)
+    .transform((value) => (value.length ? value : undefined))
+    .optional(),
+})
+
 export async function reviewRoutes(
   app: FastifyInstance,
   options: { db: Database; config: Config }
@@ -77,6 +89,15 @@ export async function reviewRoutes(
     await assertOwned(options.db, id, currentUser(request).id)
     await deleteReview(options.db, id)
     return reply.status(204).send()
+  })
+
+  // Shares the write budget with reviews: filing reports is a write, and a
+  // separate budget would double what one account can push into the queue.
+  app.post('/reviews/:id/reports', { preHandler: limited, onResponse: countWrite }, async (request, reply) => {
+    const { id } = parse(idSchema, request.params)
+    const input = parse(reportBodySchema, request.body)
+    const report = await createReport(options.db, id, currentUser(request).id, input)
+    return reply.status(201).send(report)
   })
 
   app.get('/me/reviews', { preHandler: app.requireAuth }, async (request) =>

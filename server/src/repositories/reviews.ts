@@ -187,3 +187,56 @@ export async function listReviewsByAuthor(db: Database, authorId: string): Promi
   )
   return (rows as ReviewRow[]).map(toReview)
 }
+
+export type ReportReason = 'spam' | 'harassment' | 'not_a_tenant' | 'personal_info' | 'other'
+
+export type Report = {
+  id: string
+  reviewId: string
+  reason: ReportReason
+  details: string | null
+  status: 'open' | 'dismissed' | 'actioned'
+  createdAt: string
+}
+
+/**
+ * Queues a review for a moderator. It does not hide the review: if reports
+ * hid reviews on their own, a handful of accounts could take down any review
+ * they disliked, which is the abuse a landlord is best placed to commit.
+ *
+ * Only published reviews can be reported, because only those are visible to
+ * the reporter. The insert selects from reviews, so the existence check and
+ * the write are one statement with no gap for the review to change between.
+ */
+export async function createReport(
+  db: Database,
+  reviewId: string,
+  reporterId: string,
+  input: { reason: ReportReason; details?: string }
+): Promise<Report> {
+  let rows
+  try {
+    ;({ rows } = await db.query(
+      `insert into review_reports (review_id, reporter_id, reason, details)
+       select id, $2, $3, $4 from reviews where id = $1 and status = 'published'
+       returning id, review_id, reason, details, status, created_at`,
+      [reviewId, reporterId, input.reason, input.details ?? null]
+    ))
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      throw conflict('You have already reported this review', 'already_reported')
+    }
+    throw error
+  }
+
+  const row = rows[0]
+  if (!row) throw notFound('That review no longer exists')
+  return {
+    id: row.id,
+    reviewId: row.review_id,
+    reason: row.reason,
+    details: row.details,
+    status: row.status,
+    createdAt: row.created_at.toISOString(),
+  }
+}

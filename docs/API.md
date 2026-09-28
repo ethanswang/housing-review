@@ -44,7 +44,7 @@ npm run dev                        # http://localhost:3001
 | `LOG_LEVEL` | `info` | pino level. |
 | `RATE_LIMIT_MAX` | `600` | Requests per IP per window, across everything. Deliberately generous: a campus shares a few NAT addresses, so a tight ceiling would lock out a lecture hall rather than an attacker. |
 | `RATE_LIMIT_WINDOW` | `1 minute` | Window for the per-IP limit. `"30 seconds"`, `"2 hours"`, or milliseconds. |
-| `RATE_LIMIT_WRITE_MAX` | `20` | Review writes per **account** per window. This is the limit with teeth — an account needs a verified `illinois.edu` address. |
+| `RATE_LIMIT_WRITE_MAX` | `20` | Writes per **account** per window — reviews and reports share one budget. This is the limit with teeth — an account needs a verified `illinois.edu` address. |
 | `RATE_LIMIT_WRITE_WINDOW` | `1 hour` | Window for the per-account write limit. |
 | `TRUST_PROXY_HOPS` | `1` | Proxy hops to trust for `X-Forwarded-For`. Set to `0` wherever nothing proxies the service, as compose does — otherwise any client can forge `request.ip`. |
 
@@ -94,6 +94,21 @@ forgets it stays public — the safe direction here, since nothing readable was 
 | `503` | Supabase's key set is unreachable — deliberately **not** 401, so an outage does not read as "sign in again" |
 
 `GET /api/me` returns the caller and is the quickest way to check sign-in end to end.
+
+## Reporting a review
+
+`POST /api/reviews/:id/reports` with `{ "reason": "...", "details": "..." }` files a report for
+a moderator. `reason` is one of `spam`, `harassment`, `not_a_tenant`, `personal_info`, `other`;
+`details` is optional, at most 1000 characters. Requires sign-in.
+
+| Response | Meaning |
+| --- | --- |
+| `201` | Filed, with `status: "open"` |
+| `404` | No published review with that id — hidden and removed reviews cannot be reported, since the reporter cannot see them |
+| `409` `already_reported` | This account has already reported this review |
+
+A report never hides a review by itself. If it did, a few accounts could take down any review
+they disliked — and a landlord is the person with the most reason to try.
 
 ## Rate limiting
 
