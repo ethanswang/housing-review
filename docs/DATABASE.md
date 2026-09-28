@@ -23,6 +23,36 @@ never collides with a Postgres already running on 5432.
 
 To start over: `docker compose down -v && docker compose up -d --wait`.
 
+## Loading the property list
+
+`db:seed` is for local development only: it truncates every table. The production list of
+companies and properties is loaded with the catalog importer instead, which is built to be
+safe to run against real data:
+
+```bash
+cd server
+node src/import-catalog.ts data/catalog.json            # dry run: reports, writes nothing
+node src/import-catalog.ts data/catalog.json --apply    # writes
+```
+
+It reads `DATABASE_URL`. `data/catalog.example.json` shows the format.
+
+- **It never deletes.** A row missing from the file stays, and so do its reviews. Removing a
+  property is a separate, deliberate act.
+- **Rows are matched by slug.** Importing the same file twice reports every row unchanged; a
+  corrected file updates only the rows that differ. Keep a property's slug fixed once it is
+  live — it is the URL, and changing it in the file creates a second property.
+- **All or nothing.** The whole file is validated first, with every problem listed at once,
+  and the writes share one transaction, so a bad file leaves the database as it was.
+- **Dry run by default.** Without `--apply` the transaction is rolled back after counting.
+- A property's `company` may be a company in the same file or one already in the database;
+  `null` means an independent landlord. Omitting a company's `website` clears it.
+
+**Production:** the database accepts connections only from inside the VPC. The importer lives
+in `src/` rather than `scripts/` so that it ships in the API image, which runs there. The
+repository is private, so how the file reaches the instance is settled — and tested with a dry
+run — as part of the cutover; it is not documented here until it has been done.
+
 ## Trust model
 
 The API service owns this database and connects as its own role. **Authorization is enforced
