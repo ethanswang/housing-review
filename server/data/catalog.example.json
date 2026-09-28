@@ -1,0 +1,28 @@
+{
+  "companies": [
+    { "slug": "jsm", "name": "JSM", "website": "https://www.jsmliving.com" },
+    { "slug": "roland-realty", "name": "Roland Realty" }
+  ],
+  "properties": [
+    {
+      "slug": "green-street-towers",
+      "name": "Green Street Towers",
+      "address": "500 block of E Green St, Champaign",
+      "neighborhood": "Campustown",
+      "rentMin": 875,
+      "rentMax": 1250,
+      "bedrooms": [1, 2, 3],
+      "company": "jsm"
+    },
+    {
+      "slug": "campus-circle",
+      "name": "Campus Circle",
+      "address": "200 block of E Springfield Ave",
+      "neighborhood": "Engineering Campus",
+      "rentMin": 700,
+      "rentMax": 995,
+      "bedrooms": [2, 3, 4],
+      "company": "roland-realty"
+    }
+  ]
+}
