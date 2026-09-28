@@ -82,7 +82,7 @@ Components never import the Supabase client directly.
 | `lib/filters.ts` | The only translation between URL query params and filter objects. |
 | `lib/supabase.ts` | Client construction and env validation. |
 | `app/actions.ts` | The one Server Action — review submission and validation. |
-| `app/page.tsx` | Directory: search, filters, results. |
+| `app/(directory)/page.tsx` | Directory: search, filters, results. In a route group so its loading skeleton doesn't wrap other pages. |
 
 **Why filter state lives in the URL.** A filtered view is shareable, bookmarkable, and
 survives back/forward. The filter rail is a client component that only writes to the URL;

@@ -71,6 +71,6 @@ export function SubRatingsInline({ ratings }: { ratings: Record<(typeof SUB_RATI
 
 export function SampleBadge() {
   return (
-    <span className="rounded border border-rule-strong px-1.5 text-meta text-muted">Sample</span>
+    <span className="rounded border border-rule-strong px-1.5 text-meta text-muted">Sample data</span>
   )
 }
