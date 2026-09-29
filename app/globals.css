@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   UIUC Housing Review — see DESIGN.md for the reasoning behind every token.
+   UIUC Housing Review — see docs/DESIGN.md for the reasoning behind every token.
    Neutral ground, one green accent reserved for things you can tap.
    Five type sizes, 4px spacing (Tailwind's default scale), no card boxes.
 --------------------------------------------------------------------------- */

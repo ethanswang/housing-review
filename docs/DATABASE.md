@@ -183,8 +183,8 @@ parameter group — or search quietly degrades into a table scan.
 `property_stats` and `company_stats` compute review counts and per-category averages in SQL,
 so that application code never has to average anything itself.
 
-Nothing reads these views yet. The deployed Next.js app still queries Supabase directly and
-computes averages in JavaScript; the views are consumed when the API service lands.
+The API reads both. The live website does not yet: it still queries the older Supabase schema
+directly and averages in JavaScript, until it moves onto the API.
 
 Both use `LEFT JOIN LATERAL` rather than `GROUP BY`. With a lateral join, conditions on
 `properties` (search, area, rent, bedrooms) restrict the property scan *before* any review
@@ -217,22 +217,21 @@ the base tables later, the caller's policies still apply rather than the view ow
 
 ## Where each rule is enforced
 
-Only the database column is live today. The API column describes the service added in a
-later PR and is **not built yet**: rating and body validation currently happen in the
-Next.js Server Action, and there is no sign-in, so the account rules below exist only as
-constraints in this schema.
+This schema is written only through the API, which enforces the API column today. The live
+website still submits through a Next.js Server Action to the older Supabase schema
+(`supabase/schema.sql`) until it moves onto the API, so its form is the browser column.
 
-| Rule | Browser | API (not built yet) | Database (live) |
+| Rule | Browser (review form) | API | Database |
 | --- | --- | --- | --- |
-| Ratings are 1–5 | `required` inputs | request validation | `check` constraint |
-| Body length 20–2000 | `minLength` | request validation | `check` constraint |
+| Ratings are 1–5 | `required` radio inputs | request validation | `check` constraint |
+| Body length 20–2000 | `minLength` / `maxLength` | request validation | `check` constraint |
+| Lease term at most 40 characters | `required` only | request validation | `check` constraint |
 | University email only | — | checked at sign-in | `check` constraint, anchored at both ends |
-| Lease term at most 40 characters | `maxLength` | request validation | `check` constraint |
-| One review per property | UI hides the form | ownership + conflict check | `unique` constraint |
-| Only the author edits a review | UI hides controls | authoritative check | `author_id` comparison |
+| One review per property | — | conflict check | partial `unique` index |
+| Only the author edits a review | — | ownership check on every write | `author_id` comparison |
 
-The browser layer is convenience. The API will be the real guard. The database is the last
-line, and the only one nothing can bypass.
+The browser layer is convenience. The API is the real guard. The database is the last line,
+and the only one nothing can bypass.
 
 ## Migrations
 
