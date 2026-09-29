@@ -41,8 +41,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# agent worktrees (created by tooling, never part of the project)
-.claude/worktrees/
+# local AI-assistant configuration; `next dev` regenerates AGENTS.md and
+# CLAUDE.md when it detects an agent, so they are ignored rather than deleted
+/.claude/
+/AGENTS.md
+/CLAUDE.md
+/.playwright-mcp/
 
 # database exports: they contain user email addresses
 /backups/
