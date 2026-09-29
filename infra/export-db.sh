@@ -30,7 +30,11 @@ SECRET_ARN=$(tofu -chdir=infra output -raw database_secret_arn)
 WORK=$(mktemp -d)
 TUNNEL_PID=""
 cleanup() {
-  [ -n "$TUNNEL_PID" ] && kill "$TUNNEL_PID" 2>/dev/null || true
+  if [ -n "$TUNNEL_PID" ]; then
+    kill "$TUNNEL_PID" 2>/dev/null || true
+    # Reaping it here keeps bash from printing "Terminated" for the job.
+    wait "$TUNNEL_PID" 2>/dev/null || true
+  fi
   rm -rf "$WORK"
 }
 trap cleanup EXIT
@@ -50,11 +54,11 @@ aws ssm start-session --region "$REGION" --target "$INSTANCE_ID" \
 TUNNEL_PID=$!
 
 for _ in $(seq 1 30); do
-  nc -z 127.0.0.1 "$LOCAL_PORT" 2>/dev/null && break
+  nc -z 127.0.0.1 "$LOCAL_PORT" >/dev/null 2>&1 && break
   kill -0 "$TUNNEL_PID" 2>/dev/null || { cat "$WORK/tunnel.log" >&2; exit 1; }
   sleep 1
 done
-nc -z 127.0.0.1 "$LOCAL_PORT" || { echo "tunnel did not open" >&2; cat "$WORK/tunnel.log" >&2; exit 1; }
+nc -z 127.0.0.1 "$LOCAL_PORT" >/dev/null 2>&1 || { echo "tunnel did not open" >&2; cat "$WORK/tunnel.log" >&2; exit 1; }
 
 SECRET=$(aws secretsmanager get-secret-value --region "$REGION" --secret-id "$SECRET_ARN" \
   --query SecretString --output text)
