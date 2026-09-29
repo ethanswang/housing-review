@@ -111,6 +111,9 @@ These are estimates, not quotes. Use the AWS pricing calculator against your own
 about $14 a month. The application does not care — it takes a `DATABASE_URL`. Set
 `aws_db_instance` aside and point the secret at Supabase's connection string.
 
+**This runs on free-plan credits, which end.** [LEAVING-AWS.md](LEAVING-AWS.md) has the
+deadline, the export script, and the move to a free host with no code changes.
+
 ## Applying it
 
 Requires the AWS CLI configured with credentials, and OpenTofu or Terraform.
