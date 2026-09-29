@@ -3,7 +3,7 @@
 ## Reporting a vulnerability
 
 Please report vulnerabilities privately through GitHub:
-**Security → [Report a vulnerability](https://github.com/ethanswang/housing-review-mvp/security/advisories/new)**.
+**Security → [Report a vulnerability](https://github.com/ethanswang/housing-review/security/advisories/new)**.
 Do not open a public issue.
 
 Include what you found, how to reproduce it, and what it would let someone do. Replies come
