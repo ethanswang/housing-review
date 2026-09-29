@@ -95,3 +95,10 @@ Postgres, a container build, and an infrastructure validation on every pull requ
 
 To report a security vulnerability, see [SECURITY.md](SECURITY.md) rather than opening an
 issue.
+
+## License
+
+Copyright © 2026 Ethan Wang. All rights reserved.
+
+The source is public so that it can be read. No license is granted to copy, modify, or
+redistribute it. GitHub's terms of service still allow viewing and forking it on GitHub.
