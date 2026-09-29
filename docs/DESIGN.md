@@ -1,24 +1,27 @@
-# DESIGN.md — UIUC Housing Review UI refactor
+# Design
 
-Status: **implemented** in the `ui/mobile-first-redesign` PR. The draft was built on the §0 defaults (leave out anything the data doesn't support) after the go-ahead to resolve open questions without waiting. §9 lists where the build departs from the draft, and why.
+The visual system and page layouts for the site: type, colour, the rating display, and how each
+page is laid out on a phone and on desktop. Implemented in #25. §8 lists where the build
+departed from the first draft, and why.
 
-## 0. Read this first: gaps between the brief and the data
+## 0. Deliberately left out
 
-The brief asks for things the current data model does not have. Because the refactor must not change functionality or data flow, I have **not** designed placeholders for them. Each needs a schema change and its own PR if you want it.
+Common housing-site features the current data model does not support. The redesign changed
+presentation only, not data, so none of these has a placeholder; each needs a schema change
+first.
 
-| Brief asks for | What exists today | Proposal for this refactor |
+| Feature | What exists today | Decision |
 |---|---|---|
 | Photos first on listings; photo thumbs in browse | No image field on `properties` | Leave out. No stock or placeholder images. Layout keeps room to add a photo strip above the title later. |
 | Distance to campus | No coordinates or distance | Leave out. Key facts show what exists: rent, bedrooms, area, management. |
 | Lease terms (on the listing) | Only `review.lease_term`, which is the year a reviewer lived there (e.g. `2024-25`) | Leave out at listing level. Show the year on each review as "Lived here 2024–25". |
 | Map/list toggle (StreetEasy) | No coordinates | Leave out. List only. |
 | Reviewer unit type | Not collected | Leave out. |
-| "Helpful" count | Not in the schema. The new report endpoint (PR #24) lives on the Fastify API, which the Next app doesn't call. | Leave out. |
+| "Helpful" count | Not in the schema | Leave out. |
 | Sub-ratings: noise, landlord responsiveness | Schema has `maintenance`, `communication`, `value` | Keep those three. "Communication" already covers landlord responsiveness. Adding noise changes the form and schema. |
 | Recent reviews easy to find | Already sorted newest-first in `getPropertyBySlug` | Label the list "Newest first" and show a date on every review (`created_at` exists and isn't shown yet). |
-| `/design-refs` screenshots | **Folder not found** (checked the repo, `~`, `~/Downloads`, `~/Desktop`, `/`) | The notes below are based on how those three sites work in general. If you have the screenshots, point me at them and I'll check this against them. |
 
-One more conflict: the current palette is Illini navy (`#13294b`) with Illini orange (`#ff5f05`). That's the "school-spirit colors" the brief says to avoid, so both are replaced below.
+The earlier palette was Illini navy (`#13294b`) and orange (`#ff5f05`). School colours make an independent site look official, so both were replaced (§3).
 
 ## 1. Typeface: keep Public Sans, one family
 
@@ -29,9 +32,9 @@ One more conflict: the current palette is Illini navy (`#13294b`) with Illini or
 - **Clear letterforms.** `I l 1` and `O 0` are distinguishable, which helps with addresses, prices, and unit numbers.
 - **Real tabular figures (`tnum`).** Rating numbers and prices line up in columns. The rating system (§4) depends on this.
 - **Neutral, civic feel.** It was designed for US government sites. It reads like a public record rather than a leasing brochure, which suits "independent and trustworthy".
-- **No new dependency.** It's already self-hosted by `next/font`, and it keeps your earlier "one typeface throughout" decision (PR #20).
+- **No new dependency.** It's already self-hosted by `next/font`, and it keeps the earlier "one typeface throughout" decision (#20).
 
-Alternative I considered: Source Serif 4 for review text only (closer to Letterboxd's editorial feel). I rejected it because it adds a second family and a second download, with no legibility gain at 16px on modern phone screens.
+Considered and rejected: Source Serif 4 for review text only (closer to Letterboxd's editorial feel). It adds a second family and a second download, with no legibility gain at 16px on modern phone screens.
 
 ## 2. Type scale (5 sizes)
 
@@ -86,7 +89,7 @@ Review text is capped at `max-width: 65ch` (about 600px). On a 390px phone the 1
 | No data | `—` in the same size, in `muted`, with "No reviews yet" | Hidden |
 | Form input | Segmented control: five 44×44px buttons labelled `1`–`5`. Only the chosen number fills with the accent (not 1…n). A native radio group underneath, as now. | Same control |
 
-Only filling the chosen number (the current form fills 1 through n) stops the control looking like a star row, and it matches how the score is then displayed.
+Filling only the chosen number (an earlier form filled 1 through n) stops the control looking like a star row, and it matches how the score is then displayed.
 
 ## 5. Layouts
 
@@ -125,7 +128,7 @@ Based on StreetEasy's result list and Airbnb's filter sheet.
 - **Accessibility:** the sheet is a native `<dialog>` for focus trapping, and Esc or tapping the overlay closes it.
 
 **Desktop (≥1024px):**
-- A two-column grid: the same filter groups, plus sort, as a 240px left rail with no box and no sheet, and results on the right. The rail isn't sticky (§9).
+- A two-column grid: the same filter groups, plus sort, as a 240px left rail with no box and no sheet, and results on the right. The rail isn't sticky (§8).
 - The results column is capped at 720px so rows don't stretch.
 - The filter button and sheet are hidden.
 
@@ -149,7 +152,7 @@ Based on Airbnb's detail page structure and Letterboxd's review column.
    - Managed by `JSM`
 
    Labels are in `meta`, values in `body` semibold.
-5. **Reviews header:** "12 reviews" on the left, "Newest first" on the right, and the note on sample entries below. The "Write a review" button sits in the rating summary (step 3) instead (§9).
+5. **Reviews header:** "12 reviews" on the left, "Newest first" on the right, and the note on sample entries below. The "Write a review" button sits in the rating summary (step 3) instead (§8).
 6. **Review list** (§5.4).
 7. **Write a review** (§5.5) at the bottom of the page.
    - This moves the form below the reviews. People who arrive from a shared link came to read, not write.
@@ -189,7 +192,7 @@ It stays one form, submitted to the same `submitReview` action with the same fie
 1. **Heading:** "Write a review", with "Posted anonymously · takes about a minute" in `meta`.
 2. **When did you live here?** A lease year text input (16px, 48px tall, capped at 192px wide on desktop) with the `2024-25` placeholder.
 3. **Overall — would you sign again?** A 1–5 segmented control.
-4. **Three sub-ratings.** Each is a segmented control with its existing hint line, stacked at every width (§9).
+4. **Three sub-ratings.** Each is a segmented control with its existing hint line, stacked at every width (§8).
 5. **Your review.** A textarea, at least 6 rows, 16px text, with the guidance text below it (unchanged).
 6. **Errors:** shown above the button with `role="alert"`, as now, as `ink` text with a left rule. No colored box.
 7. **Post review button:** a primary accent button, full width on mobile and auto width on desktop, 48px tall.
@@ -229,21 +232,7 @@ Same structure as listing detail: name, rating summary with the averaging note, 
   - the form's validation and success state
   - reviews are ordered newest first
 
-## 8. Process after approval
-Pages are done in this order:
-1. Tokens and chrome
-2. Browse, with the filter sheet and skeleton
-3. Listing detail, with the review card, form, empty state and skeleton
-4. Company page
-
-For each page:
-- Screenshot it at 390px and 1280px with Playwright, against the local dev server and seeded data.
-- Compare against the references.
-- Write down what still looks generic or is hard to scan, then fix it before moving on.
-
-Each step ships as its own small PR, following your usual workflow.
-
-## 9. Where the build departs from the draft
+## 8. Where the build departs from the draft
 
 These came out of the 390px and 1280px screenshot passes:
 

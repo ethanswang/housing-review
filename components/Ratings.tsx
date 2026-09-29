@@ -1,7 +1,7 @@
 import { RATING_LABELS, SUB_RATING_KEYS, type Averages } from '@/lib/types'
 
 /*
- * One rating system everywhere (DESIGN.md §4): every rating is a number, a
+ * One rating system everywhere (docs/DESIGN.md §4): every rating is a number, a
  * sub-rating is a number plus a bar, the overall score is a number alone.
  * Bars are ink, not accent — a coloured bar reads as "good" even at 1.8.
  */
