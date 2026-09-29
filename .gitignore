@@ -43,3 +43,6 @@ next-env.d.ts
 
 # agent worktrees (created by tooling, never part of the project)
 .claude/worktrees/
+
+# database exports: they contain user email addresses
+/backups/
