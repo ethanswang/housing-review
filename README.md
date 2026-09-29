@@ -1,168 +1,97 @@
 # UIUC Housing Review
 
-A free, student-run housing review site for the University of Illinois. Students rate
-Champaign–Urbana apartments and management companies on **maintenance**, **communication**,
-and **value**, and those ratings roll up into scores you can filter and compare.
+Apartment reviews from University of Illinois students. Champaign–Urbana buildings and
+management companies are rated on **maintenance**, **communication**, and **value**, and the
+ratings roll up into scores you can search, filter, and compare.
 
-**Live at [www.uiuchousing.com](https://www.uiuchousing.com)**
+Free, student-run, and not affiliated with the University of Illinois or any landlord.
 
-> **This is a prototype.** The reviews in it are synthetic sample data, clearly labeled in the
-> UI, and the site is set to `noindex` so those ratings don't reach search results — the domain
-> is reachable, but deliberately absent from search until the sample data is replaced. See
-> [Sample data](#sample-data) below.
+**[www.uiuchousing.com](https://www.uiuchousing.com)**
 
----
+> **Status: in development.** The reviews on the site today are sample data written to
+> demonstrate it, and every one carries a "Sample data" badge. The site is kept out of search
+> results until they are replaced by real reviews.
 
-## Run it locally
+## How reviews work
 
-**Prerequisites:** Node 20+ and a free [Supabase](https://supabase.com) account. No paid
-services are used anywhere in this project.
+- **Scores are averages of reviews, and nothing else.** Each review rates a building 1–5
+  overall and on maintenance, communication, and value. A management company's score is the
+  review-weighted average across its buildings.
+- **Reviews are anonymous to readers.**
+- **Reviewers will need an `@illinois.edu` address** to post, limited to one review per
+  building. Sign-in is being built; it is what makes a review from a real student distinct
+  from one written by a landlord.
+- **Reviews will be reportable** for personal information, harassment, or not being from a
+  tenant, arriving on the site with sign-in. A report queues the review for a person to look
+  at; reports never remove a review automatically.
 
-```bash
-git clone <this-repo>
-cd housing-review-mvp
-npm install
-```
-
-**1. Create the database**
-
-Create a new project at [supabase.com/dashboard](https://supabase.com/dashboard) (free tier).
-Then in **SQL Editor → New query**, run these two files in order:
-
-- `supabase/schema.sql` — tables, constraints, and Row Level Security policies
-- `supabase/seed.sql` — demo properties and sample reviews
-
-**2. Set environment variables**
-
-```bash
-cp .env.example .env.local
-```
-
-Fill in both values from **Project Settings → API**:
-
-| Variable | Where to find it |
-| --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `anon` / `public` key |
-
-The anon key is public by design — Row Level Security is what actually controls access. Only
-server components read it, so it does not reach the browser bundle; keep it that way by
-importing `lib/supabase.ts` from server code only. **Never** put the `service_role` key here;
-it bypasses RLS.
-
-**3. Start**
-
-```bash
-npm run dev     # http://localhost:3000
-```
-
----
-
-## How it works
-
-One data path, no exceptions:
+## Architecture
 
 ```
 Browser
-   ↓  filter and search state lives in the URL query string
-Next.js server component  ·  or Server Action for writes
-   ↓
-lib/queries.ts            ← every database read and write is in this file
-   ↓
-Supabase JS client
-   ↓
-PostgreSQL
+   │
+Next.js on Vercel ─────────── Supabase Auth (issues sign-in tokens)
+   │ HTTPS
+Fastify API  (Docker on EC2, TLS by Caddy)
+   │ TLS, private subnet
+PostgreSQL 17  (RDS)
 ```
 
-Components never import the Supabase client directly.
+The website is moving from reading Supabase directly onto the API. The API, its database, and
+the infrastructure are built and running; the site switches over once sign-in is in place.
 
-| File | Responsibility |
+| Path | What it is |
 | --- | --- |
-| `lib/queries.ts` | All database access. Averages are computed here. |
-| `lib/filters.ts` | The only translation between URL query params and filter objects. |
-| `lib/supabase.ts` | Client construction and env validation. |
-| `app/actions.ts` | The one Server Action — review submission and validation. |
-| `app/(directory)/page.tsx` | Directory: search, filters, results. In a route group so its loading skeleton doesn't wrap other pages. |
+| `app/`, `components/`, `lib/` | The Next.js site. `lib/queries.ts` holds all data access. |
+| `server/` | The API: routes, repositories, migrations, and tests against real Postgres. |
+| `infra/` | OpenTofu for the AWS stack: network, EC2, RDS, alarms. |
+| `supabase/` | The schema the live site still reads, until the switch. |
+| `docs/` | Design and operations documentation, below. |
 
-**Why filter state lives in the URL.** A filtered view is shareable, bookmarkable, and
-survives back/forward. The filter rail is a client component that only writes to the URL;
-the server page re-runs the query and returns new results.
+### Documentation
 
-**Validation happens three times, on purpose.** The browser (`required`, `minLength`) is a
-convenience. The Server Action (`app/actions.ts`) is the real guard, because Server Actions
-are reachable by direct POST. Postgres `CHECK` constraints are the last line.
+- [API](docs/API.md) — running it, configuration, authentication, rate limiting.
+- [Database](docs/DATABASE.md) — schema, trust model, indexes with measured query plans,
+  loading the property list.
+- [Infrastructure](docs/INFRASTRUCTURE.md) — the AWS stack, costs, deploying, secrets.
+- [Leaving AWS](docs/LEAVING-AWS.md) — exporting the data and moving to another host with no
+  code changes.
+- [Design](docs/DESIGN.md) — type, colour, the rating display, and page layouts.
 
-**Why a new review appears immediately.** `submitReview` calls `revalidatePath` for the
-property page and the directory after the insert, discarding their cached renders so the
-next render recomputes the averages.
+## Running it locally
 
----
+Needs Node 24, Docker, and a free [Supabase](https://supabase.com) project.
 
-## What's built
+**The API and its database:**
 
-- Property directory with search over name and address
-- Filters: management company, area, max rent, bedrooms; sort by rating, price, or review count
-- Property pages with per-category score breakdowns and full review lists
-- Review submission with no account required
-- Management-company pages with review-weighted rollup scores
-
-### Sample data
-
-Property and company names are real and public. **Addresses are block-level, rent figures
-are illustrative placeholders, and company/property pairings have not been verified.**
-
-**Every seeded review is synthetic.** No line of that text came from a tenant. Those rows
-carry `is_sample = true` and render with a visible "Sample data" badge. Before any real
-launch:
-
-```sql
-delete from reviews where is_sample;
+```bash
+docker compose up -d --wait db     # Postgres 17 on localhost:5433
+cd server
+npm install
+npm run db:migrate && npm run db:seed
+npm run dev                        # http://localhost:3001
+npm test                           # runs against the compose database
 ```
 
-Sample text is deliberately limited to mundane observations about response times,
-communication, noise, and value. Nothing alleges illegal conduct and no individual employee
-is named.
+**The website** (reads Supabase until the switch):
 
----
+1. In a Supabase project's SQL editor, run `supabase/schema.sql`, then `supabase/seed.sql`.
+2. `cp .env.example .env.local` and fill in the project URL and `anon` key from
+   **Project Settings → API**. The anon key is public by design; never use the `service_role`
+   key here.
+3. `npm install && npm run dev` — http://localhost:3000
 
-## Roadmap
+## Sample data
 
-Deliberately **not** in the MVP, in the order they'd matter:
+Company and building names are real and public. Addresses are block-level, rents are
+placeholders, and company–building pairings have not been verified. **Every seeded review is
+synthetic**: none of its text came from a tenant. Sample text sticks to mundane observations
+about repairs, communication, noise, and value, and names no individual.
 
-**1. Verify that reviewers are students.** Magic-link email sign-in restricted to
-`@illinois.edu` addresses. Reviews stay publicly anonymous, but each is tied to a verified
-account, one review per person per property. This is the answer to "what stops a landlord
-from astroturfing this?" — and the reason there is no half-working login page in the MVP.
+## Contributing
 
-**2. Moderation and takedown.** A report button, an admin queue, and a stated policy: no
-naming individual employees, no allegations a reviewer can't speak to firsthand. A site
-that names real landlords needs a real process for handling disputed reviews.
+Issues and pull requests are welcome. CI runs lint, type checks, the API test suite against
+Postgres, a container build, and an infrastructure validation on every pull request.
 
-**3. Rate limiting.** Per-IP and per-account submission limits.
-
-**4. Direct management-company reviews.** Company scores are currently derived from their
-properties. But management experience isn't always property-specific — lease terms, deposit
-handling, and billing are company-level concerns. These likely deserve first-class reviews
-rather than a derived average.
-
-**5. Coverage.** The seeded list is a sample, not a census. Real coverage means an import
-of Champaign–Urbana rental registrations plus student submissions.
-
-Known limitation: the Supabase free tier pauses a project after a period of inactivity.
-Fine for a demo; something to handle before launch.
-
----
-
-## Stack
-
-**Frontend:** Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · Vercel
-**Backend:** Fastify · PostgreSQL · Docker — see [docs/DATABASE.md](docs/DATABASE.md)
-
-**Domain:** `uiuchousing.com`, registered and served through Vercel DNS
-(`ns1`/`ns2.vercel-dns.com`). The apex issues a 308 to `www.uiuchousing.com`, which is the
-canonical host. `housing-review-mvp.vercel.app` still resolves and serves the same
-deployment.
-
-Managed services throughout, so this ships at zero cost and needs close to zero maintenance
-during the school year. Infrastructure decisions get revisited when there's real usage to
-justify them.
+To report a security vulnerability, see [SECURITY.md](SECURITY.md) rather than opening an
+issue.
