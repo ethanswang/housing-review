@@ -2,12 +2,11 @@
 # build stage and no compiled output that could drift from the source. Types are
 # enforced separately by `npm run typecheck`, which the CI workflow runs on
 # every pull request and every push to main.
-# Pinned by digest, not by tag. `node:24-alpine` moves whenever the upstream
-# image is rebuilt, so a tag alone cannot give a reproducible build: the same
-# Dockerfile would produce different images on different days. Update this
-# deliberately (`docker pull node:24-alpine` then re-read the digest), so a base
-# image change is a reviewable commit rather than a silent one.
-FROM node@sha256:760e44b64c78674d9c79fa32e63c0ba8f817f79791e1aa32e07669bb0bfeaeaa
+# Pinned by digest. `node:24-alpine` moves whenever the upstream image is
+# rebuilt, so a tag alone cannot give a reproducible build. The tag stays in the
+# reference so Dependabot knows which line to follow: it proposes new digests
+# of 24-alpine as reviewable PRs, rather than of `latest`.
+FROM node:24-alpine@sha256:760e44b64c78674d9c79fa32e63c0ba8f817f79791e1aa32e07669bb0bfeaeaa
 
 ENV NODE_ENV=production
 WORKDIR /app
