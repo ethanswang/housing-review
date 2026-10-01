@@ -40,3 +40,11 @@ updates:
     ignore:
       - dependency-name: postgres
         update-types: [version-update:semver-major]
+
+  # The end-to-end suite's Supabase stand-in.
+  - package-ecosystem: docker-compose
+    directory: /e2e/stack
+    schedule: { interval: weekly }
+    ignore:
+      - dependency-name: postgres
+        update-types: [version-update:semver-major]

@@ -83,6 +83,8 @@ npm test                           # runs against the compose database
 3. `npm ci && npm run dev` — http://localhost:3000
 
 `npm test` runs the site's unit tests (pure functions in `lib/`) and needs no Supabase project.
+`npm run test:e2e` runs the browser tests against a local stand-in for Supabase; see
+[CONTRIBUTING.md](CONTRIBUTING.md#running-what-ci-runs).
 
 ## Sample data
 

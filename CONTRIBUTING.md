@@ -41,7 +41,7 @@ rewritten.
 
 ## Running what CI runs
 
-Run these before pushing; CI runs the same four jobs on every pull request.
+Run these before pushing; CI runs the same jobs on every pull request.
 
 ```bash
 # Website: lint, types, unit tests, build
@@ -64,7 +64,16 @@ docker build ./server
 
 # Infrastructure (OpenTofu 1.12; CI pins 1.12.6)
 cd infra && tofu fmt -check && tofu init -backend=false && tofu validate
+cd ..
+
+# End to end: the site in a real browser against a local Supabase stand-in
+npx playwright install chromium   # once
+npm run test:e2e                  # e2e/run.sh: starts e2e/stack, builds, runs Playwright
 ```
+
+The end-to-end suite (`e2e/`) never touches a real project: `e2e/stack` is Postgres with
+`supabase/schema.sql` and its seed behind PostgREST, served where the Supabase client expects
+it, so tests can post reviews. It replaces your local `.next` build.
 
 The root `npm run lint` also lints `server/`, so an API-only change can still fail the website
 job.
@@ -84,7 +93,8 @@ job.
   `npm test`): filters, sorting, averages, search escaping, labels.
 - **Filter state lives in the URL** (`lib/filters.ts` reads and writes it). `FilterRail.tsx`
   shows pending changes optimistically and settles the rent slider's pause; read its comments
-  before changing it, and check fast clicks, Back and a slow network by hand.
+  before changing it. `e2e/filters.spec.ts` covers fast clicks, Back, the slider's pause and a
+  slow network, and each of those tests failed against code that shipped those bugs.
 - **Look and feel** comes from the tokens in `app/globals.css`, explained in
   [DESIGN.md](docs/DESIGN.md). Change the doc along with the design.
 - The live site still reads Supabase directly; it moves onto the API later. Expect
