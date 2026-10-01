@@ -24,18 +24,26 @@ function list(value: string | string[] | undefined): string[] | undefined {
   return items.length ? items : undefined
 }
 
+/** Search text the database can use: no control characters, at most 100 characters, like the API. */
+function searchText(value: string | string[] | undefined): string | undefined {
+  const text = one(value)?.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 100).trim()
+  return text || undefined
+}
+
 export function parseFilters(params: RawSearchParams): PropertyFilters {
   const maxRent = Number(one(params.maxRent))
   const sort = one(params.sort) as SortKey | undefined
 
   return {
-    search: one(params.q),
+    search: searchText(params.q),
     companies: list(params.company),
     neighborhoods: list(params.hood),
     maxRent: Number.isFinite(maxRent) && maxRent > 0 ? maxRent : undefined,
     bedrooms: list(params.beds)
       ?.map(Number)
-      .filter((n) => Number.isInteger(n) && n > 0),
+      // 0 is a studio. Capped at 20, as the API caps it: a huge number would
+      // reach Postgres as an out-of-range integer and fail the whole page.
+      .filter((n) => Number.isInteger(n) && n >= 0 && n <= 20),
     sort: sort && SORT_KEYS.includes(sort) ? sort : 'rating',
   }
 }

@@ -31,6 +31,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npx tsc --noEmit
+      - run: npm test
       - run: npx next build
         env:
           # lib/supabase.ts validates its environment at import time, so the
