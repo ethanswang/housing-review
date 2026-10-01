@@ -23,7 +23,7 @@ db_tunnel_open() {
   DB_TUNNEL_PORT="${LOCAL_PORT:-15432}"
 
   local tool
-  for tool in aws session-manager-plugin docker jq tofu nc; do
+  for tool in aws session-manager-plugin docker jq tofu nc curl; do
     command -v "$tool" >/dev/null || { echo "missing: $tool" >&2; exit 1; }
   done
 
@@ -38,6 +38,14 @@ db_tunnel_open() {
 
   curl -fsS --retry 3 -o "$DB_WORK/rds-ca.pem" \
     "https://truststore.pki.rds.amazonaws.com/$region/$region-bundle.pem"
+
+  # Something already listening there — another tool, or a forward a previous
+  # run left behind — would answer the readiness probe below, and the run would
+  # quietly use it instead of the tunnel it opened.
+  if nc -z 127.0.0.1 "$DB_TUNNEL_PORT" >/dev/null 2>&1; then
+    echo "localhost:$DB_TUNNEL_PORT is already in use; free it or set LOCAL_PORT" >&2
+    exit 1
+  fi
 
   echo "Opening tunnel to $DB_HOST through $instance_id on localhost:$DB_TUNNEL_PORT" >&2
   aws ssm start-session --region "$region" --target "$instance_id" \
@@ -57,14 +65,19 @@ db_tunnel_open() {
 
   secret=$(aws secretsmanager get-secret-value --region "$region" --secret-id "$secret_arn" \
     --query SecretString --output text)
+  # Piped rather than <<<: bash 3.2 writes a here-string to a temporary file.
+  # -e fails on a missing key instead of returning the string "null".
   export PGUSER PGPASSWORD PGDATABASE
-  PGUSER=$(jq -r .username <<<"$secret")
-  PGPASSWORD=$(jq -r .password <<<"$secret")
-  PGDATABASE=$(jq -r .dbname <<<"$secret")
+  PGUSER=$(printf '%s' "$secret" | jq -er .username)
+  PGPASSWORD=$(printf '%s' "$secret" | jq -er .password)
+  PGDATABASE=$(printf '%s' "$secret" | jq -er .dbname)
 }
 
 db_tunnel_close() {
   if [ -n "${DB_TUNNEL_PID:-}" ]; then
+    # The listener is session-manager-plugin, a child of the aws process, and
+    # it survives its parent being killed. Stop it first.
+    pkill -TERM -P "$DB_TUNNEL_PID" 2>/dev/null || true
     kill "$DB_TUNNEL_PID" 2>/dev/null || true
     # Reaping it here keeps bash from printing "Terminated" for the job.
     wait "$DB_TUNNEL_PID" 2>/dev/null || true
