@@ -35,7 +35,7 @@ export function parseFilters(params: RawSearchParams): PropertyFilters {
     maxRent: Number.isFinite(maxRent) && maxRent > 0 ? maxRent : undefined,
     bedrooms: list(params.beds)
       ?.map(Number)
-      .filter((n) => Number.isInteger(n) && n > 0),
+      .filter((n) => Number.isInteger(n) && n >= 0), // 0 is a studio
     sort: sort && SORT_KEYS.includes(sort) ? sort : 'rating',
   }
 }

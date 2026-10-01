@@ -7,10 +7,10 @@
  * place means the filter logic is reviewable in a single sitting, and the
  * storage layer can be swapped without touching a single component.
  */
+import { containsFilter } from './search'
+import { averageRatings, sortProperties, type RatingRow } from './stats'
 import { supabase } from './supabase'
 import {
-  RATING_KEYS,
-  type Averages,
   type Company,
   type CompanyWithStats,
   type PropertyDetail,
@@ -31,7 +31,7 @@ type PropertyRow = {
   bedrooms: number[]
   company_id: string | null
   company: Company | null
-  reviews: { maintenance: number; communication: number; value: number; overall: number }[]
+  reviews: RatingRow[]
 }
 
 const PROPERTY_SELECT = `
@@ -40,43 +40,9 @@ const PROPERTY_SELECT = `
   reviews (maintenance, communication, value, overall)
 `
 
-function round1(n: number) {
-  return Math.round(n * 10) / 10
-}
-
-/** Mean of each rating category, or null for a category with no reviews. */
-function averageRatings(reviews: PropertyRow['reviews']): Averages {
-  const averages = {} as Averages
-  for (const key of RATING_KEYS) {
-    averages[key] = reviews.length
-      ? round1(reviews.reduce((sum, r) => sum + r[key], 0) / reviews.length)
-      : null
-  }
-  return averages
-}
-
 function toPropertyWithStats(row: PropertyRow): PropertyWithStats {
   const { reviews, ...property } = row
   return { ...property, averages: averageRatings(reviews), reviewCount: reviews.length }
-}
-
-/**
- * Sorting happens here rather than in SQL because two of the three sort keys
- * (rating, review count) are computed from the joined reviews. With a dataset
- * this size the difference is unmeasurable; when it stops being small, these
- * become materialized columns or a view.
- */
-function sortProperties(properties: PropertyWithStats[], sort: PropertyFilters['sort']) {
-  const sorted = [...properties]
-  if (sort === 'price') {
-    sorted.sort((a, b) => a.rent_min - b.rent_min)
-  } else if (sort === 'reviews') {
-    sorted.sort((a, b) => b.reviewCount - a.reviewCount)
-  } else {
-    // Default: highest rated. Unreviewed properties sort last rather than first.
-    sorted.sort((a, b) => (b.averages.overall ?? -1) - (a.averages.overall ?? -1))
-  }
-  return sorted
 }
 
 /**
@@ -87,9 +53,7 @@ export async function listProperties(filters: PropertyFilters = {}): Promise<Pro
   let query = supabase.from('properties').select(PROPERTY_SELECT)
 
   if (filters.search) {
-    // Escape the PostgREST `or` delimiters so a comma in the query can't inject a filter.
-    const term = filters.search.replace(/[,()]/g, ' ').trim()
-    if (term) query = query.or(`name.ilike.%${term}%,address.ilike.%${term}%`)
+    query = query.or(containsFilter(filters.search))
   }
   if (filters.neighborhoods?.length) {
     query = query.in('neighborhood', filters.neighborhoods)
@@ -164,23 +128,15 @@ export async function getCompanyBySlug(slug: string): Promise<CompanyWithStats |
   )
 
   /**
-   * A company's score is the mean of its properties' scores, weighted by review
-   * count so a heavily-reviewed building counts for more than a barely-reviewed
-   * one. Only properties that actually have reviews contribute.
+   * Averaged over every review of every building together, the same
+   * definition as the API's company_stats. Weighting each building's rounded
+   * average by its review count rounds twice and can differ by 0.1.
    *
-   * Known limitation, documented in the README roadmap: management experience is
-   * not always property-specific. Lease terms, deposits and billing are
-   * company-level concerns that a derived average cannot capture. A later
-   * version likely wants first-class management-company reviews.
+   * Known limitation: management experience is not always property-specific.
+   * Lease terms, deposits and billing are company-level concerns that an
+   * average of building reviews cannot capture.
    */
-  const averages = {} as Averages
-  for (const key of RATING_KEYS) {
-    const scored = properties.filter((p) => p.averages[key] !== null)
-    const weight = scored.reduce((sum, p) => sum + p.reviewCount, 0)
-    averages[key] = weight
-      ? round1(scored.reduce((sum, p) => sum + p.averages[key]! * p.reviewCount, 0) / weight)
-      : null
-  }
+  const averages = averageRatings((data as unknown as PropertyRow[]).flatMap((row) => row.reviews))
 
   return {
     ...company,
