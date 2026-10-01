@@ -11,15 +11,17 @@
 #
 # Needs server/node_modules installed (cd server && npm ci).
 set -euo pipefail
-cd "$(dirname "$0")/.."
-. infra/lib/db-tunnel.sh
 
 [ $# -ge 1 ] || { echo "usage: infra/import-catalog.sh <catalog.json> [--apply]" >&2; exit 2; }
-file=$1
+# Resolved before moving to the repository root, so a path relative to where
+# the script was run from means what it says.
+[ -f "$1" ] || { echo "no such file: $1" >&2; exit 1; }
+catalog="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 shift
-[ -f "$file" ] || { echo "no such file: $file" >&2; exit 1; }
+
+cd "$(dirname "$0")/.."
+. infra/lib/db-tunnel.sh
 [ -d server/node_modules/pg ] || { echo "run 'cd server && npm ci' first" >&2; exit 1; }
-catalog="$(cd "$(dirname "$file")" && pwd)/$(basename "$file")"
 
 db_tunnel_open
 export DATABASE_URL

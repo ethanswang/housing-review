@@ -27,8 +27,8 @@ The API runs on AWS. The frontend stays on Vercel. Everything here is OpenTofu/T
    │  public subnet (a)                    public subnet (b)             │
    │  ┌──────────────────┐                                               │
    │  │ EC2 t4g.micro    │ ── internet gateway ──▶ Supabase JWKS, ECR    │
-   │  │ Caddy :80/:443   │                                               │
-   │  │ → API 127.0.0.1:3001                                             │
+   │  │ Caddy :80, :443  │                                               │
+   │  │ → API on :3001   │  (loopback only)                              │
    │  └────────┬─────────┘                                               │
    │           │ 5432, security group to security group                  │
    │  private subnet (a)                   private subnet (b)            │

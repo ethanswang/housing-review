@@ -21,7 +21,7 @@ npm run db:benchmark             # EXPLAIN ANALYZE at volume, then rolls back
 (`postgres://housing:housing_dev@localhost:5433/housing`). Port 5433 is deliberate, so this
 never collides with a Postgres already running on 5432.
 
-To start over: `docker compose down -v && docker compose up -d --wait`.
+To start over: `docker compose down -v && docker compose up -d --wait db`.
 
 ## Loading the property list
 

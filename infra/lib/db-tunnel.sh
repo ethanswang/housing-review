@@ -89,8 +89,9 @@ db_tunnel_close() {
 # against the bundle by hostname. Built from the environment, so the password is
 # never an argument; callers export it and pass it to db_docker by name.
 db_master_url() {
+  : "${PGPASSWORD:?db_master_url needs db_tunnel_open first}"
   printf 'postgres://%s:%s@%s:%s/%s?sslmode=verify-full&sslrootcert=/certs/rds-ca.pem' \
-    "$PGUSER" "$(jq -rn 'env.PGPASSWORD|@uri')" "$DB_HOST" "$DB_TUNNEL_PORT" "$PGDATABASE"
+    "$PGUSER" "$(jq -ern 'env.PGPASSWORD|@uri')" "$DB_HOST" "$DB_TUNNEL_PORT" "$PGDATABASE"
 }
 
 # docker run, with the database reachable by its real hostname and libpq set to

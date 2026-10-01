@@ -13,7 +13,7 @@ resource "aws_ecr_repository" "api" {
   }
 }
 
-# Untagged layers accumulate with every push. The free tier covers 500MB, so
+# Untagged layers accumulate with every push, and storage is billed by size, so
 # this is what keeps the registry inside it without anyone remembering to prune.
 resource "aws_ecr_lifecycle_policy" "api" {
   repository = aws_ecr_repository.api.name

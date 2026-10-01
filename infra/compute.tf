@@ -153,7 +153,7 @@ resource "aws_instance" "api" {
   }
 
   root_block_device {
-    volume_size = 20 # within the 30GB free-tier allowance
+    volume_size = 20 # GB; the API image and its logs need a fraction of it
     volume_type = "gp3"
     encrypted   = true
   }
