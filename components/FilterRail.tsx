@@ -41,15 +41,24 @@ export function FilterRail({
    * value holds every pending change until the navigation completes.
    */
   const [current, setCurrent] = useOptimistic(filters)
-  // Local mirror so the rent slider tracks the thumb while the server catches up.
-  const [rent, setRent] = useState(filters.maxRent ?? options.maxRent)
-  // When the URL's rent changes from elsewhere (a chip, "Clear all"), snap the
-  // slider back to it. Adjusting state during render is React's documented
-  // pattern for this; a `key` would remount the rail and close an open sheet.
-  const [syncedMaxRent, setSyncedMaxRent] = useState(filters.maxRent)
-  if (filters.maxRent !== syncedMaxRent) {
-    setSyncedMaxRent(filters.maxRent)
-    setRent(filters.maxRent ?? options.maxRent)
+  /**
+   * Where the rent slider sits while it is being moved, before that change
+   * has been applied; null the rest of the time, when the slider shows the
+   * optimistic filters like every other control. Keeping no separate copy of
+   * the rent otherwise is what stops a slow, older navigation landing from
+   * snapping the thumb back under the user's finger.
+   */
+  const [draftRent, setDraftRent] = useState<number | null>(null)
+  const rentTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  // The same value as draftRent, readable from handlers without waiting for a render.
+  const pendingRent = useRef<number | undefined>(undefined)
+
+  /** Forgets a slider change that has not been applied yet. */
+  function cancelRentDraft() {
+    clearTimeout(rentTimer.current)
+    rentTimer.current = undefined
+    pendingRent.current = undefined
+    setDraftRent(null)
   }
 
   const sheet = useRef<HTMLDialogElement>(null)
@@ -62,13 +71,33 @@ export function FilterRail({
     return () => desktop.removeEventListener('change', close)
   }, [])
 
-  function apply(next: PropertyFilters) {
+  /**
+   * A slider change still waiting out its pause is settled by the next change
+   * instead of landing on top of it later. Usually it is carried into that
+   * change, since the user meant both. `discardRent` drops it instead, for the
+   * two changes that mean "no rent filter": "Clear all" and removing the rent
+   * chip, which would otherwise be undone a moment later.
+   */
+  function apply(next: PropertyFilters, { fromSlider = false, discardRent = false } = {}) {
+    if (!fromSlider) {
+      if (pendingRent.current !== undefined && !discardRent) {
+        next = { ...next, maxRent: rentFilter(pendingRent.current) }
+      }
+      cancelRentDraft()
+    }
     const query = buildQuery(next)
     startTransition(() => {
       setCurrent(next)
       router.push(query ? `/?${query}` : '/', { scroll: false })
     })
   }
+
+  // Back and forward change the filters without going through apply, and a
+  // pending slider change landing afterwards would undo the navigation.
+  useEffect(() => {
+    window.addEventListener('popstate', cancelRentDraft)
+    return () => window.removeEventListener('popstate', cancelRentDraft)
+  }, [])
 
   function toggle<T>(current: T[] | undefined, item: T): T[] {
     const list = current ?? []
@@ -84,7 +113,6 @@ export function FilterRail({
    * and the filter never did. Waiting also avoids a navigation per step while
    * dragging or holding an arrow key.
    */
-  const rentTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => () => clearTimeout(rentTimer.current), [])
   // Read when the timer fires, not when the slider moved: a checkbox ticked
   // during the pause must not be undone by the rent change landing after it.
@@ -92,15 +120,27 @@ export function FilterRail({
   useEffect(() => {
     latest.current = current
   }, [current])
+  /** The slider at its top means no limit. */
+  const rentFilter = (value: number) => (value >= rentCeiling ? undefined : value)
   function changeRent(value: number) {
-    setRent(value)
+    setDraftRent(value)
+    pendingRent.current = value
     clearTimeout(rentTimer.current)
-    rentTimer.current = setTimeout(
-      () => apply({ ...latest.current, maxRent: value >= rentCeiling ? undefined : value }),
-      300
-    )
+    rentTimer.current = setTimeout(() => {
+      rentTimer.current = undefined
+      pendingRent.current = undefined
+      // Cleared in the same update that sets the optimistic filters, so the
+      // slider passes from the draft to the applied value without a frame of
+      // the old one in between.
+      setDraftRent(null)
+      apply({ ...latest.current, maxRent: rentFilter(value) }, { fromSlider: true })
+    }, 300)
   }
-  const clearAll = () => apply({ sort: current.sort })
+  const rentValue = draftRent ?? current.maxRent ?? rentCeiling
+  // A slider change waiting to apply is as much "not up to date" as a
+  // navigation in flight; the sheet's count must not claim otherwise.
+  const updating = isPending || draftRent !== null
+  const clearAll = () => apply({ sort: current.sort }, { discardRent: true })
 
   // One chip per active filter, each removing only itself.
   const chips: { key: string; label: string; remove: PropertyFilters }[] = [
@@ -164,18 +204,19 @@ export function FilterRail({
         ))}
       </Group>
 
-      {/* No properties means no rents, and a slider whose minimum exceeds its maximum. */}
-      {options.maxRent > 0 && (
+      {/* The slider starts at $400; with no rents above that it would have a
+          minimum above its maximum, so it is left out. */}
+      {rentCeiling > 400 && (
         <Group title="Max rent">
           <p className="tnum text-body">
-            {rent >= rentCeiling ? 'Any price' : `Up to $${rent.toLocaleString('en-US')}/mo`}
+            {rentValue >= rentCeiling ? 'Any price' : `Up to $${rentValue.toLocaleString('en-US')}/mo`}
           </p>
           <input
             type="range"
             min={400}
             max={rentCeiling}
             step={25}
-            value={rent}
+            value={rentValue}
             onChange={(e) => changeRent(Number(e.target.value))}
             className="h-11 w-full accent-accent"
             aria-label="Maximum rent per month"
@@ -234,7 +275,7 @@ export function FilterRail({
               <li key={chip.key} className="shrink-0">
                 <button
                   type="button"
-                  onClick={() => apply(chip.remove)}
+                  onClick={() => apply(chip.remove, { discardRent: chip.key === 'rent' })}
                   aria-label={`Remove filter: ${chip.label}`}
                   className="flex h-11 items-center"
                 >
@@ -282,7 +323,7 @@ export function FilterRail({
               onClick={() => sheet.current?.close()}
               className="h-12 w-full rounded-lg bg-accent text-body font-semibold text-surface hover:bg-accent-dark"
             >
-              {isPending
+              {updating
                 ? 'Updating…'
                 : `Show ${resultCount} ${resultCount === 1 ? 'property' : 'properties'}`}
             </button>
