@@ -155,12 +155,21 @@ describe('the API, connected as an api_access login', () => {
 })
 
 describe('what api_access cannot do', () => {
-  /** Runs `sql` as api_access in a transaction that is always rolled back. */
+  /**
+   * Runs `sql` as api_access in a transaction that is always rolled back.
+   *
+   * The role switch is asserted before the statement runs. A refusal test only
+   * checks for 42501, and on Postgres 16+ a non-superuser test login could be
+   * refused the SET ROLE itself with that same code, so without this a refusal
+   * test could pass having never run its statement.
+   */
   async function asRole(sql: string, params: unknown[] = []) {
     const client = await admin.connect()
     try {
       await client.query('begin')
       await client.query('set local role api_access')
+      const { rows } = await client.query('select current_user')
+      if (rows[0].current_user !== 'api_access') throw new Error(`expected api_access, got ${rows[0].current_user}`)
       return await client.query(sql, params)
     } finally {
       await client.query('rollback')
@@ -282,8 +291,12 @@ describe('withdraw_review', () => {
       await client.query('begin')
       await client.query('create role role_test_outsider nologin')
       await client.query('set local role role_test_outsider')
+      // As in asRole: prove the switch happened, so the refusal below is the
+      // function's and not SET ROLE's.
+      expect((await client.query('select current_user')).rows[0].current_user).toBe('role_test_outsider')
       await expect(client.query('select withdraw_review(gen_random_uuid(), gen_random_uuid())')).rejects.toMatchObject({
         code: '42501',
+        message: expect.stringMatching(/function withdraw_review/),
       })
     } finally {
       await client.query('rollback')

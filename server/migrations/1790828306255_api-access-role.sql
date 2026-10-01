@@ -15,8 +15,11 @@
 --
 -- Not covered: properties and management_companies are written by the catalog
 -- importer, an operator tool that runs with the master login. Accepted: through
--- this role an injection could still read emails and reports, and write
--- reviews' text and ratings, because the API itself must.
+-- this role an injection could still read emails and reports, write reviews'
+-- text and ratings, and withdraw every authored review (withdraw_review trusts
+-- the author it is given, and the role can read author_id), because the API
+-- itself must do each of these. It cannot publish a hidden review or touch one
+-- with no author.
 --
 -- Every future migration that adds a table or a column the API writes must
 -- grant it here too; nothing is granted by default.
@@ -32,10 +35,12 @@ begin
   end if;
 end
 $$;
--- Whoever created it, it is a group role and nothing more. SUPERUSER,
--- REPLICATION and BYPASSRLS are left alone: only a true superuser may even name
--- them, which the RDS master is not, and a role this migration created never
--- has them.
+-- A group role and nothing more. SUPERUSER, REPLICATION and BYPASSRLS are left
+-- alone: only a true superuser may even name them, which the RDS master is not,
+-- and a role this migration created never has them. If some other role created
+-- api_access, the RDS master holds no ADMIN on it and this statement fails,
+-- which is the right outcome: the migration should not adopt a role it does not
+-- control.
 alter role api_access nologin nocreatedb nocreaterole;
 
 grant usage on schema public to api_access;
@@ -70,7 +75,11 @@ as $$
   with withdrawn as (
     update public.reviews
     set status = 'removed'
-    where id = review_id and author_id = author and status = 'published'
+    -- Qualified, because in an SQL function a column of the same name would
+    -- silently win over a parameter if one were ever added to reviews.
+    where id = withdraw_review.review_id
+      and author_id = withdraw_review.author
+      and status = 'published'
     returning 1
   )
   select exists (select from withdrawn)
@@ -91,6 +100,11 @@ $$;
 -- Dropping a role silently removes its members, so rolling back while the API's
 -- login belongs to it would leave the live API with no privileges at all while
 -- /readyz, which only runs `select 1`, kept reporting healthy.
+--
+-- Only memberships that pass privileges on count. On Postgres 16+ a
+-- non-superuser who creates a role, as the RDS master does, is recorded as a
+-- member with ADMIN but neither INHERIT nor SET; counting that would make this
+-- step refuse forever.
 do $$
 declare
   members text;
@@ -99,7 +113,7 @@ begin
   from pg_auth_members m
   join pg_roles g on g.oid = m.roleid
   join pg_roles r on r.oid = m.member
-  where g.rolname = 'api_access';
+  where g.rolname = 'api_access' and (m.inherit_option or m.set_option);
   if members is not null then
     raise exception 'api_access still has members (%). Revoke them first (revoke api_access from <login>), knowing the API loses its privileges.', members;
   end if;
@@ -110,6 +124,8 @@ drop function if exists withdraw_review(uuid, uuid);
 revoke all on management_companies, properties, reviews, users, review_reports from api_access;
 revoke all on property_stats, company_stats from api_access;
 revoke usage on schema public from api_access;
+-- Restores Postgres's default. It cannot tell whether TEMP was revoked from
+-- PUBLIC before this migration ran; if it was, revoke it again by hand.
 do $$
 begin
   execute format('grant temporary on database %I to public', current_database());
