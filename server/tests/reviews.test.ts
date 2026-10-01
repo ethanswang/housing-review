@@ -46,6 +46,8 @@ async function signIn(): Promise<{ bearer: string; id: string }> {
   const jwt = await new SignJWT({
     email: `writer-${id.slice(0, 8)}@test.illinois.edu`,
     role: 'authenticated',
+    amr: [{ method: 'otp', timestamp: 1700000000 }],
+    is_anonymous: false,
   })
     .setProtectedHeader({ alg: 'ES256', kid: KID })
     .setIssuedAt()

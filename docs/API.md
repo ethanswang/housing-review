@@ -90,11 +90,38 @@ forgets it stays public — the safe direction here, since nothing readable was 
 | Response | Meaning |
 | --- | --- |
 | `401` | No token, a malformed one, a forged or expired one, or one from another issuer or audience |
-| `403` | A valid token whose email is not an `illinois.edu` address |
+| `403` | A valid token whose email is not an `illinois.edu` address, an anonymous session, or a session that never proved the inbox (below) |
 | `409` | The email already belongs to another account |
 | `503` | Supabase's key set is unreachable — deliberately **not** 401, so an outage does not read as "sign in again" |
 
 `GET /api/me` returns the caller and is the quickest way to check sign-in end to end.
+
+### Proving the address
+
+An `@illinois.edu` address in a token means nothing unless the person controls that inbox.
+Supabase's access token has no email-verified claim, and `user_metadata.email_verified` is
+[editable by the user](https://supabase.com/docs/guides/auth/managing-user-data), so the API
+checks how the session was authenticated instead. It requires:
+
+- `is_anonymous` is not `true`, and
+- `amr` contains at least one method that means "followed a link or typed a code sent to that
+  inbox": `otp`, `magiclink`, `email/signup`, `email_change`, `invite` or `recovery`.
+
+A session authenticated only by `password`, `oauth`, `sso/saml` or `anonymous` is refused with
+403, even with a university address.
+
+**Supabase Auth settings this relies on** (Dashboard → Authentication):
+
+| Setting | Value | Why |
+| --- | --- | --- |
+| Email provider | On, with **Confirm email** on | Sign-ups must be confirmed through the inbox |
+| Sign-in method used by the site | Magic link / one-time code | Produces `otp` or `magiclink` in `amr` |
+| Anonymous sign-ins | Off | Not needed; refused by the API regardless |
+| Other providers (Google, GitHub, …) | Off | Their sessions carry `oauth`, which the API refuses |
+
+Not yet checked against a real token: what `amr` holds after a session is **refreshed**. Confirm
+it when sign-in is wired up, since a refreshed token that lost its original method would be
+refused here.
 
 ## Reporting a review
 

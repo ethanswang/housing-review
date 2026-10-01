@@ -65,7 +65,11 @@ let propertyId: string
 
 async function signIn(): Promise<string> {
   const id = crypto.randomUUID()
-  const jwt = await new SignJWT({ email: `rl-${id.slice(0, 8)}@test.illinois.edu` })
+  const jwt = await new SignJWT({
+    email: `rl-${id.slice(0, 8)}@test.illinois.edu`,
+    amr: [{ method: 'otp', timestamp: 1700000000 }],
+    is_anonymous: false,
+  })
     .setProtectedHeader({ alg: 'ES256', kid: KID })
     .setIssuedAt()
     .setIssuer(ISSUER)

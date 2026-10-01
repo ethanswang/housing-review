@@ -46,14 +46,22 @@ type TokenOptions = {
   key?: SigningKey
   omitEmail?: boolean
   omitSub?: boolean
+  /** Authentication methods for `amr`; null leaves the claim out. Defaults to a one-time code. */
+  methods?: string[] | null
+  isAnonymous?: boolean
+  userMetadata?: Record<string, unknown>
 }
 
 async function token(options: TokenOptions = {}): Promise<string> {
-  const jwt = new SignJWT(
-    options.omitEmail
-      ? { role: 'authenticated' }
-      : { email: options.email ?? testEmail('student'), role: 'authenticated' }
-  )
+  const methods = options.methods === undefined ? ['otp'] : options.methods
+  const jwt = new SignJWT({
+    role: 'authenticated',
+    ...(options.omitEmail ? {} : { email: options.email ?? testEmail('student') }),
+    // Shaped as Supabase issues them: objects, not bare strings.
+    ...(methods ? { amr: methods.map((method) => ({ method, timestamp: 1700000000 })) } : {}),
+    is_anonymous: options.isAnonymous ?? false,
+    ...(options.userMetadata ? { user_metadata: options.userMetadata } : {}),
+  })
     .setProtectedHeader({ alg: 'ES256', kid: KID })
     .setIssuedAt()
     .setIssuer(options.issuer ?? ISSUER)
@@ -234,6 +242,8 @@ describe('GET /api/me', () => {
       email: testEmail('sneaky'),
       role: 'admin',
       app_metadata: { role: 'admin' },
+      // A legitimate sign-in method, so the only thing under test is the role.
+      amr: [{ method: 'otp', timestamp: 1700000000 }],
     })
       .setProtectedHeader({ alg: 'ES256', kid: KID })
       .setIssuedAt()
@@ -310,6 +320,45 @@ describe('claims that cannot become a user', () => {
     await expect(
       verifyToken(await token({ sub: 'not-a-uuid' }), keys, opts)
     ).rejects.toMatchObject({ statusCode: 401, message: /identifier/i })
+  })
+})
+
+describe('how the user signed in', () => {
+  // The @illinois.edu rule only means something if the person controls that
+  // inbox. A magic link or one-time code proves it; a password sign-up with
+  // email confirmation off, an OAuth identity or an anonymous session does not.
+  for (const method of ['otp', 'magiclink', 'email/signup']) {
+    it(`accepts a session started with ${method}`, async () => {
+      expect((await me(`Bearer ${await token({ methods: [method] })}`)).statusCode).toBe(200)
+    })
+  }
+
+  it('accepts a password session that also proved the inbox', async () => {
+    expect((await me(`Bearer ${await token({ methods: ['password', 'otp'] })}`)).statusCode).toBe(200)
+  })
+
+  it('refuses an anonymous session, whatever email it carries', async () => {
+    const response = await me(`Bearer ${await token({ isAnonymous: true })}`)
+    expect(response.statusCode).toBe(403)
+  })
+
+  for (const methods of [['password'], ['oauth'], ['sso/saml'], ['anonymous'], []]) {
+    it(`refuses a session that never proved the inbox: [${methods}]`, async () => {
+      const response = await me(`Bearer ${await token({ methods })}`)
+      expect(response.statusCode).toBe(403)
+      expect(response.json().error.message).toMatch(/link/i)
+    })
+  }
+
+  it('refuses a token with no authentication methods at all', async () => {
+    expect((await me(`Bearer ${await token({ methods: null })}`)).statusCode).toBe(403)
+  })
+
+  it('ignores user_metadata.email_verified, which the user can set themselves', async () => {
+    const response = await me(
+      `Bearer ${await token({ methods: ['password'], userMetadata: { email_verified: true } })}`
+    )
+    expect(response.statusCode).toBe(403)
   })
 })
 
