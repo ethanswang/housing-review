@@ -3,8 +3,8 @@
 # Postgres without installing one.
 services:
   db:
-    # Pinned by digest, matching CI. Dependabot proposes updates here; keep the
-    # CI service image and DB_PG_IMAGE (infra/lib/db-tunnel.sh) in step by hand.
+    # Pinned by digest, matching CI. Update by hand, with the CI service image,
+    # e2e/stack/docker-compose.yml and DB_PG_IMAGE (infra/lib/db-tunnel.sh).
     image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
     # random_page_cost defaults to 4.0, which models a spinning disk. On SSD
     # storage (Docker Desktop here, gp3 volumes in production) the planner
