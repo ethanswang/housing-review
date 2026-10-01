@@ -5,8 +5,9 @@ The API runs on AWS. The frontend stays on Vercel. Everything here is OpenTofu/T
 
 > **Status: applied and serving.** The stack is running in `us-east-2`: EC2 `t4g.micro` with
 > the container, RDS PostgreSQL 17.9 (encrypted, private, one-day backups), and the schema
-> migrated. `/healthz`, `/readyz`, `/api/properties` and `/api/companies` all answer, writes
-> refuse unauthenticated callers, and logs reach CloudWatch.
+> migrated. `/healthz`, `/api/properties` and `/api/companies` answer, writes refuse
+> unauthenticated callers, and logs reach CloudWatch. `/readyz` is answered 404 from outside on
+> purpose (see *When something is wrong*).
 >
 > The database holds the schema and no rows. Seeding is deliberately not done here: the seed
 > truncates every table, and `scripts/guard.mjs` refuses any non-local host for that reason.
@@ -101,15 +102,18 @@ At standard on-demand rates in `us-east-2`, roughly:
 | EBS 20GB gp3 | $2 |
 | RDS `db.t4g.micro` | $12 |
 | RDS 20GB gp3 storage | $2 |
-| Secrets Manager (one secret) | $0.40 |
+| Secrets Manager (two secrets) | $0.80 |
 | CloudWatch logs, ECR | under $1 |
 | **Total** | **roughly $25–30** |
 
 These are estimates, not quotes. Use the AWS pricing calculator against your own region.
 
-**If that is too much:** keep Supabase as the database and deploy only the API, which removes
-about $14 a month. The application does not care — it takes a `DATABASE_URL`. Set
-`aws_db_instance` aside and point the secret at Supabase's connection string.
+**If that is too much:** the expensive part is RDS (about $14 of it). Moving the database to a
+hosted Postgres and keeping only the API here is possible, but not a configuration change today:
+both secrets are rebuilt from `aws_db_instance` on every apply, the `infra/*.sh` scripts tunnel to
+RDS and trust only its CA, and the instance fetches only the RDS bundle. [LEAVING-AWS.md](LEAVING-AWS.md)
+covers moving the data and the API off AWS entirely. If the new Postgres is Supabase, use a
+**separate project**, never the one the site signs in with ([DATABASE.md](DATABASE.md#trust-model)).
 
 **This runs on free-plan credits, which end.** [LEAVING-AWS.md](LEAVING-AWS.md) has the
 deadline, the export script, and the move to a free host with no code changes.
@@ -117,7 +121,8 @@ deadline, the export script, and the move to a free host with no code changes.
 ## Applying it
 
 Requires the AWS CLI signed in, OpenTofu 1.12 (CI pins 1.12.6), and for the steps after the
-apply, Docker, `jq` and the Session Manager plugin (`brew install --cask session-manager-plugin`).
+apply, Docker, `jq`, `python3` and the Session Manager plugin
+(`brew install --cask session-manager-plugin`).
 
 ```bash
 cd infra
@@ -130,8 +135,10 @@ infra/migrate-db.sh                  # schema, and the api_access role
 infra/provision-api-role.sh          # the API's own login, from the API secret
 ```
 
-The API starts with the instance but cannot connect until the last step has run; systemd
-retries every 30 seconds, so it comes up on its own once the login exists.
+Until the last step has run, the API is up but its database routes return 500: it connects
+lazily, so a missing login does not crash it, `/healthz` stays green and nothing restarts. The
+first request after the login exists succeeds. Run the two steps back to back; in between, the
+error alarm may fire and then recover.
 
 `terraform.tfvars` and all state files are gitignored. **State contains the generated database
 password in plaintext**, so it must not be committed; a remote backend with encryption is the
@@ -178,7 +185,7 @@ infra/migrate-db.sh                  # apply pending migrations
 
 Run from your machine, not the instance. RDS has no public address, so the script opens a
 Session Manager port forward through the instance and runs `node-pg-migrate` from your
-`server/` checkout (run `npm ci` there first) in a `node:24` container, as the master user —
+`server/` checkout (run `npm ci` there first) in a `node:24-alpine` container, as the master user —
 migrations create tables, roles and grants, which the API's own login cannot. The production
 image stays free of migration tooling.
 
@@ -220,6 +227,26 @@ aws ssm send-command --instance-ids "$(tofu -chdir=infra output -raw api_instanc
   --document-name AWS-RunShellScript --parameters 'commands=["systemctl restart api"]'
 ```
 
+Between the second and third lines the running API still holds the old password, and every new
+connection its pool opens fails, so database routes error until the restart completes. Run them
+back to back. Rotating without that window would take two alternating logins.
+
+`FRONTEND_SECRET` changes the same way, and should change on Vercel at the same time:
+
+```bash
+tofu -chdir=infra apply -replace=random_password.frontend_secret
+aws secretsmanager get-secret-value --secret-id "$(tofu -chdir=infra output -raw api_secret_arn)" \
+  --query SecretString --output text | jq -r .frontend_secret
+# set it as FRONTEND_SECRET in Vercel (Production only), restart the API as above, redeploy the site
+```
+
+Until both sides match, the API ignores the forwarded visitor address and rate-limits all
+traffic from the frontend as one client; nothing goes down, but a busy minute could throttle
+everyone. The frontend does not send it yet.
+
+Scope it to Vercel's **Production** environment only. Preview deployments build from any
+collaborator's branch and can read every Preview variable.
+
 The master password, which only operators use, so nothing needs restarting:
 
 ```bash
@@ -253,6 +280,15 @@ as confirmed in the SNS console rather than assuming it.
 
 `/healthz` answers without touching the database, so it stays up during a database outage.
 `/readyz` checks the database and is the one to look at when the API is running but failing.
+Caddy answers it 404 from outside, since it is exempt from rate limiting and each call takes a
+database connection, so ask it on the instance:
+
+```bash
+aws ssm send-command --instance-ids "$(tofu -chdir=infra output -raw api_instance_id)" \
+  --document-name AWS-RunShellScript --parameters 'commands=["curl -s 127.0.0.1:3001/readyz"]' \
+  --query Command.CommandId --output text
+# then: aws ssm get-command-invocation --instance-id <id> --command-id <that id> --query StandardOutputContent
+```
 
 ## Not built yet
 

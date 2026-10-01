@@ -41,7 +41,8 @@ runs `pg_dump` from a `postgres:17` container, and writes `backups/housing-<time
 It prints row counts for the main tables, to check the restore against.
 
 - Needs `aws` (signed in), `session-manager-plugin`
-  (`brew install --cask session-manager-plugin`), `docker`, `jq` and `tofu`.
+  (`brew install --cask session-manager-plugin`), `docker`, `jq`, `tofu`, `nc` and `curl` (the last
+  two ship with macOS).
 - `backups/` is gitignored and the file is `chmod 600`: **it contains users' email
   addresses.** Keep it off shared drives.
 - TLS is verified against Amazon's RDS roots, hostname included (`verify-full`): the container
