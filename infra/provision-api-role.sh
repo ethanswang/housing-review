@@ -18,15 +18,17 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 . infra/lib/db-tunnel.sh
 
-command -v python3 >/dev/null || { echo "missing: python3" >&2; exit 1; }
+# Run it, not just find it: on macOS /usr/bin/python3 is a stub that exists
+# without the Command Line Tools and only prompts to install them.
+python3 -c '' >/dev/null 2>&1 || { echo "python3 is not usable" >&2; exit 1; }
 api_secret_arn=$(tofu -chdir=infra output -raw api_secret_arn)
 db_tunnel_open
 
 api_secret=$(aws secretsmanager get-secret-value --region "${AWS_REGION:-us-east-2}" \
   --secret-id "$api_secret_arn" --query SecretString --output text)
 export API_DB_USER API_DB_PASSWORD API_DB_VERIFIER
-API_DB_USER=$(printf '%s' "$api_secret" | jq -er .db_username)
-API_DB_PASSWORD=$(printf '%s' "$api_secret" | jq -er .db_password)
+API_DB_USER=$(printf '%s' "$api_secret" | jq -er .db_username) || { echo "API secret has no .db_username" >&2; exit 1; }
+API_DB_PASSWORD=$(printf '%s' "$api_secret" | jq -er .db_password) || { echo "API secret has no .db_password" >&2; exit 1; }
 
 # SCRAM-SHA-256 verifier in Postgres's stored format (RFC 5802/7677). The
 # generated password is ASCII, which SASLprep leaves unchanged.

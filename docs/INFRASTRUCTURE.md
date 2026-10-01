@@ -108,13 +108,12 @@ At standard on-demand rates in `us-east-2`, roughly:
 
 These are estimates, not quotes. Use the AWS pricing calculator against your own region.
 
-**If that is too much:** use a hosted Postgres instead of RDS and deploy only the API, which
-removes about $14 a month. The application does not care — it takes a `DATABASE_URL`. If that
-Postgres is Supabase, use a **separate project**, never the one the site signs in with: its
-`public` schema is published to the anon key, and these migrations must never be applied there
-([DATABASE.md](DATABASE.md#trust-model)). Set `aws_db_instance` aside, put the new master
-credentials in `<name>/database` for migrations, and the API login's connection string in
-`<name>/api`. [LEAVING-AWS.md](LEAVING-AWS.md) covers moving the data.
+**If that is too much:** the expensive part is RDS (about $14 of it). Moving the database to a
+hosted Postgres and keeping only the API here is possible, but not a configuration change today:
+both secrets are rebuilt from `aws_db_instance` on every apply, the `infra/*.sh` scripts tunnel to
+RDS and trust only its CA, and the instance fetches only the RDS bundle. [LEAVING-AWS.md](LEAVING-AWS.md)
+covers moving the data and the API off AWS entirely. If the new Postgres is Supabase, use a
+**separate project**, never the one the site signs in with ([DATABASE.md](DATABASE.md#trust-model)).
 
 **This runs on free-plan credits, which end.** [LEAVING-AWS.md](LEAVING-AWS.md) has the
 deadline, the export script, and the move to a free host with no code changes.
@@ -232,14 +231,18 @@ Between the second and third lines the running API still holds the old password,
 connection its pool opens fails, so database routes error until the restart completes. Run them
 back to back. Rotating without that window would take two alternating logins.
 
-`FRONTEND_SECRET` changes the same way, and must change on Vercel at the same moment:
+`FRONTEND_SECRET` changes the same way, and should change on Vercel at the same time:
 
 ```bash
 tofu -chdir=infra apply -replace=random_password.frontend_secret
 aws secretsmanager get-secret-value --secret-id "$(tofu -chdir=infra output -raw api_secret_arn)" \
-  --query SecretString --output text | jq -r .frontend_secret   # paste into Vercel: Production only
-# then restart the API as above, and redeploy the site
+  --query SecretString --output text | jq -r .frontend_secret
+# set it as FRONTEND_SECRET in Vercel (Production only), restart the API as above, redeploy the site
 ```
+
+Until both sides match, the API ignores the forwarded visitor address and rate-limits all
+traffic from the frontend as one client; nothing goes down, but a busy minute could throttle
+everyone. The frontend does not send it yet.
 
 Scope it to Vercel's **Production** environment only. Preview deployments build from any
 collaborator's branch and can read every Preview variable.

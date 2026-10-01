@@ -5,7 +5,7 @@
 #   infra/migrate-db.sh up --dry-run    # show what would run, change nothing
 #   infra/migrate-db.sh down            # revert the most recent one
 #
-# Runs node-pg-migrate from server/ inside a node:24 container, through the
+# Runs node-pg-migrate from server/ inside a node:24-alpine container, through the
 # tunnel in lib/db-tunnel.sh, as the master user: migrations create tables,
 # roles and grants, which the API's own login deliberately cannot.
 #

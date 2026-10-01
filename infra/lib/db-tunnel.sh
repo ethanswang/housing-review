@@ -68,9 +68,9 @@ db_tunnel_open() {
   # Piped rather than <<<: bash 3.2 writes a here-string to a temporary file.
   # -e fails on a missing key instead of returning the string "null".
   export PGUSER PGPASSWORD PGDATABASE
-  PGUSER=$(printf '%s' "$secret" | jq -er .username)
-  PGPASSWORD=$(printf '%s' "$secret" | jq -er .password)
-  PGDATABASE=$(printf '%s' "$secret" | jq -er .dbname)
+  PGUSER=$(printf '%s' "$secret" | jq -er .username) || { echo "master secret has no .username" >&2; exit 1; }
+  PGPASSWORD=$(printf '%s' "$secret" | jq -er .password) || { echo "master secret has no .password" >&2; exit 1; }
+  PGDATABASE=$(printf '%s' "$secret" | jq -er .dbname) || { echo "master secret has no .dbname" >&2; exit 1; }
 }
 
 db_tunnel_close() {
