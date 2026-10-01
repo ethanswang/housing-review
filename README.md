@@ -51,6 +51,7 @@ the infrastructure are built and running; the site switches over once sign-in is
 ### Documentation
 
 - [API](docs/API.md) — running it, configuration, authentication, rate limiting.
+- [API reference](docs/API-REFERENCE.md) — every route, its parameters, responses and errors.
 - [Database](docs/DATABASE.md) — schema, trust model, indexes with measured query plans,
   loading the property list.
 - [Infrastructure](docs/INFRASTRUCTURE.md) — the AWS stack, costs, deploying, secrets.
@@ -92,7 +93,8 @@ about repairs, communication, noise, and value, and names no individual.
 
 ## Contributing
 
-Issues and pull requests are welcome. CI runs lint, type checks, the API test suite against
+Issues and pull requests are welcome; [CONTRIBUTING.md](CONTRIBUTING.md) covers the workflow,
+running CI's checks locally, and the conventions. CI runs lint, type checks, the API test suite against
 Postgres, a container build, and an infrastructure validation on every pull request.
 
 To report a security vulnerability, see [SECURITY.md](SECURITY.md) rather than opening an
