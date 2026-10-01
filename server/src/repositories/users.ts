@@ -22,8 +22,16 @@ export type User = {
  * `role` is never taken from the token. It lives only in this database, so a
  * forged or replayed claim cannot escalate anyone to moderator.
  */
+type UserRow = {
+  id: string
+  email: string
+  display_name: string | null
+  role: Role
+  created_at: Date
+}
+
 export async function upsertUser(db: Database, claims: TokenClaims): Promise<User> {
-  let rows: Array<Record<string, any>> = []
+  let rows: UserRow[] = []
   // Set when the insert hit users.email's unique index rather than the id it
   // targets; resolved below once we can see which row holds the address.
   let emailCollision = false
@@ -42,7 +50,7 @@ export async function upsertUser(db: Database, claims: TokenClaims): Promise<Use
      * `updated_at` is not set here; the users_set_updated_at trigger assigns
      * it, and anything written here would simply be overwritten.
      */
-    ;({ rows } = await db.query(
+    ;({ rows } = await db.query<UserRow>(
       `with updated as (
          insert into users (id, email)
          values ($1, $2)
@@ -73,7 +81,7 @@ export async function upsertUser(db: Database, claims: TokenClaims): Promise<Use
      * authenticated requests at once lands here. A separate statement takes a
      * fresh snapshot and sees the row.
      */
-    ;({ rows } = await db.query(
+    ;({ rows } = await db.query<UserRow>(
       'select id, email, display_name, role, created_at from users where id = $1',
       [claims.sub]
     ))
