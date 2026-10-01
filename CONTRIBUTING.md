@@ -27,9 +27,10 @@ rewritten.
    the behaviour you changed is better.
 5. **Review.** `main` is protected by rulesets:
    - all four CI checks must pass, for everyone;
-   - a pull request needs an approving review from the maintainer, the code owner for
-     everything (`.github/CODEOWNERS`); another collaborator's approval does not count, and new
-     commits after an approval need another;
+   - a collaborator's pull request needs an approving review from the maintainer, the code
+     owner for everything (`.github/CODEOWNERS`); another collaborator's approval does not
+     count, and new commits after an approval need another. The maintainer's own pull requests
+     bypass the review rule, though not the CI checks;
    - review comments must be resolved before merging.
 
    Merge with a merge commit, as the history does. Nobody can push to `main` directly or rewrite
@@ -106,8 +107,8 @@ job.
 - Create one with `cd server && npm run migrate:create <name>`; never hand-edit the schema
   elsewhere.
 - **Never edit a migration that has run in production.** Write a new one.
-- **The API connects as a restricted role.** A migration that adds a table or a column the API
-  writes must grant it to `api_access`, or the API gets a permission error;
+- **The API connects as a restricted role.** A migration that adds a table or view the API
+  reads, or a column it writes, must grant it to `api_access`, or the API gets a permission error;
   `tests/api-role.test.ts` exists to catch that. See
   [DATABASE.md](docs/DATABASE.md#who-connects-as-what).
 - **Never apply these migrations to the Supabase project** the website signs in with

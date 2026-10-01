@@ -19,7 +19,8 @@ are defined in `server/src/routes/`, and the response types below are the ones e
 
   `page` starts at 1 (at most 10,000); `perPage` is capped at 100. A page past the end returns
   an empty `data` with the true `total`.
-- **Every order is total.** Each sort ends in the slug, so equal values never swap between pages.
+- **Paginated orders are total.** Each ends in a unique column (the slug, or a review's id), so
+  equal values never swap between pages.
 - **Auth** is `Authorization: Bearer <Supabase access token>`, required where marked 🔒. See
   [API.md](API.md#authentication) for what a token must prove.
 - **Writes** marked ✍️ also count against the per-account write limit (20 an hour by default);
@@ -46,7 +47,7 @@ Every error has the same shape:
 | 409 | `email_taken` | The token's email belongs to another account |
 | 409 | `user_unavailable` | The account row vanished mid-request; retry |
 | 413 | `payload_too_large` | Body over 1 MB |
-| 415 | `unsupported_media_type` | Body that is not JSON |
+| 415 | `unsupported_media_type` | Body whose content type is neither JSON nor plain text (a plain-text body fails validation instead, with 400) |
 | 429 | `rate_limited` | Over a rate limit; `Retry-After` says when to come back |
 | 500 | `internal_error` | A bug; details are only in the server log |
 | 503 | `service_unavailable` | The database (`/readyz`) or Supabase's key set is unreachable |
