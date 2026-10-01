@@ -81,6 +81,8 @@ npm test                           # runs against the compose database
    key here.
 3. `npm install && npm run dev` — http://localhost:3000
 
+`npm test` runs the site's unit tests (pure functions in `lib/`) and needs no Supabase project.
+
 ## Sample data
 
 Company and building names are real and public. Addresses are block-level, rents are
