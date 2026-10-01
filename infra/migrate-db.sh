@@ -22,11 +22,8 @@ case "${1:-}" in "" | -*) set -- up "$@" ;; esac
 
 db_tunnel_open
 
-# Built here and passed by name, so the password is never on a command line.
-# sslrootcert makes node-postgres verify against the RDS bundle, by hostname.
 export DATABASE_URL
-# jq reads the password from its environment, not from an argument.
-DATABASE_URL="postgres://${PGUSER}:$(jq -rn 'env.PGPASSWORD|@uri')@${DB_HOST}:${DB_TUNNEL_PORT}/${PGDATABASE}?sslmode=verify-full&sslrootcert=/certs/rds-ca.pem"
+DATABASE_URL=$(db_master_url)
 
 db_docker -e DATABASE_URL -v "$PWD/server:/app:ro" -w /app node:24-alpine \
   node node_modules/node-pg-migrate/bin/node-pg-migrate.js "$@"

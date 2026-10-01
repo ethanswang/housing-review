@@ -85,6 +85,14 @@ db_tunnel_close() {
   rm -rf "${DB_WORK:-}"
 }
 
+# The master connection string for node-postgres inside db_docker, verifying
+# against the bundle by hostname. Built from the environment, so the password is
+# never an argument; callers export it and pass it to db_docker by name.
+db_master_url() {
+  printf 'postgres://%s:%s@%s:%s/%s?sslmode=verify-full&sslrootcert=/certs/rds-ca.pem' \
+    "$PGUSER" "$(jq -rn 'env.PGPASSWORD|@uri')" "$DB_HOST" "$DB_TUNNEL_PORT" "$PGDATABASE"
+}
+
 # docker run, with the database reachable by its real hostname and libpq set to
 # verify it. Passwords cross into the container by variable name only (-e NAME),
 # so they never appear in a process listing. Extra docker flags, then the image
