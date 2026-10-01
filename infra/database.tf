@@ -1,6 +1,9 @@
 locals {
   # Where the RDS certificate bundle is mounted inside the container.
   rds_ca_path = "/etc/ssl/rds/bundle.pem"
+
+  # The login infra/provision-api-role.sh creates for the API.
+  api_db_username = "housing_api"
 }
 
 resource "aws_db_subnet_group" "main" {
@@ -58,6 +61,43 @@ resource "aws_secretsmanager_secret_version" "database" {
     # SELF_SIGNED_CERT_IN_CHAIN while looking like it asked for less security.
     # The bundle is fetched onto the instance and mounted at this path.
     database_url = "postgres://${var.db_username}:${urlencode(random_password.database.result)}@${aws_db_instance.main.address}:${aws_db_instance.main.port}/${var.db_name}?sslmode=verify-full&sslrootcert=${local.rds_ca_path}"
+  })
+}
+
+# The login the running API uses: a member of api_access (server/migrations),
+# which holds only the API's runtime grants. Created in the database by
+# infra/provision-api-role.sh, which reads this password from the secret below.
+resource "random_password" "api_db" {
+  length = 32
+  # Kept URL-safe: it is embedded in a connection string.
+  override_special = "-_~"
+}
+
+# Shared with the frontend, which will name each visitor's address when it calls
+# the API on their behalf (docs/API.md). Alphanumeric because it travels in a
+# header.
+resource "random_password" "frontend_secret" {
+  length  = 48
+  special = false
+}
+
+# The only secret the API instance can read. The master credentials live in
+# the separate secret above, readable by operators but not by the instance, so
+# even a compromised instance never holds them.
+resource "aws_secretsmanager_secret" "api" {
+  name                    = "${var.name}/api"
+  description             = "The API's restricted database login and its shared frontend secret"
+  recovery_window_in_days = 0 # Same reasoning as the database secret.
+}
+
+resource "aws_secretsmanager_secret_version" "api" {
+  secret_id = aws_secretsmanager_secret.api.id
+
+  secret_string = jsonencode({
+    db_username     = local.api_db_username
+    db_password     = random_password.api_db.result
+    database_url    = "postgres://${local.api_db_username}:${urlencode(random_password.api_db.result)}@${aws_db_instance.main.address}:${aws_db_instance.main.port}/${var.db_name}?sslmode=verify-full&sslrootcert=${local.rds_ca_path}"
+    frontend_secret = random_password.frontend_secret.result
   })
 }
 

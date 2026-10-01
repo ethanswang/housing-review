@@ -85,7 +85,7 @@ resource "aws_iam_role_policy" "api" {
       {
         Effect   = "Allow"
         Action   = ["secretsmanager:GetSecretValue"]
-        Resource = aws_secretsmanager_secret.database.arn
+        Resource = aws_secretsmanager_secret.api.arn
       },
       {
         Effect = "Allow"
@@ -129,7 +129,7 @@ resource "aws_instance" "api" {
 
   user_data = templatefile("${path.module}/user-data.sh.tftpl", {
     region       = var.region
-    secret_arn   = aws_secretsmanager_secret.database.arn
+    secret_arn   = aws_secretsmanager_secret.api.arn
     image        = "${aws_ecr_repository.api.repository_url}:latest"
     log_group    = aws_cloudwatch_log_group.api.name
     supabase_url = var.supabase_url
@@ -142,6 +142,15 @@ resource "aws_instance" "api" {
   # the service runs is applied rather than sitting in state until the next
   # manual reboot.
   user_data_replace_on_change = true
+
+  lifecycle {
+    # The AMI is looked up as "latest" on every plan, so without this any
+    # apply after Amazon publishes a new image — an alarm tweak, say — would
+    # replace the instance and take the API down while it rebuilds. Moving to
+    # a new image is a deliberate step instead:
+    #   tofu apply -replace=aws_instance.api
+    ignore_changes = [ami]
+  }
 
   root_block_device {
     volume_size = 20 # within the 30GB free-tier allowance
@@ -164,7 +173,7 @@ resource "aws_instance" "api" {
   # `set -e` aborts the whole script, and the instance is permanently dead
   # while OpenTofu reports success.
   depends_on = [
-    aws_secretsmanager_secret_version.database,
+    aws_secretsmanager_secret_version.api,
     aws_route_table_association.public,
     aws_vpc_security_group_egress_rule.api_all,
   ]
