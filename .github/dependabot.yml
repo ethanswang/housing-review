@@ -33,18 +33,15 @@ updates:
       - dependency-name: node
         update-types: [version-update:semver-major]
 
-  # The development database in docker-compose.yml.
+  # The development database (docker-compose.yml) and the end-to-end suite's
+  # Supabase stand-in (e2e/stack). One entry with a group, so the Postgres pin
+  # moves in both files in the same pull request.
   - package-ecosystem: docker-compose
-    directory: /
+    directories: [/, /e2e/stack]
     schedule: { interval: weekly }
-    ignore:
-      - dependency-name: postgres
-        update-types: [version-update:semver-major]
-
-  # The end-to-end suite's Supabase stand-in.
-  - package-ecosystem: docker-compose
-    directory: /e2e/stack
-    schedule: { interval: weekly }
+    groups:
+      compose-images:
+        patterns: ['*']
     ignore:
       - dependency-name: postgres
         update-types: [version-update:semver-major]

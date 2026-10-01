@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
-import { gotoHydrated, query, resultCount, setRange, slowNetwork } from './helpers'
+import { RENT_SLIDER_PAUSE_MS } from '../lib/filters'
+import { afterSliderPause, gotoHydrated, query, resultCount, setRange, slowNetwork } from './helpers'
 
 /**
  * The directory's filter rail. Several of these reproduce bugs that shipped or
@@ -51,7 +52,7 @@ test.describe('a slider change waiting out its pause', () => {
     await setRange(railSlider(page), 900)
     await rail(page).getByRole('button', { name: 'Clear all' }).click()
     await expect.poll(() => query(page)).toBe('')
-    await page.waitForTimeout(1000) // past the pause: the rent must not come back
+    await afterSliderPause(page) // the rent must not come back
     expect(await query(page)).toBe('')
   })
 
@@ -62,7 +63,7 @@ test.describe('a slider change waiting out its pause', () => {
     await gotoHydrated(page, '/?maxRent=1100')
     await setRange(sheetSlider, 900)
     await page.getByRole('button', { name: 'Remove filter: Up to $1,100' }).click()
-    await page.waitForTimeout(1000)
+    await afterSliderPause(page)
     expect(await query(page)).toBe('')
 
     await gotoHydrated(page, '/?hood=Campustown')
@@ -78,7 +79,7 @@ test.describe('a slider change waiting out its pause', () => {
     await setRange(railSlider(page), 1000)
     await page.goBack()
     await expect.poll(() => query(page)).toBe('')
-    await page.waitForTimeout(1000)
+    await afterSliderPause(page)
     expect(await query(page)).toBe('')
   })
 
@@ -86,7 +87,7 @@ test.describe('a slider change waiting out its pause', () => {
     await gotoHydrated(page, '/')
     await slowNetwork(page, 1500)
     await setRange(railSlider(page), 1000)
-    await page.waitForTimeout(400) // the first change is applied and in flight
+    await page.waitForTimeout(RENT_SLIDER_PAUSE_MS + 100) // the first change is applied and in flight
     await setRange(railSlider(page), 1200)
     const samples: number[] = []
     for (let i = 0; i < 18; i++) {

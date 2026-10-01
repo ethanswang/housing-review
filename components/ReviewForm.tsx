@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useEffect, useRef } from 'react'
 import { submitReview, type ReviewFormState } from '@/app/actions'
 import { RATING_LABELS, SUB_RATING_KEYS, type RatingKey } from '@/lib/types'
 
@@ -17,6 +17,11 @@ const inputClass = 'rounded-lg border border-rule-strong bg-surface px-4 text-bo
 
 export function ReviewForm({ propertyId, slug }: { propertyId: string; slug: string }) {
   const [state, formAction, pending] = useActionState(submitReview, initialState)
+  // Marks the form once React has committed it; the end-to-end tests wait for it.
+  const formRef = useRef<HTMLFormElement>(null)
+  useEffect(() => {
+    formRef.current?.setAttribute('data-hydrated', '')
+  }, [])
 
   if (state.success) {
     return (
@@ -34,7 +39,7 @@ export function ReviewForm({ propertyId, slug }: { propertyId: string; slug: str
   // Field names are unchanged (submitReview reads fields by name); only the
   // order on screen moved, so it reads top to bottom like a short survey.
   return (
-    <form action={formAction} className="flex flex-col gap-8">
+    <form ref={formRef} action={formAction} className="flex flex-col gap-8">
       <input type="hidden" name="property_id" value={propertyId} />
       <input type="hidden" name="slug" value={slug} />
 

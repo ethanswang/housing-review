@@ -15,8 +15,9 @@ permissions:
 # be re-pointed at different code after review, a commit cannot. Dependabot
 # (.github/dependabot.yml) proposes updates to the actions; the trailing comment
 # names the release each pin corresponds to. The Postgres service image below
-# is updated by hand, together with docker-compose.yml and DB_PG_IMAGE in
-# infra/lib/db-tunnel.sh: Dependabot does not read service images.
+# is updated by hand, in step with docker-compose.yml, e2e/stack/docker-compose.yml
+# and DB_PG_IMAGE in infra/lib/db-tunnel.sh: Dependabot does not read service
+# images or shell scripts.
 
 # A second push to a branch makes the first run irrelevant. Not so on main:
 # cancelling there would leave a merged commit with no completed check, so each

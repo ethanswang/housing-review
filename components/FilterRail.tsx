@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react'
-import { buildQuery, hasActiveFilters } from '@/lib/filters'
+import { RENT_SLIDER_PAUSE_MS, buildQuery, hasActiveFilters } from '@/lib/filters'
 import { bedroomLabel } from '@/lib/format'
 import type { Company, PropertyFilters } from '@/lib/types'
 
@@ -62,6 +62,12 @@ export function FilterRail({
   }
 
   const sheet = useRef<HTMLDialogElement>(null)
+  // Marks the rail once React has committed it, which is when its handlers
+  // work. The end-to-end tests wait for this rather than guessing.
+  const root = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    root.current?.setAttribute('data-hydrated', '')
+  }, [])
   // The sheet is hidden at desktop widths; a modal left open across the
   // breakpoint would leave the page inert behind an invisible dialog.
   useEffect(() => {
@@ -134,7 +140,7 @@ export function FilterRail({
       // the old one in between.
       setDraftRent(null)
       apply({ ...latest.current, maxRent: rentFilter(value) }, { fromSlider: true })
-    }, 300)
+    }, RENT_SLIDER_PAUSE_MS)
   }
   const rentValue = draftRent ?? current.maxRent ?? rentCeiling
   // A slider change waiting to apply is as much "not up to date" as a
@@ -251,6 +257,7 @@ export function FilterRail({
 
   return (
     <div
+      ref={root}
       className={`sticky top-0 z-10 -mx-4 bg-bg px-4 transition-opacity md:-mx-6 md:px-6 lg:static lg:mx-0 lg:bg-transparent lg:px-0 ${
         isPending ? 'opacity-60' : 'opacity-100'
       }`}

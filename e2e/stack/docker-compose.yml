@@ -33,8 +33,9 @@ services:
 
   gateway:
     image: caddy:2-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
+    # Loopback only: the anon key is in this repository.
     ports:
-      - '54321:54321'
+      - '127.0.0.1:54321:54321'
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on:

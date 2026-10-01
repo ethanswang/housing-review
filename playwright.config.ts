@@ -1,12 +1,25 @@
+import { execFileSync } from 'node:child_process'
 import { defineConfig, devices } from '@playwright/test'
 
 /**
  * End-to-end tests against a production build of the site, reading the local
- * Supabase stand-in in e2e/stack (never a real project). e2e/run.sh starts the
- * stack, builds against it and runs these; CI does the same.
+ * Supabase stand-in in e2e/stack, never a real project.
+ *
+ * The web server builds the site itself, against the stand-in, every run. A
+ * Next build bakes NEXT_PUBLIC_* values in, so serving whatever build was
+ * already in .next could point the review-posting tests at the real project
+ * in .env.local. For the same reason a server already on the port is never
+ * reused, and any other Supabase URL in the environment is refused.
  *
  * One worker: the tests share one database and some write to it.
  */
+const STAND_IN_URL = 'http://localhost:54321'
+const configured = process.env.NEXT_PUBLIC_SUPABASE_URL
+if (configured && configured !== STAND_IN_URL) {
+  throw new Error(`e2e tests only run against the stand-in at ${STAND_IN_URL}, not ${configured}`)
+}
+const anonKey = execFileSync('node', ['e2e/stack/anon-key.mjs']).toString()
+
 export default defineConfig({
   testDir: 'e2e',
   workers: 1,
@@ -18,10 +31,11 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'npx next start -p 3100',
+    command: 'npx next build && npx next start -p 3100',
+    env: { NEXT_PUBLIC_SUPABASE_URL: STAND_IN_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY: anonKey },
     url: 'http://localhost:3100',
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
+    reuseExistingServer: false,
+    timeout: 240_000,
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 900 } } }],
 })
