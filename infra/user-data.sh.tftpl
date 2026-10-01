@@ -35,7 +35,10 @@ ACME_EMAIL="${acme_email}"
   if [ -n "$ACME_EMAIL" ]; then
     printf '{\n  email %s\n}\n\n' "$ACME_EMAIL"
   fi
-  printf '%s {\n  reverse_proxy 127.0.0.1:3001\n}\n' "${api_domain}"
+  # /readyz checks the database and is exempt from rate limiting, so from the
+  # internet it is a cheap way to tie up the connection pool. Nothing outside
+  # needs it; Docker's health check calls /healthz on the loopback.
+  printf '%s {\n  respond /readyz 404\n  reverse_proxy 127.0.0.1:3001\n}\n' "${api_domain}"
 } >/etc/caddy/Caddyfile
 
 # Fail here, loudly and early, rather than leaving a service that will not start.
@@ -96,7 +99,12 @@ docker pull "$IMAGE"
 
 SECRET=$(aws secretsmanager get-secret-value --region "$REGION" \
   --secret-id "$SECRET_ARN" --query SecretString --output text)
+# Exported and passed to docker by name below (-e NAME), so the values never
+# appear on a command line: docker run stays in the foreground for the life of
+# the container, and its arguments are readable by anyone who can run ps.
+export DATABASE_URL FRONTEND_SECRET
 DATABASE_URL=$(printf '%s' "$SECRET" | jq -r .database_url)
+FRONTEND_SECRET=$(printf '%s' "$SECRET" | jq -r .frontend_secret)
 
 docker rm -f api >/dev/null 2>&1 || true
 
@@ -107,7 +115,8 @@ exec docker run --rm --name api \
   -p 127.0.0.1:3001:3001 \
   -e NODE_ENV=production \
   -e PORT=3001 \
-  -e DATABASE_URL="$DATABASE_URL" \
+  -e DATABASE_URL \
+  -e FRONTEND_SECRET \
   -e SUPABASE_URL="${supabase_url}" \
   -e LOG_LEVEL=info \
   -e TRUST_PROXY_HOPS=1 \

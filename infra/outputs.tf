@@ -19,8 +19,13 @@ output "ecr_repository_url" {
 }
 
 output "database_secret_arn" {
-  description = "Connection string and credentials. Read with: aws secretsmanager get-secret-value --secret-id <this>"
+  description = "Master credentials, for operators and the infra/*.sh scripts. The instance cannot read this one."
   value       = aws_secretsmanager_secret.database.arn
+}
+
+output "api_secret_arn" {
+  description = "The API's database login and frontend secret. infra/provision-api-role.sh reads it."
+  value       = aws_secretsmanager_secret.api.arn
 }
 
 output "database_endpoint" {
