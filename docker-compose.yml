@@ -3,7 +3,8 @@
 # Postgres without installing one.
 services:
   db:
-    image: postgres:17-alpine
+    # Pinned by digest, matching CI; Dependabot proposes updates.
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
     # random_page_cost defaults to 4.0, which models a spinning disk. On SSD
     # storage (Docker Desktop here, gp3 volumes in production) the planner
     # otherwise refuses the trigram indexes and sequentially scans instead:
