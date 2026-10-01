@@ -86,8 +86,9 @@ export async function reviewRoutes(
 
   app.delete('/reviews/:id', { preHandler: limited, onResponse: settleWrite }, async (request, reply) => {
     const { id } = parse(idSchema, request.params)
-    await assertOwned(options.db, id, currentUser(request).id)
-    await deleteReview(options.db, id)
+    const userId = currentUser(request).id
+    await assertOwned(options.db, id, userId)
+    await deleteReview(options.db, id, userId)
     return reply.status(204).send()
   })
 

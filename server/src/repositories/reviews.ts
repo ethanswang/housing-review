@@ -176,18 +176,20 @@ export async function updateReview(db: Database, id: string, patch: ReviewPatch)
  * one-per-property, and allowing it on a hidden review would let the author
  * undo a moderator's decision by deleting and posting again.
  *
- * The status test is in the UPDATE itself, so a moderator hiding the review
- * between the ownership check and this statement still wins.
+ * Done by withdraw_review() (migration api-access-role), which checks the
+ * author and the status in the same UPDATE. The API's database role has no
+ * UPDATE on status at all, so this function is the only status change it can
+ * make, and a moderator hiding the review mid-request still wins.
  */
-export async function deleteReview(db: Database, id: string): Promise<void> {
-  const { rowCount } = await db.query(
-    `update reviews set status = 'removed' where id = $1 and status = 'published'`,
-    [id]
+export async function deleteReview(db: Database, id: string, authorId: string): Promise<void> {
+  const { rows } = await db.query<{ withdrawn: boolean }>(
+    'select withdraw_review($1, $2) as withdrawn',
+    [id, authorId]
   )
-  if (rowCount) return
+  if (rows[0]?.withdrawn) return
 
-  const { rows } = await db.query('select status from reviews where id = $1', [id])
-  if (rows[0]?.status === 'hidden') {
+  const { rows: current } = await db.query('select status from reviews where id = $1', [id])
+  if (current[0]?.status === 'hidden') {
     throw conflict(
       'A moderator is looking at this review, so it can’t be deleted right now.',
       'under_moderation'
