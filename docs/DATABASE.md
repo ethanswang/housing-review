@@ -55,9 +55,8 @@ run — as part of the cutover; it is not documented here until it has been done
 
 ## Trust model
 
-The API service owns this database and connects as its own role. **Authorization is enforced
-in the API, not by row-level security**, because no untrusted client ever holds a connection
-to it. That is a deliberate change from the Supabase-era schema, where the browser's anon key
+**Authorization is enforced in the API, not by row-level security**, because no untrusted
+client ever holds a connection to this database. That is a deliberate change from the Supabase-era schema, where the browser's anon key
 reached PostgREST directly and RLS was the only thing standing between a visitor and the
 tables.
 
@@ -65,6 +64,24 @@ The consequence is a rule worth stating plainly: **these migrations must never b
 the Supabase project.** PostgREST would publish `users` and `review_reports` to the anon key
 with no policies at all. The views are declared `security_invoker = true` so that if RLS is
 ever introduced, the caller's policies apply rather than the view owner's.
+
+### Who connects as what
+
+| Login | Used by | Can |
+| --- | --- | --- |
+| Master (`housing` on RDS) | Migrations, the catalog importer, exports | Everything |
+| API login, a member of `api_access` | The running API | Only what the API's own queries do |
+
+`api_access` is created by a migration and holds the runtime grants; the API's login is created
+separately with a password that never enters the repository, and inherits them. Grants are
+column-level where it matters: even an SQL injection through the API could not write
+`users.role`, a review's `is_sample` or `created_at`, or resolve a report, and cannot delete
+rows or change the schema. `tests/api-role.test.ts` runs the API through such a login and
+checks each of those refusals.
+
+**A migration that adds a table or a column the API writes must grant it to `api_access`.**
+Nothing is granted by default, so forgetting shows up as a permission error in that test
+rather than in production.
 
 Destructive scripts (`db:seed`, `db:benchmark`) refuse to run against any host that is not
 local, and say so, rather than trusting whatever `DATABASE_URL` happens to be exported.
