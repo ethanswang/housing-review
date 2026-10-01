@@ -1,13 +1,13 @@
 # Running the API
 
-The API is a Fastify service in `server/`. It owns all database access; nothing else queries
-Postgres directly.
+The API is a Fastify service in `server/`, and the only thing that touches its database. The
+live website does not call it yet: it still reads Supabase directly, until the switch.
 
 ## Everything at once
 
 ```bash
-docker compose up -d --wait        # Postgres and the API
-cd server && npm install           # migrations need node-pg-migrate, a dev dependency
+docker compose up -d --wait        # Postgres and the API container, on 3001
+cd server && npm ci                # migrations need node-pg-migrate, a dev dependency
 npm run db:migrate && npm run db:seed
 curl localhost:3001/api/properties
 ```
@@ -24,12 +24,16 @@ The database must be migrated before the endpoints return anything useful. `/hea
 Useful while developing, since it reloads:
 
 ```bash
-docker compose up -d --wait db
+docker compose up -d --wait db     # only the database
 cd server
-npm install
+npm ci
 npm run db:migrate && npm run db:seed
 npm run dev                        # http://localhost:3001
+npm test                           # needs the migrated, seeded database
 ```
+
+If you started everything at once earlier, `docker compose stop api` first: the container
+holds port 3001.
 
 ## Environment
 
@@ -155,8 +159,8 @@ Both return `429` with `error.code = "rate_limited"` and a `Retry-After` header.
 
 ### Requests from the frontend server
 
-The Next.js server calls this API on behalf of every visitor, from a handful of its own
-addresses. Keyed by those, every visitor would share one bucket, and one busy minute would
+Once the website reads through this API, the Next.js server will call it on behalf of every
+visitor, from a handful of its own addresses. Keyed by those, every visitor would share one bucket, and one busy minute would
 lock out the whole site. So a request carrying `x-frontend-secret` equal to `FRONTEND_SECRET`
 may name the visitor in `x-client-ip`, and is limited under that address instead.
 

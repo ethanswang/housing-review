@@ -67,7 +67,7 @@ Needs Node 24, Docker, and a free [Supabase](https://supabase.com) project.
 ```bash
 docker compose up -d --wait db     # Postgres 17 on localhost:5433
 cd server
-npm install
+npm ci
 npm run db:migrate && npm run db:seed
 npm run dev                        # http://localhost:3001
 npm test                           # runs against the compose database
@@ -79,7 +79,7 @@ npm test                           # runs against the compose database
 2. `cp .env.example .env.local` and fill in the project URL and `anon` key from
    **Project Settings → API**. The anon key is public by design; never use the `service_role`
    key here.
-3. `npm install && npm run dev` — http://localhost:3000
+3. `npm ci && npm run dev` — http://localhost:3000
 
 `npm test` runs the site's unit tests (pure functions in `lib/`) and needs no Supabase project.
 

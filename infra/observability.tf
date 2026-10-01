@@ -2,7 +2,7 @@ resource "aws_cloudwatch_log_group" "api" {
   name = "/${var.name}/api"
 
   # Logs are the first place a production problem is visible; two weeks is
-  # enough to investigate one and short enough to stay inside the free tier.
+  # enough to investigate one and short enough to keep log storage negligible.
   retention_in_days = 14
 }
 

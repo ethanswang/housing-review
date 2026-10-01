@@ -7,7 +7,7 @@ services:
     # random_page_cost defaults to 4.0, which models a spinning disk. On SSD
     # storage (Docker Desktop here, gp3 volumes in production) the planner
     # otherwise refuses the trigram indexes and sequentially scans instead:
-    # measured 23ms vs 1.3ms for a property search over 50k rows. Keeping the
+    # measured 23 ms vs 1.5 ms for a property search over 50k rows. Keeping the
     # value here means local plans match production plans.
     command: postgres -c random_page_cost=1.1
     environment:

@@ -19,6 +19,10 @@ Of particular interest: posting or editing a review as someone else, getting pas
 `@illinois.edu` requirement or the rate limits, reading data that should not be public, and
 anything that reveals who wrote a review.
 
+The sign-in requirement and the rate limits are enforced by the API. The website's current
+review path predates them, the form and the anonymous insert it relies on alike, and is being
+moved onto the API; that it does not apply them yet is known and does not need reporting.
+
 ## Please don't
 
 - Test against other people's accounts or reviews, or post content to the live site beyond

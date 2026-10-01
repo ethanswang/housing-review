@@ -17,7 +17,7 @@ export async function connect(): Promise<Client> {
   )
   if (!rows[0].ready) {
     await client.end()
-    throw new Error('Schema missing. Run: docker compose up -d && npm run db:migrate')
+    throw new Error('Schema missing. Run: docker compose up -d --wait db && npm run db:migrate && npm run db:seed')
   }
   return client
 }

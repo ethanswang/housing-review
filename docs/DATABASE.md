@@ -8,12 +8,12 @@ drops a table that holds real data.
 ## Running it locally
 
 ```bash
-docker compose up -d --wait      # Postgres 17 on localhost:5433
+docker compose up -d --wait db   # Postgres 17 on localhost:5433 (just the database)
 cd server
-npm install
+npm ci
 npm run db:migrate               # apply migrations
 npm run db:seed                  # load development data (refuses non-local databases)
-npm test                         # constraint and aggregate tests
+npm test                         # schema, endpoint, auth and role tests; needs the seed
 npm run db:benchmark             # EXPLAIN ANALYZE at volume, then rolls back
 ```
 
@@ -21,7 +21,7 @@ npm run db:benchmark             # EXPLAIN ANALYZE at volume, then rolls back
 (`postgres://housing:housing_dev@localhost:5433/housing`). Port 5433 is deliberate, so this
 never collides with a Postgres already running on 5432.
 
-To start over: `docker compose down -v && docker compose up -d --wait`.
+To start over: `docker compose down -v && docker compose up -d --wait db`.
 
 ## Loading the property list
 
@@ -48,10 +48,15 @@ It reads `DATABASE_URL`. `data/catalog.example.json` shows the format.
 - A property's `company` may be a company in the same file or one already in the database;
   `null` means an independent landlord. Omitting a company's `website` clears it.
 
-**Production:** the database accepts connections only from inside the VPC. The importer lives
-in `src/` rather than `scripts/` so that it ships in the API image, which runs there. The
-repository is private, so how the file reaches the instance is settled — and tested with a dry
-run — as part of the cutover; it is not documented here until it has been done.
+**Production:** run it through the tunnel, as the master user, with the same dry-run default:
+
+```bash
+infra/import-catalog.sh server/data/catalog.json            # dry run
+infra/import-catalog.sh server/data/catalog.json --apply
+```
+
+The script runs this importer from your `server/` checkout in a container that reaches the
+private database through Session Manager (see [INFRASTRUCTURE.md](INFRASTRUCTURE.md#migrations)).
 
 ## Trust model
 
@@ -168,8 +173,12 @@ Each index exists for a specific query rather than as a precaution.
 ### Measured, not assumed
 
 `npm run db:benchmark` generates volume data, runs `EXPLAIN ANALYZE` on the hot queries, and
-rolls back. At 50,000 properties and 200,000 reviews — roughly ten times a realistic
-Champaign–Urbana ceiling:
+rolls back. It defaults to 5,000 properties; the figures below are at 50,000 properties and
+200,000 reviews, roughly ten times a realistic Champaign–Urbana ceiling:
+
+```bash
+BENCH_PROPERTIES=50000 BENCH_REVIEWS_EACH=4 npm run db:benchmark
+```
 
 | Query | Time | Plan chosen |
 | --- | --- | --- |

@@ -1,5 +1,5 @@
-// Generates volume data, runs EXPLAIN ANALYZE on the three hot directory
-// queries, then rolls back. Nothing is left behind, so it is safe to run
+// Generates volume data, runs EXPLAIN ANALYZE on the hot read queries (search,
+// directory, filters, property, company and review pages), then rolls back. Nothing is left behind, so it is safe to run
 // against a seeded development database.
 //
 //   npm run db:benchmark

@@ -1,9 +1,9 @@
 /**
  * node src/import-catalog.ts <file.json> [--apply]
  *
- * Dry run unless --apply is given. Lives in src/ rather than scripts/ so that
- * it ships in the production image, which is the only place with a route to
- * the private database. See docs/DATABASE.md, "Loading the property list".
+ * Dry run unless --apply is given. Against production it runs through
+ * infra/import-catalog.sh, which reaches the private database over a Session
+ * Manager tunnel. See docs/DATABASE.md, "Loading the property list".
  */
 import { readFileSync } from 'node:fs'
 import pg from 'pg'

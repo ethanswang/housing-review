@@ -132,7 +132,7 @@ resource "aws_db_instance" "main" {
   username = var.db_username
   password = random_password.database.result
 
-  # 20GB of gp3 is the free-tier allowance.
+  # 20GB of gp3, the smallest RDS allows, with room to grow to 50GB on its own.
   allocated_storage     = 20
   max_allocated_storage = 50
   storage_type          = "gp3"
@@ -146,7 +146,7 @@ resource "aws_db_instance" "main" {
   # than incidental.
   publicly_accessible = false
 
-  # Single AZ: free tier does not cover a standby, and this is a student
+  # Single AZ: a standby roughly doubles the cost, and this is a student
   # project where an hour of downtime during a failover is acceptable.
   multi_az = false
 
