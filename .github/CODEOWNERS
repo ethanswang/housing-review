@@ -1,0 +1,5 @@
+# The maintainer reviews every change. With "require review from code owners"
+# on the main: review ruleset, a collaborator's pull request needs this
+# approval specifically, not just any collaborator's. The maintainer's own pull
+# requests bypass that ruleset.
+* @ethanswang
