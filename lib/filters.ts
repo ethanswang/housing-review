@@ -11,6 +11,13 @@ export type RawSearchParams = Record<string, string | string[] | undefined>
 
 const SORT_KEYS: SortKey[] = ['rating', 'price', 'reviews']
 
+/**
+ * How long the rent slider waits after it stops moving before it applies.
+ * Shared with the end-to-end tests, which time their "nothing else happens"
+ * checks from it.
+ */
+export const RENT_SLIDER_PAUSE_MS = 300
+
 function one(value: string | string[] | undefined): string | undefined {
   const v = Array.isArray(value) ? value[0] : value
   return v?.trim() || undefined

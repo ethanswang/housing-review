@@ -50,3 +50,7 @@ next-env.d.ts
 
 # database exports: they contain user email addresses
 /backups/
+
+# Playwright output
+/test-results/
+/playwright-report/

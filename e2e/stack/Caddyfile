@@ -1,0 +1,16 @@
+# Serves PostgREST under /rest/v1, the path the Supabase client calls, and like
+# Supabase's own gateway refuses requests that carry no API key, so a client
+# that dropped it fails here as it would there.
+#
+# `route` keeps these in the order written. Without it Caddy sorts handle_path
+# ahead of respond, the proxy matches first, and the key check never runs.
+:54321 {
+	route {
+		@no_key not header apikey *
+		respond @no_key "No API key found in request" 401
+
+		handle_path /rest/v1/* {
+			reverse_proxy postgrest:3000
+		}
+	}
+}
