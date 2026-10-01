@@ -18,16 +18,17 @@ The API runs on AWS. The frontend stays on Vercel. Everything here is OpenTofu/T
         browser
            │
            ▼
-   Vercel (Next.js)  ── frontend, unchanged
-           │
-           │  HTTPS
+   Vercel (Next.js)  ── frontend; still reads Supabase directly, and
+           │              calls this API once the switch is made
+           │  HTTPS, api.uiuchousing.com
            ▼
    ┌───────────────────────── VPC 10.20.0.0/16 ─────────────────────────┐
    │                                                                     │
    │  public subnet (a)                    public subnet (b)             │
    │  ┌──────────────────┐                                               │
    │  │ EC2 t4g.micro    │ ── internet gateway ──▶ Supabase JWKS, ECR    │
-   │  │ docker: API :80  │                                               │
+   │  │ Caddy :80/:443   │                                               │
+   │  │ → API 127.0.0.1:3001                                             │
    │  └────────┬─────────┘                                               │
    │           │ 5432, security group to security group                  │
    │  private subnet (a)                   private subnet (b)            │

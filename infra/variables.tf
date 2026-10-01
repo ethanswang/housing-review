@@ -28,13 +28,13 @@ variable "db_username" {
 }
 
 variable "db_instance_class" {
-  description = "db.t4g.micro is free-tier eligible for the first 12 months on a new account."
+  description = "Smallest burstable class. See docs/INFRASTRUCTURE.md, Cost: whether any of it is free depends on the account's plan."
   type        = string
   default     = "db.t4g.micro"
 }
 
 variable "instance_type" {
-  description = "t4g.micro is free-tier eligible for the first 12 months (750 hours a month)."
+  description = "Smallest burstable arm64 instance; the API image is built for arm64. See docs/INFRASTRUCTURE.md, Cost."
   type        = string
   default     = "t4g.micro"
 }

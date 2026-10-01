@@ -114,10 +114,9 @@ jobs:
           # depending on the database, this step fails here rather than during
           # a real outage.
           # The image's HEALTHCHECK has a 30s interval, so the first probe does
-          # not fire until t=30s. A 30-iteration loop finishes at roughly the
-          # same moment: measured healthy on iteration 29 of 30, one second of
-          # slack. A loaded runner would fail a container that is perfectly
-          # fine — the same false failure this step was rewritten to stop.
+          # not fire until t=30s. This loop used to stop after 30 iterations
+          # and measured healthy on iteration 29, one second of slack that a
+          # loaded runner would miss; 90 leaves room.
           for _ in $(seq 1 90); do
             status=$(docker inspect --format '{{.State.Health.Status}}' api-ci)
             [ "$status" = healthy ] && break

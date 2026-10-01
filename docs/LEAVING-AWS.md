@@ -110,7 +110,7 @@ docker buildx build --platform linux/amd64 ./server
 | --- | --- |
 | `DATABASE_URL` | The new database, with `sslmode=verify-full`. Hosted providers use publicly trusted certificates, so no `sslrootcert` is needed — unlike RDS. |
 | `SUPABASE_URL` | Unchanged |
-| `FRONTEND_SECRET` | Unchanged, or rotate it here and on Vercel together |
+| `FRONTEND_SECRET` | Unchanged, or rotate it here and on Vercel together, once the frontend sends it |
 | `NODE_ENV` | `production` |
 | `PORT` | Whatever the platform injects; the API reads it |
 | `TRUST_PROXY_HOPS` | **Check the platform's docs.** It must equal the number of proxies in front of the service. Too high lets any client forge its address and escape the per-IP rate limit. |
@@ -122,7 +122,7 @@ Check `https://<new-host>/readyz` returns `{"status":"ready"}` before moving tra
 1. Take a final export (step 1) and restore it (step 3). Reviews written after the export are
    lost, so do this at a quiet hour.
 2. Point `api.uiuchousing.com` at the new host in Vercel DNS, replacing the A record for the
-   elastic IP. The frontend's API URL does not change.
+   elastic IP. Anything calling the API by that name, the frontend once it does, needs no change.
 3. Watch the new host's logs and `/readyz` for a day before tearing anything down.
 
 ## 6. Tear down AWS
