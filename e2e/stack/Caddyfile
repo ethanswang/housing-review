@@ -1,0 +1,6 @@
+# Serves PostgREST under /rest/v1, the path the Supabase client calls.
+:54321 {
+	handle_path /rest/v1/* {
+		reverse_proxy postgrest:3000
+	}
+}

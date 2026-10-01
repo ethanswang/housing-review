@@ -1,0 +1,41 @@
+# A stand-in for the Supabase project the website reads, for the e2e suite:
+# Postgres with supabase/schema.sql and seed.sql, PostgREST in front of it, and
+# Caddy serving it at http://localhost:54321/rest/v1 like Supabase does. Nothing
+# here touches a real project, so tests can submit reviews and CI needs no
+# secrets.
+services:
+  db:
+    # Pinned by digest, matching CI and the root compose file.
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+    environment:
+      POSTGRES_PASSWORD: e2e
+    volumes:
+      - ./00-supabase-roles.sql:/docker-entrypoint-initdb.d/00-roles.sql:ro
+      - ../../supabase/schema.sql:/docker-entrypoint-initdb.d/10-schema.sql:ro
+      - ../../supabase/seed.sql:/docker-entrypoint-initdb.d/20-seed.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  postgrest:
+    image: postgrest/postgrest:v13.0.4@sha256:a312f4b2e48530a01fc26f5310d547d6c26d087858360e164522e415723a7732
+    environment:
+      PGRST_DB_URI: postgres://authenticator:e2e-authenticator@db:5432/postgres
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      # Test-only. e2e/stack/anon-key.mjs signs the anon key with it.
+      PGRST_JWT_SECRET: e2e-only-jwt-secret-at-least-32-characters-long
+    depends_on:
+      db:
+        condition: service_healthy
+
+  gateway:
+    image: caddy:2-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
+    ports:
+      - '54321:54321'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - postgrest
