@@ -137,44 +137,63 @@ export async function getReviewForAuthor(db: Database, id: string): Promise<Owne
   return rows.length ? toReview(rows[0] as ReviewRow) : null
 }
 
-export async function updateReview(
-  db: Database,
-  id: string,
-  current: OwnedReview,
-  patch: ReviewPatch
-): Promise<OwnedReview> {
-  // Absent fields keep their current value, so a caller can send just the one
-  // thing they changed rather than having to echo the whole review back.
-  const next: ReviewInput = {
-    maintenance: patch.maintenance ?? current.maintenance,
-    communication: patch.communication ?? current.communication,
-    value: patch.value ?? current.value,
-    overall: patch.overall ?? current.overall,
-    body: patch.body ?? current.body,
-    leaseTerm: patch.leaseTerm ?? current.leaseTerm,
-  }
-
+/**
+ * Applies only the fields sent. Absent fields keep whatever the row holds at
+ * the moment of the UPDATE — `coalesce` against the column, not against a copy
+ * read earlier — so two simultaneous edits to different fields both survive.
+ */
+export async function updateReview(db: Database, id: string, patch: ReviewPatch): Promise<OwnedReview> {
   const { rows } = await db.query(
     `with updated as (
        update reviews
-       set maintenance = $2, communication = $3, value = $4, overall = $5,
-           body = $6, lease_term = $7
+       set maintenance   = coalesce($2, maintenance),
+           communication = coalesce($3, communication),
+           value         = coalesce($4, value),
+           overall       = coalesce($5, overall),
+           body          = coalesce($6, body),
+           lease_term    = coalesce($7, lease_term)
        where id = $1 and status <> 'removed'
        returning *
      )
      select ${SELECT} from updated r join properties p on p.id = r.property_id`,
-    [id, next.maintenance, next.communication, next.value, next.overall, next.body, next.leaseTerm]
+    [
+      id,
+      patch.maintenance ?? null,
+      patch.communication ?? null,
+      patch.value ?? null,
+      patch.overall ?? null,
+      patch.body ?? null,
+      patch.leaseTerm ?? null,
+    ]
   )
   if (!rows.length) throw notFound('That review no longer exists')
   return toReview(rows[0] as ReviewRow)
 }
 
+/**
+ * An author withdrawing their review. Only a published review can be
+ * withdrawn: deleting marks it removed, removed reviews do not count toward
+ * one-per-property, and allowing it on a hidden review would let the author
+ * undo a moderator's decision by deleting and posting again.
+ *
+ * The status test is in the UPDATE itself, so a moderator hiding the review
+ * between the ownership check and this statement still wins.
+ */
 export async function deleteReview(db: Database, id: string): Promise<void> {
   const { rowCount } = await db.query(
-    `update reviews set status = 'removed' where id = $1 and status <> 'removed'`,
+    `update reviews set status = 'removed' where id = $1 and status = 'published'`,
     [id]
   )
-  if (!rowCount) throw notFound('That review no longer exists')
+  if (rowCount) return
+
+  const { rows } = await db.query('select status from reviews where id = $1', [id])
+  if (rows[0]?.status === 'hidden') {
+    throw conflict(
+      'A moderator is looking at this review, so it can’t be deleted right now.',
+      'under_moderation'
+    )
+  }
+  throw notFound('That review no longer exists')
 }
 
 /** A person's own reviews, including ones moderation has hidden from others. */

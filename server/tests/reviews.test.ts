@@ -242,6 +242,25 @@ describe('PATCH /api/reviews/:id — ownership', () => {
     expect(response.statusCode).toBe(403)
   })
 
+  it('keeps both of two simultaneous edits to different fields', async () => {
+    // Merging a patch into a row read earlier lets the second write put back
+    // the first one's field. Repeated, because a race can pass by luck once.
+    for (let i = 0; i < 8; i++) {
+      const { bearer } = await signIn()
+      const created = (await post(`/api/properties/${propertySlug}/reviews`, VALID, bearer)).json()
+      const newBody = `Edited body number ${i}, long enough to satisfy the constraint.`
+
+      const [a, b] = await Promise.all([
+        patch(`/api/reviews/${created.id}`, { body: newBody }, bearer),
+        patch(`/api/reviews/${created.id}`, { overall: 1 }, bearer),
+      ])
+      expect([a.statusCode, b.statusCode]).toEqual([200, 200])
+
+      const { rows } = await pool.query('select body, overall from reviews where id = $1', [created.id])
+      expect(rows[0]).toEqual({ body: newBody, overall: 1 })
+    }
+  })
+
   it('changes only the fields sent', async () => {
     const { bearer } = await signIn()
     const created = (await post(`/api/properties/${propertySlug}/reviews`, VALID, bearer)).json()
@@ -338,6 +357,24 @@ describe('DELETE /api/reviews/:id — ownership', () => {
       created.id,
     ])
     expect(rows[0].n).toBe(1)
+  })
+
+  it('refuses to delete a review a moderator has hidden', async () => {
+    // Deleting marks a review removed, and removed reviews do not count
+    // toward one-per-property. Allowed on a hidden review, delete-then-repost
+    // would undo a moderator's decision in two requests.
+    const { bearer } = await signIn()
+    const created = (await post(`/api/properties/${propertySlug}/reviews`, VALID, bearer)).json()
+    await pool.query(`update reviews set status = 'hidden' where id = $1`, [created.id])
+
+    const response = await del(`/api/reviews/${created.id}`, bearer)
+    expect(response.statusCode).toBe(409)
+    expect(response.json().error.code).toBe('under_moderation')
+
+    const repost = await post(`/api/properties/${propertySlug}/reviews`, VALID, bearer)
+    expect(repost.statusCode).toBe(409)
+    const { rows } = await pool.query('select status from reviews where id = $1', [created.id])
+    expect(rows[0].status).toBe('hidden')
   })
 
   it('refuses an anonymous delete', async () => {

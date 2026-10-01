@@ -64,27 +64,27 @@ export async function reviewRoutes(
   options: { db: Database; config: Config }
 ) {
   // After requireAuth, so the budget belongs to the account rather than to
-  // whatever network it happens to be on. `check` refuses an account that is
-  // over its ceiling; `record` spends the budget only once a write succeeded.
+  // whatever network it happens to be on. `check` takes a slot or refuses an
+  // account at its ceiling; `record` gives the slot back if the write failed.
   const writeLimiter = createWriteLimiter(options.config)
   const limited = [app.requireAuth, writeLimiter.check]
-  const countWrite = writeLimiter.record
+  const settleWrite = writeLimiter.record
 
-  app.post('/properties/:slug/reviews', { preHandler: limited, onResponse: countWrite }, async (request, reply) => {
+  app.post('/properties/:slug/reviews', { preHandler: limited, onResponse: settleWrite }, async (request, reply) => {
     const { slug } = parse(z.object({ slug: slugSchema }), request.params)
     const input = parse(reviewBodySchema, request.body)
     const review = await createReview(options.db, slug, currentUser(request).id, input)
     return reply.status(201).send(review)
   })
 
-  app.patch('/reviews/:id', { preHandler: limited, onResponse: countWrite }, async (request) => {
+  app.patch('/reviews/:id', { preHandler: limited, onResponse: settleWrite }, async (request) => {
     const { id } = parse(idSchema, request.params)
     const patch = parse(reviewPatchSchema, request.body)
-    const current = await assertOwned(options.db, id, currentUser(request).id)
-    return updateReview(options.db, id, current, patch)
+    await assertOwned(options.db, id, currentUser(request).id)
+    return updateReview(options.db, id, patch)
   })
 
-  app.delete('/reviews/:id', { preHandler: limited, onResponse: countWrite }, async (request, reply) => {
+  app.delete('/reviews/:id', { preHandler: limited, onResponse: settleWrite }, async (request, reply) => {
     const { id } = parse(idSchema, request.params)
     await assertOwned(options.db, id, currentUser(request).id)
     await deleteReview(options.db, id)
@@ -93,7 +93,7 @@ export async function reviewRoutes(
 
   // Shares the write budget with reviews: filing reports is a write, and a
   // separate budget would double what one account can push into the queue.
-  app.post('/reviews/:id/reports', { preHandler: limited, onResponse: countWrite }, async (request, reply) => {
+  app.post('/reviews/:id/reports', { preHandler: limited, onResponse: settleWrite }, async (request, reply) => {
     const { id } = parse(idSchema, request.params)
     const input = parse(reportBodySchema, request.body)
     const report = await createReport(options.db, id, currentUser(request).id, input)

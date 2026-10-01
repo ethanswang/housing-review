@@ -1,10 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { SignJWT, exportJWK, generateKeyPair } from 'jose'
 import { buildApp } from '../src/app.ts'
 import { loadConfig } from '../src/config.ts'
 import { createPool, type Database } from '../src/db.ts'
 import { localKeySource } from '../src/auth/verify.ts'
+import { createWriteLimiter } from '../src/rate-limit.ts'
 import { DATABASE_URL } from './helpers.ts'
 
 const ISSUER = 'https://project.supabase.co/auth/v1'
@@ -263,6 +264,31 @@ describe('per-account write limit', () => {
       headers: { authorization: reporter },
     })
     expect(afterReport.statusCode).toBe(429)
+  })
+
+  it('does not let writes already in flight get past the ceiling', async () => {
+    // Checking before the handler and counting after it lets every request
+    // that is checked before the first one finishes through. Driven at the
+    // limiter directly: in-process requests happen to queue on the users row
+    // and never open that window, which real concurrent clients do.
+    const limiter = createWriteLimiter(writeConfig) // ceiling of one
+    const request = { currentUser: { id: crypto.randomUUID() } } as FastifyRequest
+    const reply = (statusCode: number) => ({ statusCode, header: () => reply(statusCode) }) as unknown as FastifyReply
+
+    const checks = await Promise.allSettled(Array.from({ length: 5 }, () => limiter.check(request, reply(200))))
+    expect(checks.filter((c) => c.status === 'fulfilled')).toHaveLength(1)
+  })
+
+  it('gives the slot back when the write it reserved fails', async () => {
+    const limiter = createWriteLimiter(writeConfig)
+    const request = { currentUser: { id: crypto.randomUUID() } } as FastifyRequest
+    const reply = (statusCode: number) => ({ statusCode, header: () => reply(statusCode) }) as unknown as FastifyReply
+
+    await limiter.check(request, reply(400))
+    await limiter.record(request, reply(400)) // the write was rejected
+    await expect(limiter.check(request, reply(201))).resolves.toBeUndefined()
+    await limiter.record(request, reply(201))
+    await expect(limiter.check(request, reply(201))).rejects.toMatchObject({ statusCode: 429 })
   })
 
   it('still refuses an unauthenticated write with 401, not 429', async () => {
