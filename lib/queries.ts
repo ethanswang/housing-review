@@ -219,7 +219,12 @@ export type NewReview = {
   lease_term: string
 }
 
+/**
+ * Sends only the review's own fields. The anon role may insert exactly these
+ * columns (supabase/schema.sql), so `is_sample`, `id` and `created_at` take
+ * their defaults and cannot be set by a caller — not even this one.
+ */
 export async function insertReview(review: NewReview) {
-  const { error } = await supabase.from('reviews').insert({ ...review, is_sample: false })
+  const { error } = await supabase.from('reviews').insert(review)
   if (error) throw new Error(`Failed to save review: ${error.message}`)
 }

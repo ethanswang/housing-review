@@ -32,7 +32,10 @@ create table reviews (
   value         smallint not null check (value         between 1 and 5),
   overall       smallint not null check (overall       between 1 and 5),
   body          text not null check (char_length(body) between 20 and 2000),
-  lease_term    text not null,
+  -- Same limit as the API's schema; without it a direct POST to the Server
+  -- Action could store a megabyte here, shown to every visitor.
+  lease_term    text not null constraint reviews_lease_term_length
+                  check (char_length(lease_term) between 1 and 40),
   -- Marks seeded demo reviews so the UI can label them and a real launch can
   -- remove them with: delete from reviews where is_sample;
   is_sample     boolean not null default false,
@@ -56,6 +59,14 @@ create policy "public read properties"  on properties           for select using
 create policy "public read reviews"     on reviews              for select using (true);
 
 -- Submissions are open (no accounts in the MVP). The column checks above are
--- the server-side guard on rating ranges and body length. `is_sample` is not
--- writable by the public policy path — seeded rows are inserted by an admin.
+-- the server-side guard on rating ranges and lengths.
 create policy "public insert reviews" on reviews for insert with check (is_sample = false);
+
+-- The policy decides which rows may be inserted; these grants decide which
+-- columns. Supabase grants the API roles every column by default, which would
+-- let a caller holding the anon key choose `created_at` — dating a review in
+-- 2099 pins it to the top of a newest-first list — or its `id`. Only the
+-- review's own fields are insertable; the rest take their defaults.
+revoke insert on reviews from anon, authenticated;
+grant insert (property_id, maintenance, communication, value, overall, body, lease_term)
+  on reviews to anon, authenticated;

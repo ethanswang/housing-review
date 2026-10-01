@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState } from 'react'
 import { submitReview, type ReviewFormState } from '@/app/actions'
 import { RATING_LABELS, SUB_RATING_KEYS, type RatingKey } from '@/lib/types'
 
@@ -27,6 +27,10 @@ export function ReviewForm({ propertyId, slug }: { propertyId: string; slug: str
     )
   }
 
+  // After a failed submission React resets the form to its default values, so
+  // the defaults are what the student just typed (returned by submitReview).
+  const values = state.values
+
   // Field names are unchanged (submitReview reads fields by name); only the
   // order on screen moved, so it reads top to bottom like a short survey.
   return (
@@ -36,14 +40,32 @@ export function ReviewForm({ propertyId, slug }: { propertyId: string; slug: str
 
       <label className="flex flex-col gap-2">
         <span className="text-body font-semibold">When did you live here?</span>
-        <input name="lease_term" required placeholder="2024-25" className={`h-12 md:max-w-48 ${inputClass}`} />
+        <input
+          name="lease_term"
+          required
+          maxLength={40}
+          placeholder="2024-25"
+          defaultValue={values?.lease_term}
+          className={`h-12 md:max-w-48 ${inputClass}`}
+        />
       </label>
 
-      <RatingInput name="overall" label={RATING_LABELS.overall} hint={HINTS.overall} />
+      <RatingInput
+        name="overall"
+        label={RATING_LABELS.overall}
+        hint={HINTS.overall}
+        initial={values?.ratings.overall}
+      />
 
       <div className="flex flex-col gap-8">
         {SUB_RATING_KEYS.map((key) => (
-          <RatingInput key={key} name={key} label={RATING_LABELS[key]} hint={HINTS[key]} />
+          <RatingInput
+            key={key}
+            name={key}
+            label={RATING_LABELS[key]}
+            hint={HINTS[key]}
+            initial={values?.ratings[key]}
+          />
         ))}
       </div>
 
@@ -56,6 +78,7 @@ export function ReviewForm({ propertyId, slug }: { propertyId: string; slug: str
           maxLength={2000}
           rows={6}
           placeholder="What should the next tenant know? Repairs, the office, noise, what you actually paid."
+          defaultValue={values?.body}
           className={`py-3 ${inputClass}`}
         />
         <span className="text-meta text-muted">
@@ -84,9 +107,22 @@ export function ReviewForm({ propertyId, slug }: { propertyId: string; slug: str
  * Five radio buttons shown as a segmented 1–5 control. Only the chosen number
  * fills, so it reads as "a score of 4", not a row of stars. Still a real radio
  * group underneath, so arrow keys and screen readers work natively.
+ *
+ * The highlight comes from the radio's own checked state (`peer-checked`), not
+ * React state. A form reset changes which radio is checked without telling
+ * React, and separate state would then show a score that will not be sent.
  */
-function RatingInput({ name, label, hint }: { name: string; label: string; hint: string }) {
-  const [value, setValue] = useState(0)
+function RatingInput({
+  name,
+  label,
+  hint,
+  initial,
+}: {
+  name: string
+  label: string
+  hint: string
+  initial?: number
+}) {
   return (
     <fieldset>
       <legend className="text-body font-semibold">{label}</legend>
@@ -99,16 +135,10 @@ function RatingInput({ name, label, hint }: { name: string; label: string; hint:
               name={name}
               value={score}
               required
-              onChange={() => setValue(score)}
+              defaultChecked={initial === score}
               className="peer sr-only"
             />
-            <span
-              className={`tnum flex size-11 items-center justify-center rounded-lg border text-body transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent ${
-                value === score
-                  ? 'border-accent bg-accent font-semibold text-surface'
-                  : 'border-rule-strong bg-surface hover:border-ink'
-              }`}
-            >
+            <span className="tnum flex size-11 items-center justify-center rounded-lg border border-rule-strong bg-surface text-body transition-colors hover:border-ink peer-checked:border-accent peer-checked:bg-accent peer-checked:font-semibold peer-checked:text-surface peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent">
               {score}
             </span>
           </label>
