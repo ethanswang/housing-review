@@ -20,7 +20,7 @@ services:
       retries: 30
 
   postgrest:
-    image: postgrest/postgrest:v13.0.4@sha256:a312f4b2e48530a01fc26f5310d547d6c26d087858360e164522e415723a7732
+    image: postgrest/postgrest:v16.4@sha256:d155c6718ed9a9f990d159a2ab7c0a3f16944dbb6d0a0344557421042acfe0df
     environment:
       PGRST_DB_URI: postgres://authenticator:e2e-authenticator@db:5432/postgres
       PGRST_DB_SCHEMAS: public
