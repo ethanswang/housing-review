@@ -12,12 +12,10 @@ permissions:
   contents: read
 
 # Actions are pinned to a commit and images to a digest, not to tags: a tag can
-# be re-pointed at different code after review, a commit cannot. Dependabot
-# (.github/dependabot.yml) proposes updates to the actions; the trailing comment
-# names the release each pin corresponds to. The Postgres service image below
-# is updated by hand, in step with docker-compose.yml, e2e/stack/docker-compose.yml
-# and DB_PG_IMAGE in infra/lib/db-tunnel.sh: Dependabot does not read service
-# images or shell scripts.
+# be re-pointed at different code after review, a commit cannot. The trailing
+# comment names the release. Pins are updated by hand (Dependabot only opens
+# security fixes); keep the Postgres digest in step across CI, both compose
+# files and DB_PG_IMAGE in infra/lib/db-tunnel.sh.
 
 # A second push to a branch makes the first run irrelevant. Not so on main:
 # cancelling there would leave a merged commit with no completed check, so each

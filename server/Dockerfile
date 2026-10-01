@@ -4,8 +4,8 @@
 # every pull request and every push to main.
 # Pinned by digest. `node:24-alpine` moves whenever the upstream image is
 # rebuilt, so a tag alone cannot give a reproducible build. The tag stays in the
-# reference so Dependabot knows which line to follow: it proposes new digests
-# of 24-alpine as reviewable PRs, rather than of `latest`.
+# reference so an update (by hand, or a Dependabot security fix) follows the
+# 24-alpine line rather than `latest`.
 FROM node:24-alpine@sha256:760e44b64c78674d9c79fa32e63c0ba8f817f79791e1aa32e07669bb0bfeaeaa
 
 ENV NODE_ENV=production

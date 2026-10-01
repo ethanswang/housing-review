@@ -21,7 +21,7 @@
 # The images the scripts run against production, pinned by digest: they
 # receive the master password, so a tag that someone re-points must not change
 # what runs. Update deliberately: `docker buildx imagetools inspect <tag>` gives
-# the new digest. Dependabot cannot see these.
+# the new digest.
 DB_PG_IMAGE='postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24'
 DB_NODE_IMAGE='node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1'
 
