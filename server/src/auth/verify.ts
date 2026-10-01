@@ -14,6 +14,13 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 export type TokenClaims = {
   sub: string
   email: string
+  /** Supabase's `is_anonymous`: a session with no identity behind it. */
+  isAnonymous: boolean
+  /**
+   * The `method` of each entry in `amr`, how this session was authenticated:
+   * "otp", "magiclink", "password", "oauth", and so on.
+   */
+  authMethods: string[]
 }
 
 /**
@@ -98,7 +105,17 @@ export async function verifyToken(
     throw unauthorized('Token is missing an email address')
   }
 
-  return { sub, email }
+  // Supabase issues amr as [{ method, timestamp }]. Anything malformed is
+  // dropped rather than trusted, so it can only count against the caller.
+  const authMethods = Array.isArray(payload.amr)
+    ? payload.amr.flatMap((entry: unknown) =>
+        typeof entry === 'object' && entry !== null && typeof (entry as { method?: unknown }).method === 'string'
+          ? [(entry as { method: string }).method]
+          : []
+      )
+    : []
+
+  return { sub, email, isAnonymous: payload.is_anonymous === true, authMethods }
 }
 
 /** `Authorization: Bearer <token>`, or nothing. */

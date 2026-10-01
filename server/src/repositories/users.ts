@@ -30,7 +30,7 @@ type UserRow = {
   created_at: Date
 }
 
-export async function upsertUser(db: Database, claims: TokenClaims): Promise<User> {
+export async function upsertUser(db: Database, claims: Pick<TokenClaims, 'sub' | 'email'>): Promise<User> {
   let rows: UserRow[] = []
   // Set when the insert hit users.email's unique index rather than the id it
   // targets; resolved below once we can see which row holds the address.
