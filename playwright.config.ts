@@ -14,9 +14,12 @@ import { defineConfig, devices } from '@playwright/test'
  * One worker: the tests share one database and some write to it.
  */
 const STAND_IN_URL = 'http://localhost:54321'
-const configured = process.env.NEXT_PUBLIC_SUPABASE_URL
-if (configured && configured !== STAND_IN_URL) {
-  throw new Error(`e2e tests only run against the stand-in at ${STAND_IN_URL}, not ${configured}`)
+const LOCAL_API_URL = 'http://localhost:53001'
+for (const [name, local] of [['NEXT_PUBLIC_SUPABASE_URL', STAND_IN_URL], ['API_URL', LOCAL_API_URL]]) {
+  const configured = process.env[name]
+  if (configured && configured !== local) {
+    throw new Error(`e2e tests only run against ${local} for ${name}, not ${configured}`)
+  }
 }
 const anonKey = execFileSync('node', ['e2e/stack/anon-key.mjs']).toString()
 
@@ -32,7 +35,7 @@ export default defineConfig({
   },
   webServer: {
     command: 'npx next build && npx next start -p 3100',
-    env: { NEXT_PUBLIC_SUPABASE_URL: STAND_IN_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY: anonKey },
+    env: { NEXT_PUBLIC_SUPABASE_URL: STAND_IN_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY: anonKey, API_URL: LOCAL_API_URL },
     url: 'http://localhost:3100',
     reuseExistingServer: false,
     timeout: 240_000,

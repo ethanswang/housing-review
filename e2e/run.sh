@@ -4,9 +4,10 @@
 #   e2e/run.sh                 # all tests
 #   e2e/run.sh -g "search"     # extra arguments go to `playwright test`
 #
-# Starts the Supabase stand-in in e2e/stack from scratch, so it always has the
-# current supabase/schema.sql and seed, then runs Playwright, which builds the
-# site against it (replacing .next). Nothing here touches a real project.
+# Starts e2e/stack from scratch (the API and its database, and the Supabase
+# stand-in), so it always has the current schema and seed, then runs
+# Playwright, which builds the site against it (replacing .next). Nothing here
+# touches a real project.
 # First time: `npx playwright install chromium`.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -30,6 +31,22 @@ done
 if [ -z "$ready" ]; then
   echo "The Supabase stand-in did not answer within a minute." >&2
   "${stack[@]}" logs postgrest gateway >&2
+  exit 1
+fi
+
+# The API's database: schema and development seed, from the host checkout.
+(cd server && npm ci --silent \
+  && DATABASE_URL=postgres://housing:housing_dev@localhost:55432/housing npm run --silent db:migrate \
+  && DATABASE_URL=postgres://housing:housing_dev@localhost:55432/housing npm run --silent db:seed)
+
+ready=
+for _ in $(seq 1 60); do
+  if curl -fs -o /dev/null http://localhost:53001/readyz; then ready=1; break; fi
+  sleep 1
+done
+if [ -z "$ready" ]; then
+  echo "The API did not become ready within a minute." >&2
+  "${stack[@]}" logs api >&2
   exit 1
 fi
 

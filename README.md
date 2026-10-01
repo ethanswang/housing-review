@@ -74,16 +74,17 @@ npm run dev                        # http://localhost:3001
 npm test                           # runs against the compose database
 ```
 
-**The website** (reads Supabase until the switch):
+**The website** reads from the API above, so start that first. It still posts reviews to
+Supabase until that moves to the API too:
 
 1. In a Supabase project's SQL editor, run `supabase/schema.sql`, then `supabase/seed.sql`.
 2. `cp .env.example .env.local` and fill in the project URL and `anon` key from
    **Project Settings → API**. The anon key is public by design; never use the `service_role`
-   key here.
+   key here. `API_URL` defaults to the local API.
 3. `npm ci && npm run dev` — http://localhost:3000
 
 `npm test` runs the site's unit tests (pure functions in `lib/`) and needs no Supabase project.
-`npm run test:e2e` runs the browser tests against a local stand-in for Supabase; see
+`npm run test:e2e` runs the browser tests against a local API and a stand-in for Supabase; see
 [CONTRIBUTING.md](CONTRIBUTING.md#running-what-ci-runs).
 
 ## Sample data

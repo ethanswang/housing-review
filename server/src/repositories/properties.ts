@@ -215,3 +215,30 @@ export async function listReviewsForProperty(
     total
   )
 }
+
+export type FilterOptions = {
+  companies: { slug: string; name: string }[]
+  neighborhoods: string[]
+  bedrooms: number[]
+  maxRent: number
+}
+
+/** What the directory's filters offer, drawn from the data rather than hard-coded. */
+export async function getFilterOptions(db: Database): Promise<FilterOptions> {
+  const [companies, options] = await Promise.all([
+    db.query('select slug, name from management_companies order by name, slug'),
+    db.query(
+      `select
+         coalesce((select array_agg(distinct neighborhood order by neighborhood) from properties), '{}') as neighborhoods,
+         coalesce((select array_agg(distinct b order by b) from properties, unnest(bedrooms) as b), '{}') as bedrooms,
+         coalesce((select max(rent_max) from properties), 0) as max_rent`
+    ),
+  ])
+  const row = options.rows[0]
+  return {
+    companies: companies.rows,
+    neighborhoods: row.neighborhoods,
+    bedrooms: row.bedrooms,
+    maxRent: row.max_rent,
+  }
+}
