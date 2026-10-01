@@ -51,7 +51,7 @@ unset API_DB_PASSWORD
 # quoted by format(%I, %L), not by string concatenation. NOSUPERUSER is not
 # named: on Postgres 16+ only a true superuser may name it, which the RDS master
 # is not, and a role created here never has it — the check below shows it.
-db_docker -i -e API_DB_USER -e API_DB_VERIFIER postgres:17-alpine \
+db_docker -i -e API_DB_USER -e API_DB_VERIFIER "$DB_PG_IMAGE" \
   psql -X -q -v ON_ERROR_STOP=1 <<'SQL'
 \set login `printenv API_DB_USER`
 \set verifier `printenv API_DB_VERIFIER`

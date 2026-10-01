@@ -74,11 +74,13 @@ Checked 2026-09-29. Free tiers change without notice — re-check before relying
 
 ## 3. Restore
 
-Create an empty Postgres 17 database on the new host, then:
+Create an empty Postgres 17 database on the new host, then, using the same pinned image the
+export used (these commands carry the new database's credentials):
 
 ```bash
+. infra/lib/db-tunnel.sh             # defines DB_PG_IMAGE; opens nothing until db_tunnel_open
 export NEW_DATABASE_URL='postgres://…?sslmode=verify-full'
-docker run --rm -e NEW_DATABASE_URL -v "$PWD/backups:/in:ro" postgres:17-alpine \
+docker run --rm -e NEW_DATABASE_URL -v "$PWD/backups:/in:ro" "$DB_PG_IMAGE" \
   sh -c 'pg_restore --no-owner --no-acl --exit-on-error --dbname "$NEW_DATABASE_URL" /in/<file>.dump'
 ```
 
@@ -87,7 +89,7 @@ docker run --rm -e NEW_DATABASE_URL -v "$PWD/backups:/in:ro" postgres:17-alpine 
 counts from step 1:
 
 ```bash
-docker run --rm -e NEW_DATABASE_URL postgres:17-alpine psql "$NEW_DATABASE_URL" -c \
+docker run --rm -e NEW_DATABASE_URL "$DB_PG_IMAGE" psql "$NEW_DATABASE_URL" -c \
   "select (select count(*) from reviews) as reviews, (select count(*) from users) as users"
 ```
 

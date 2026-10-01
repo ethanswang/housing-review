@@ -25,5 +25,5 @@ db_tunnel_open
 export DATABASE_URL
 DATABASE_URL=$(db_master_url)
 
-db_docker -e DATABASE_URL -v "$PWD/server:/app:ro" -w /app node:24-alpine \
+db_docker -e DATABASE_URL -v "$PWD/server:/app:ro" -w /app "$DB_NODE_IMAGE" \
   node node_modules/node-pg-migrate/bin/node-pg-migrate.js "$@"

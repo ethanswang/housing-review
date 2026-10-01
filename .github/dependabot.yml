@@ -1,0 +1,42 @@
+# Keeps pinned versions from going stale. Each update arrives as a pull request
+# and goes through CI and review like any other change.
+version: 2
+updates:
+  # Actions in .github/workflows, pinned by commit with the release in a comment.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      # One PR for routine minor and patch updates instead of one per package.
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /server
+    schedule: { interval: weekly }
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  # The API image's base in server/Dockerfile, pinned as name:tag@digest so the
+  # digest follows the 24-alpine tag. A digest with no tag would make Dependabot
+  # propose node:latest, a different distribution and Node major. Majors move
+  # deliberately, with the runtime: never as a routine digest bump.
+  - package-ecosystem: docker
+    directory: /server
+    schedule: { interval: weekly }
+    ignore:
+      - dependency-name: node
+        update-types: [version-update:semver-major]
+
+  # The development database in docker-compose.yml.
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule: { interval: weekly }
+    ignore:
+      - dependency-name: postgres
+        update-types: [version-update:semver-major]

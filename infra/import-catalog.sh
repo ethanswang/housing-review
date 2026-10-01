@@ -28,4 +28,4 @@ export DATABASE_URL
 DATABASE_URL=$(db_master_url)
 
 db_docker -e DATABASE_URL -v "$PWD/server:/app:ro" -v "$catalog:/catalog.json:ro" -w /app \
-  node:24-alpine node src/import-catalog.ts /catalog.json "$@"
+  "$DB_NODE_IMAGE" node src/import-catalog.ts /catalog.json "$@"

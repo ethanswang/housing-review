@@ -21,7 +21,7 @@ FILE="housing-$(date -u +%Y%m%dT%H%M%SZ).dump"
 # pg_dump from postgres:17, matching the server. A newer local pg_dump can write
 # an archive that the Postgres 17 tools on a new host refuse.
 pg() {
-  db_docker --user "$(id -u):$(id -g)" -v "$PWD/$OUT_DIR:/out" postgres:17-alpine "$@"
+  db_docker --user "$(id -u):$(id -g)" -v "$PWD/$OUT_DIR:/out" "$DB_PG_IMAGE" "$@"
 }
 
 pg pg_dump --format=custom --file="/out/$FILE"

@@ -11,6 +11,13 @@ on:
 permissions:
   contents: read
 
+# Actions are pinned to a commit and images to a digest, not to tags: a tag can
+# be re-pointed at different code after review, a commit cannot. Dependabot
+# (.github/dependabot.yml) proposes updates to the actions; the trailing comment
+# names the release each pin corresponds to. The Postgres service image below
+# is updated by hand, together with docker-compose.yml and DB_PG_IMAGE in
+# infra/lib/db-tunnel.sh: Dependabot does not read service images.
+
 # A second push to a branch makes the first run irrelevant. Not so on main:
 # cancelling there would leave a merged commit with no completed check, so each
 # main commit is allowed to finish.
@@ -23,8 +30,8 @@ jobs:
     name: Web app (lint, types, build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: npm
@@ -48,7 +55,7 @@ jobs:
     # trigger behaviour, and the endpoint tests run actual SQL against views.
     services:
       postgres:
-        image: postgres:17-alpine
+        image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
         env:
           POSTGRES_USER: housing
           POSTGRES_PASSWORD: housing_dev
@@ -69,8 +76,8 @@ jobs:
         working-directory: server
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: npm
@@ -87,7 +94,7 @@ jobs:
     name: Container builds
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build the API image
         run: docker build -t uiuc-housing-api:ci ./server
       - name: It starts and reports liveness with no database reachable
@@ -137,7 +144,7 @@ jobs:
       run:
         working-directory: infra
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install OpenTofu
         # Downloaded and checksum-verified rather than pulled in as a
         # third-party action, so the whole supply chain for this job is two

@@ -18,6 +18,13 @@
 #
 # Requires: aws (signed in), session-manager-plugin, docker, jq, tofu.
 
+# The images the scripts run against production, pinned by digest: they
+# receive the master password, so a tag that someone re-points must not change
+# what runs. Update deliberately: `docker buildx imagetools inspect <tag>` gives
+# the new digest. Dependabot cannot see these.
+DB_PG_IMAGE='postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24'
+DB_NODE_IMAGE='node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1'
+
 db_tunnel_open() {
   local region="${AWS_REGION:-us-east-2}"
   DB_TUNNEL_PORT="${LOCAL_PORT:-15432}"
@@ -54,14 +61,17 @@ db_tunnel_open() {
     >"$DB_WORK/tunnel.log" 2>&1 &
   DB_TUNNEL_PID=$!
 
+  # Up to a minute: right after an instance boots, its agent can be online
+  # before it can forward, and 30 seconds proved too short then.
   local _
-  for _ in $(seq 1 30); do
+  for _ in $(seq 1 60); do
     nc -z 127.0.0.1 "$DB_TUNNEL_PORT" >/dev/null 2>&1 && break
     kill -0 "$DB_TUNNEL_PID" 2>/dev/null || { cat "$DB_WORK/tunnel.log" >&2; exit 1; }
     sleep 1
   done
   nc -z 127.0.0.1 "$DB_TUNNEL_PORT" >/dev/null 2>&1 \
-    || { echo "tunnel did not open" >&2; cat "$DB_WORK/tunnel.log" >&2; exit 1; }
+    || { echo "tunnel did not open within a minute; if the instance just booted, run this again" >&2
+         cat "$DB_WORK/tunnel.log" >&2; exit 1; }
 
   secret=$(aws secretsmanager get-secret-value --region "$region" --secret-id "$secret_arn" \
     --query SecretString --output text)
