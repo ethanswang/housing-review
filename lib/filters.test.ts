@@ -6,8 +6,14 @@ describe('parseFilters', () => {
     expect(parseFilters({ beds: '0,2' }).bedrooms).toEqual([0, 2])
   })
 
-  it('drops bedroom values that are not whole, non-negative numbers', () => {
-    expect(parseFilters({ beds: '-1,1.5,x,3' }).bedrooms).toEqual([3])
+  it('drops bedroom values that are not whole numbers from 0 to 20', () => {
+    expect(parseFilters({ beds: '-1,1.5,x,3,21,99999999999' }).bedrooms).toEqual([3])
+  })
+
+  it('strips control characters from the search and caps it at 100 characters', () => {
+    expect(parseFilters({ q: 'Gre\u0000en\n' }).search).toBe('Green')
+    expect(parseFilters({ q: '\u0000' }).search).toBeUndefined()
+    expect(parseFilters({ q: 'x'.repeat(500) }).search).toHaveLength(100)
   })
 
   it('defaults the sort and ignores an unknown one', () => {

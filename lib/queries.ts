@@ -8,7 +8,7 @@
  * storage layer can be swapped without touching a single component.
  */
 import { containsFilter } from './search'
-import { averageRatings, sortProperties, type RatingRow } from './stats'
+import { averageRatings, companyAverages, sortProperties, type RatingRow } from './stats'
 import { supabase } from './supabase'
 import {
   type Company,
@@ -128,15 +128,14 @@ export async function getCompanyBySlug(slug: string): Promise<CompanyWithStats |
   )
 
   /**
-   * Averaged over every review of every building together, the same
-   * definition as the API's company_stats. Weighting each building's rounded
-   * average by its review count rounds twice and can differ by 0.1.
+   * See companyAverages for why this is not a weighted average of each
+   * building's score.
    *
    * Known limitation: management experience is not always property-specific.
    * Lease terms, deposits and billing are company-level concerns that an
    * average of building reviews cannot capture.
    */
-  const averages = averageRatings((data as unknown as PropertyRow[]).flatMap((row) => row.reviews))
+  const averages = companyAverages(data as unknown as PropertyRow[])
 
   return {
     ...company,

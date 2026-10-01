@@ -12,10 +12,6 @@ export function round1(n: number) {
 
 /**
  * Mean of each rating category, or null for a category with no reviews.
- *
- * A company's score is this over all its buildings' reviews together — not an
- * average of each building's already-rounded average, which rounds twice and
- * can land 0.1 away from the API's company_stats for the same reviews.
  */
 export function averageRatings(reviews: RatingRow[]): Averages {
   const averages = {} as Averages
@@ -28,13 +24,24 @@ export function averageRatings(reviews: RatingRow[]): Averages {
 }
 
 /**
+ * A company's score: every review of every one of its buildings, averaged
+ * together. Weighting each building's rounded average by its review count
+ * rounds twice and can differ from the API's company_stats by 0.1.
+ */
+export function companyAverages(buildings: { reviews: RatingRow[] }[]): Averages {
+  return averageRatings(buildings.flatMap((building) => building.reviews))
+}
+
+/**
  * Sorting happens in JavaScript because two of the three sort keys (rating,
  * review count) are computed from the joined reviews. Every order ends in the
  * slug, as the API's does, so equal keys come back in the same order on every
  * request instead of whatever order the database returned them in.
  */
 export function sortProperties(properties: PropertyWithStats[], sort: PropertyFilters['sort']) {
-  const bySlug = (a: PropertyWithStats, b: PropertyWithStats) => a.slug.localeCompare(b.slug)
+  // Code-point order, like SQL's `slug asc` under the C collation. localeCompare
+  // would follow the server's locale, which can order letters differently.
+  const bySlug = (a: PropertyWithStats, b: PropertyWithStats) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0)
   const sorted = [...properties]
   if (sort === 'price') {
     sorted.sort((a, b) => a.rent_min - b.rent_min || bySlug(a, b))

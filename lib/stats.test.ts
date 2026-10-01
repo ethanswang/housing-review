@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { averageRatings, sortProperties, type RatingRow } from './stats'
+import { averageRatings, companyAverages, sortProperties, type RatingRow } from './stats'
 import type { PropertyWithStats } from './types'
 
 const review = (overall: number): RatingRow => ({ overall, maintenance: overall, communication: overall, value: overall })
@@ -9,16 +9,28 @@ describe('averageRatings', () => {
     expect(averageRatings([])).toEqual({ overall: null, maintenance: null, communication: null, value: null })
   })
 
-  it('averages a company over all its reviews at once, as the API does', () => {
-    // Two buildings: [4, 3, 4] and [2, 3, 1]. Over all six reviews the mean is
-    // 17/6 = 2.83 → 2.8, which is what company_stats returns. Averaging each
-    // building first (3.7 and 2.0) and weighting by count gave 2.9.
-    const company = [4, 3, 4, 2, 3, 1].map(review)
-    expect(averageRatings(company).overall).toBe(2.8)
-  })
 
   it('rounds to one decimal place', () => {
     expect(averageRatings([4, 4, 5].map(review)).overall).toBe(4.3)
+  })
+})
+
+describe('companyAverages', () => {
+  it('averages every review of every building together, as the API does', () => {
+    // Buildings [4, 3, 4] and [2, 3, 1]: all six reviews give 17/6 = 2.83 → 2.8,
+    // what company_stats returns. Averaging each building first (3.7 and 2.0)
+    // and weighting by review count, as the site used to, gave 2.9.
+    const buildings = [{ reviews: [4, 3, 4].map(review) }, { reviews: [2, 3, 1].map(review) }]
+    expect(companyAverages(buildings).overall).toBe(2.8)
+  })
+
+  it('ignores buildings with no reviews instead of counting them as zero', () => {
+    const buildings = [{ reviews: [] }, { reviews: [5, 3].map(review) }]
+    expect(companyAverages(buildings).overall).toBe(4)
+  })
+
+  it('is null when no building has a review', () => {
+    expect(companyAverages([{ reviews: [] }]).overall).toBeNull()
   })
 })
 
@@ -40,6 +52,11 @@ describe('sortProperties', () => {
     expect(slugs(sortProperties([a, b], 'rating'))).toEqual(['alpha', 'bravo'])
     expect(slugs(sortProperties([b, a], 'price'))).toEqual(['alpha', 'bravo'])
     expect(slugs(sortProperties([b, a], 'reviews'))).toEqual(['alpha', 'bravo'])
+  })
+
+  it('orders slugs by code point, as SQL `slug asc` does', () => {
+    const list = ['ab', 'a9', 'a10', 'a1', 'a-b'].map((slug) => property(slug, 4))
+    expect(slugs(sortProperties(list, 'rating'))).toEqual(['a-b', 'a1', 'a10', 'a9', 'ab'])
   })
 
   it('puts unreviewed properties last when sorting by rating', () => {
