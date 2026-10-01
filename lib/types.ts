@@ -1,12 +1,10 @@
 export type Company = {
-  id: string
   name: string
   slug: string
 }
 
 export type Review = {
   id: string
-  property_id: string
   maintenance: number
   communication: number
   value: number
@@ -26,7 +24,6 @@ export type Property = {
   rent_min: number
   rent_max: number
   bedrooms: number[]
-  company_id: string | null
 }
 
 /** The categories shown as bars. `overall` is displayed separately as the headline score. */

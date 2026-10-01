@@ -248,3 +248,23 @@ describe('query parsing tolerates what real clients send', () => {
     expect((await get('/api/properties?sort=cheapest')).statusCode).toBe(400)
   })
 })
+
+describe('GET /api/filters', () => {
+  it('lists the options the directory filters on, drawn from the data', async () => {
+    const response = await get('/api/filters')
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+
+    const { rows: companies } = await pool.query('select slug, name from management_companies order by name, slug')
+    expect(body.companies).toEqual(companies)
+
+    const { rows: hoods } = await pool.query('select distinct neighborhood from properties order by 1')
+    expect(body.neighborhoods).toEqual(hoods.map((r) => r.neighborhood))
+
+    const { rows: beds } = await pool.query('select distinct unnest(bedrooms) as b from properties order by 1')
+    expect(body.bedrooms).toEqual(beds.map((r) => r.b))
+
+    const { rows: rent } = await pool.query('select max(rent_max) as m from properties')
+    expect(body.maxRent).toBe(rent[0].m)
+  })
+})

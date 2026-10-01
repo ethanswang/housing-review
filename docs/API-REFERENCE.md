@@ -177,6 +177,15 @@ One company with a page of its buildings, highest rated first. Query: `page`, `p
 
 `200` — `CompanySummary & { properties: Page<PropertySummary> }`. `404` if there is no such company.
 
+## Filters
+
+### `GET /api/filters`
+The choices the directory's filters offer, from the whole catalog.
+
+`200` — `{ companies: { slug, name }[], neighborhoods: string[], bedrooms: number[], maxRent: number }`,
+companies by name, the rest ascending; `bedrooms` uses `0` for a studio, and `maxRent` is the
+highest `rentMax`, or `0` with no buildings.
+
 ## You
 
 ### `GET /api/me` 🔒

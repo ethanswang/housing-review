@@ -116,6 +116,7 @@ describe('the API, connected as an api_access login', () => {
       `/api/properties/${propertySlug}`,
       '/api/companies',
       `/api/companies/${companySlug}`,
+      '/api/filters',
       // Page 2 of a filtered search returns no rows, so the total comes from
       // the separate count query, which joins management_companies.
       `/api/properties?q=Test&hood=Campustown&beds=1&maxRent=5000&company=${companySlug}&page=2`,

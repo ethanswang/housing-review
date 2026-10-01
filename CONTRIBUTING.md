@@ -66,14 +66,15 @@ docker build ./server
 cd infra && tofu fmt -check && tofu init -backend=false && tofu validate
 cd ..
 
-# End to end: the site in a real browser against a local Supabase stand-in
+# End to end: the site in a real browser against a local API and Supabase stand-in
 npx playwright install chromium   # once
 npm run test:e2e                  # e2e/run.sh: starts e2e/stack, builds, runs Playwright
 ```
 
-The end-to-end suite (`e2e/`) never touches a real project: `e2e/stack` is Postgres with
-`supabase/schema.sql` and its seed behind PostgREST, served where the Supabase client expects
-it, so tests can post reviews. It replaces your local `.next` build.
+The end-to-end suite (`e2e/`) never touches a real project: `e2e/stack` runs the API on its own
+seeded Postgres, plus Postgres with `supabase/schema.sql` and its seed behind PostgREST, served
+where the Supabase client expects it, so tests can post reviews. It replaces your local `.next`
+build.
 
 The root `npm run lint` also lints `server/`, so an API-only change can still fail the website
 job.
@@ -87,18 +88,18 @@ job.
   are promises; an error page's recovery prop is `retry`; and a `loading.tsx` makes a page
   answer `200` even when it calls `notFound()`, which is why the directory's skeleton lives in
   the `app/(directory)/` route group and the detail pages have none.
-- **All data access is in `lib/queries.ts`.** Pages and components never import the Supabase
-  client.
-- **Logic that can be a pure function goes in `lib/`, with a test** (`lib/*.test.ts`, run by
-  `npm test`): filters, sorting, averages, search escaping, labels.
+- **All data access is in `lib/queries.ts`.** Pages and components never call the API or import
+  the Supabase client.
+- **Data comes from the API**, which does the filtering, sorting, search and averages in SQL;
+  `lib/queries.ts` maps its records to the UI's types. Other logic that can be a pure function
+  goes in `lib/` with a test (`lib/*.test.ts`, run by `npm test`): URL filters, labels.
 - **Filter state lives in the URL** (`lib/filters.ts` reads and writes it). `FilterRail.tsx`
   shows pending changes optimistically and settles the rent slider's pause; read its comments
   before changing it. `e2e/filters.spec.ts` covers fast clicks, Back, the slider's pause and a
   slow network, and each of those tests failed against code that shipped those bugs.
 - **Look and feel** comes from the tokens in `app/globals.css`, explained in
   [DESIGN.md](docs/DESIGN.md). Change the doc along with the design.
-- The live site still reads Supabase directly; it moves onto the API later. Expect
-  `lib/queries.ts` and the column names in `lib/types.ts` to change then.
+- Posting a review still goes to Supabase directly; it moves onto the API, with sign-in, next.
 
 ### API (`server/`)
 

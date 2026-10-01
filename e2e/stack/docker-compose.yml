@@ -1,8 +1,11 @@
-# A stand-in for the Supabase project the website reads, for the e2e suite:
-# Postgres with supabase/schema.sql and seed.sql, PostgREST in front of it, and
-# Caddy serving it at http://localhost:54321/rest/v1 like Supabase does. Nothing
-# here touches a real project, so tests can submit reviews and CI needs no
-# secrets.
+# Everything the website talks to, locally, for the e2e suite:
+# - the API (built from server/) and its Postgres, migrated and seeded by
+#   e2e/run.sh, at http://localhost:53001;
+# - a stand-in for the Supabase project: Postgres with supabase/schema.sql and
+#   seed.sql, PostgREST, and Caddy serving it at http://localhost:54321/rest/v1
+#   like Supabase does. Reviews are still written there until that moves to
+#   the API.
+# Nothing here touches a real project, so tests can write and CI needs no secrets.
 services:
   db:
     # Pinned by digest, matching CI and the root compose file.
@@ -40,3 +43,34 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on:
       - postgrest
+
+  api-db:
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+    command: postgres -c random_page_cost=1.1
+    environment:
+      POSTGRES_USER: housing
+      POSTGRES_PASSWORD: housing_dev
+      POSTGRES_DB: housing
+    # Loopback only; run.sh migrates and seeds it from the host.
+    ports:
+      - '127.0.0.1:55432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U housing -d housing']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build: ../../server
+    environment:
+      DATABASE_URL: postgres://housing:housing_dev@api-db:5432/housing
+      # Only used to find token-signing keys; nothing here signs in yet.
+      SUPABASE_URL: https://placeholder.supabase.co
+      NODE_ENV: production
+      TRUST_PROXY_HOPS: 0
+      LOG_LEVEL: warn
+    ports:
+      - '127.0.0.1:53001:3001'
+    depends_on:
+      api-db:
+        condition: service_healthy
