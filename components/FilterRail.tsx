@@ -1,8 +1,9 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react'
 import { buildQuery, hasActiveFilters } from '@/lib/filters'
+import { bedroomLabel } from '@/lib/format'
 import type { Company, PropertyFilters } from '@/lib/types'
 
 type Options = {
@@ -32,6 +33,14 @@ export function FilterRail({
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  /**
+   * What the controls show and what the next change builds on. The `filters`
+   * prop only updates once the server's new render arrives, so building each
+   * change from it made a second click inside one round trip overwrite the
+   * first: ticking two companies quickly kept only the second. The optimistic
+   * value holds every pending change until the navigation completes.
+   */
+  const [current, setCurrent] = useOptimistic(filters)
   // Local mirror so the rent slider tracks the thumb while the server catches up.
   const [rent, setRent] = useState(filters.maxRent ?? options.maxRent)
   // When the URL's rent changes from elsewhere (a chip, "Clear all"), snap the
@@ -55,7 +64,10 @@ export function FilterRail({
 
   function apply(next: PropertyFilters) {
     const query = buildQuery(next)
-    startTransition(() => router.push(query ? `/?${query}` : '/', { scroll: false }))
+    startTransition(() => {
+      setCurrent(next)
+      router.push(query ? `/?${query}` : '/', { scroll: false })
+    })
   }
 
   function toggle<T>(current: T[] | undefined, item: T): T[] {
@@ -64,38 +76,61 @@ export function FilterRail({
   }
 
   const rentCeiling = Math.ceil(options.maxRent / 50) * 50
-  const applyRent = () => apply({ ...filters, maxRent: rent >= rentCeiling ? undefined : rent })
-  const clearAll = () => apply({ sort: filters.sort })
+
+  /**
+   * The slider applies a short pause after it stops moving. It used to apply
+   * on mouseup, touchend and keyup, but assistive technology (VoiceOver's
+   * swipe, for one) changes the value with none of those, so the label moved
+   * and the filter never did. Waiting also avoids a navigation per step while
+   * dragging or holding an arrow key.
+   */
+  const rentTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(rentTimer.current), [])
+  // Read when the timer fires, not when the slider moved: a checkbox ticked
+  // during the pause must not be undone by the rent change landing after it.
+  const latest = useRef(current)
+  useEffect(() => {
+    latest.current = current
+  }, [current])
+  function changeRent(value: number) {
+    setRent(value)
+    clearTimeout(rentTimer.current)
+    rentTimer.current = setTimeout(
+      () => apply({ ...latest.current, maxRent: value >= rentCeiling ? undefined : value }),
+      300
+    )
+  }
+  const clearAll = () => apply({ sort: current.sort })
 
   // One chip per active filter, each removing only itself.
   const chips: { key: string; label: string; remove: PropertyFilters }[] = [
-    ...(filters.search
-      ? [{ key: 'q', label: `“${filters.search}”`, remove: { ...filters, search: undefined } }]
+    ...(current.search
+      ? [{ key: 'q', label: `“${current.search}”`, remove: { ...current, search: undefined } }]
       : []),
-    ...(filters.companies ?? []).map((slug) => ({
+    ...(current.companies ?? []).map((slug) => ({
       key: `c-${slug}`,
       label: options.companies.find((c) => c.slug === slug)?.name ?? slug,
-      remove: { ...filters, companies: toggle(filters.companies, slug) },
+      remove: { ...current, companies: toggle(current.companies, slug) },
     })),
-    ...(filters.neighborhoods ?? []).map((hood) => ({
+    ...(current.neighborhoods ?? []).map((hood) => ({
       key: `h-${hood}`,
       label: hood,
-      remove: { ...filters, neighborhoods: toggle(filters.neighborhoods, hood) },
+      remove: { ...current, neighborhoods: toggle(current.neighborhoods, hood) },
     })),
-    ...(filters.maxRent
-      ? [{ key: 'rent', label: `Up to $${filters.maxRent.toLocaleString()}`, remove: { ...filters, maxRent: undefined } }]
+    ...(current.maxRent
+      ? [{ key: 'rent', label: `Up to $${current.maxRent.toLocaleString('en-US')}`, remove: { ...current, maxRent: undefined } }]
       : []),
-    ...(filters.bedrooms ?? []).map((count) => ({
+    ...(current.bedrooms ?? []).map((count) => ({
       key: `b-${count}`,
-      label: `${count} BR`,
-      remove: { ...filters, bedrooms: toggle(filters.bedrooms, count) },
+      label: bedroomLabel(count),
+      remove: { ...current, bedrooms: toggle(current.bedrooms, count) },
     })),
   ]
 
   const sortSelect = (
     <select
-      value={filters.sort ?? 'rating'}
-      onChange={(e) => apply({ ...filters, sort: e.target.value as PropertyFilters['sort'] })}
+      value={current.sort ?? 'rating'}
+      onChange={(e) => apply({ ...current, sort: e.target.value as PropertyFilters['sort'] })}
       aria-label="Sort by"
       className="h-11 rounded-lg border border-rule-strong bg-surface px-3 text-body"
     >
@@ -112,8 +147,8 @@ export function FilterRail({
           <Check
             key={company.slug}
             label={company.name}
-            checked={filters.companies?.includes(company.slug) ?? false}
-            onChange={() => apply({ ...filters, companies: toggle(filters.companies, company.slug) })}
+            checked={current.companies?.includes(company.slug) ?? false}
+            onChange={() => apply({ ...current, companies: toggle(current.companies, company.slug) })}
           />
         ))}
       </Group>
@@ -123,48 +158,48 @@ export function FilterRail({
           <Check
             key={hood}
             label={hood}
-            checked={filters.neighborhoods?.includes(hood) ?? false}
-            onChange={() => apply({ ...filters, neighborhoods: toggle(filters.neighborhoods, hood) })}
+            checked={current.neighborhoods?.includes(hood) ?? false}
+            onChange={() => apply({ ...current, neighborhoods: toggle(current.neighborhoods, hood) })}
           />
         ))}
       </Group>
 
-      <Group title="Max rent">
-        <p className="tnum text-body">
-          {rent >= rentCeiling ? 'Any price' : `Up to $${rent.toLocaleString()}/mo`}
-        </p>
-        <input
-          type="range"
-          min={400}
-          max={rentCeiling}
-          step={25}
-          value={rent}
-          onChange={(e) => setRent(Number(e.target.value))}
-          onMouseUp={applyRent}
-          onTouchEnd={applyRent}
-          onKeyUp={applyRent}
-          className="h-11 w-full accent-accent"
-          aria-label="Maximum rent per month"
-        />
-      </Group>
+      {/* No properties means no rents, and a slider whose minimum exceeds its maximum. */}
+      {options.maxRent > 0 && (
+        <Group title="Max rent">
+          <p className="tnum text-body">
+            {rent >= rentCeiling ? 'Any price' : `Up to $${rent.toLocaleString('en-US')}/mo`}
+          </p>
+          <input
+            type="range"
+            min={400}
+            max={rentCeiling}
+            step={25}
+            value={rent}
+            onChange={(e) => changeRent(Number(e.target.value))}
+            className="h-11 w-full accent-accent"
+            aria-label="Maximum rent per month"
+          />
+        </Group>
+      )}
 
       <Group title="Bedrooms">
         <div className="flex flex-wrap gap-2">
           {options.bedrooms.map((count) => {
-            const active = filters.bedrooms?.includes(count) ?? false
+            const active = current.bedrooms?.includes(count) ?? false
             return (
               <button
                 key={count}
                 type="button"
-                onClick={() => apply({ ...filters, bedrooms: toggle(filters.bedrooms, count) })}
+                onClick={() => apply({ ...current, bedrooms: toggle(current.bedrooms, count) })}
                 aria-pressed={active}
-                className={`tnum size-11 rounded-lg border text-body transition-colors ${
+                className={`tnum h-11 min-w-11 px-3 rounded-lg border text-body transition-colors ${
                   active
                     ? 'border-accent bg-accent text-surface'
                     : 'border-rule-strong bg-surface hover:border-ink'
                 }`}
               >
-                {count}
+                {count === 0 ? 'Studio' : count}
               </button>
             )
           })}
@@ -225,7 +260,7 @@ export function FilterRail({
           <div className="flex items-center justify-between border-b border-rule px-4 py-2">
             <h2 className="text-title font-semibold">Filters</h2>
             <div className="flex gap-2">
-              {hasActiveFilters(filters) && (
+              {hasActiveFilters(current) && (
                 <button type="button" onClick={clearAll} className="h-11 px-2 text-body text-accent">
                   Clear all
                 </button>
@@ -259,7 +294,7 @@ export function FilterRail({
       <aside className="hidden flex-col gap-6 lg:flex" aria-label="Filters">
         <div className="flex items-baseline justify-between border-b border-rule pb-2">
           <h2 className="text-title font-semibold">Filters</h2>
-          {hasActiveFilters(filters) && (
+          {hasActiveFilters(current) && (
             <button type="button" onClick={clearAll} className="h-11 text-meta text-accent hover:underline">
               Clear all
             </button>

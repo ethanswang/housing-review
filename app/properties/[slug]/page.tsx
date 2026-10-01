@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { RatingSummary } from '@/components/Ratings'
 import { ReviewCard } from '@/components/ReviewCard'
 import { ReviewForm } from '@/components/ReviewForm'
+import { bedroomList } from '@/lib/format'
 import { getPropertyBySlug } from '@/lib/queries'
 
 export const dynamic = 'force-dynamic'
@@ -66,7 +67,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
               ${property.rent_min.toLocaleString()}–{property.rent_max.toLocaleString()}/mo
             </span>
           </Fact>
-          <Fact label="Bedrooms">{property.bedrooms.join(', ')}</Fact>
+          <Fact label="Bedrooms">{bedroomList(property.bedrooms)}</Fact>
           <Fact label="Area">{property.neighborhood}</Fact>
           {/* The link stretches over the whole cell so the tap target is the cell. */}
           <Fact label="Managed by">

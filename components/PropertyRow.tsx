@@ -1,13 +1,8 @@
 import Link from 'next/link'
 import { Score } from './Ratings'
+import { bedroomRange } from '@/lib/format'
 import type { PropertyWithStats } from '@/lib/types'
 
-function bedroomRange(bedrooms: number[]) {
-  if (!bedrooms.length) return null
-  const min = Math.min(...bedrooms)
-  const max = Math.max(...bedrooms)
-  return min === max ? `${min} BR` : `${min}–${max} BR`
-}
 
 /**
  * One result in a divided list — the whole row is the link. The score column is
