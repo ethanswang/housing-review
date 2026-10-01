@@ -117,53 +117,63 @@ export function createWriteLimiter(config: Config) {
   }
 
   /**
-   * Rejects when the account is over its ceiling — but does not count. The
-   * budget is spent in `record`, once the request has actually succeeded.
+   * The bucket each request took its slot from. A refund goes back to that
+   * bucket only, so a window that reset mid-request is not credited for a
+   * slot it never handed out.
+   */
+  const reserved = new WeakMap<FastifyRequest, Bucket>()
+
+  /**
+   * Rejects an account at its ceiling; otherwise takes a slot immediately.
+   *
+   * Counting only after the response would let every request checked before
+   * the first one finished through: a burst of parallel requests would all see
+   * the same count. Reserving here closes that window, and `record` gives the
+   * slot back if the write fails.
    */
   async function check(request: FastifyRequest, reply: FastifyReply) {
     // requireAuth runs first and has already rejected anonymous callers.
     const user = request.currentUser
     if (!user) return
 
-    const bucket = buckets.get(user.id)
-    if (!bucket) return
-
     const now = Date.now()
-    if (now >= bucket.resetAt) {
+    let bucket = buckets.get(user.id)
+    if (bucket && now >= bucket.resetAt) {
       buckets.delete(user.id)
-      return
+      bucket = undefined
     }
-    if (bucket.count >= max) {
+    if (bucket && bucket.count >= max) {
       const seconds = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000))
       reply.header('retry-after', String(seconds))
       throw tooManyRequests(
         `You have made too many changes. Try again in ${seconds} seconds.`
       )
     }
+
+    if (bucket) {
+      bucket.count += 1
+    } else {
+      if (buckets.size >= MAX_BUCKETS) evict(now)
+      bucket = { count: 1, resetAt: now + windowMs }
+      buckets.set(user.id, bucket)
+    }
+    reserved.set(request, bucket)
   }
 
   /**
-   * Counts a write only once it has succeeded.
+   * Refunds the slot of a write that failed.
    *
-   * Counting in the preHandler instead would charge for rejected attempts: two
-   * submissions failing validation would spend the budget, and the author's
-   * first valid review would then be refused for the rest of the window,
-   * having never written anything. Someone fighting a form error is the most
-   * likely person to hit that, which is precisely the wrong person to punish.
+   * Without this, two submissions failing validation would spend the budget,
+   * and the author's first valid review would then be refused for the rest of
+   * the window, having never written anything. Someone fighting a form error is
+   * the most likely person to hit that, which is precisely the wrong person to
+   * punish.
    */
   async function record(request: FastifyRequest, reply: FastifyReply) {
-    const user = request.currentUser
-    if (!user || reply.statusCode >= 400) return
-
-    const now = Date.now()
-    if (buckets.size >= MAX_BUCKETS) evict(now)
-
-    const bucket = buckets.get(user.id)
-    if (!bucket || now >= bucket.resetAt) {
-      buckets.set(user.id, { count: 1, resetAt: now + windowMs })
-      return
-    }
-    bucket.count += 1
+    const bucket = reserved.get(request)
+    if (!bucket || reply.statusCode < 400) return
+    reserved.delete(request)
+    if (bucket.count > 0) bucket.count -= 1
   }
 
   return { check, record }

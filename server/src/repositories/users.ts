@@ -23,7 +23,10 @@ export type User = {
  * forged or replayed claim cannot escalate anyone to moderator.
  */
 export async function upsertUser(db: Database, claims: TokenClaims): Promise<User> {
-  let rows
+  let rows: Array<Record<string, any>> = []
+  // Set when the insert hit users.email's unique index rather than the id it
+  // targets; resolved below once we can see which row holds the address.
+  let emailCollision = false
   try {
     /**
      * The update fires only when the email actually changed. Without that
@@ -55,21 +58,36 @@ export async function upsertUser(db: Database, claims: TokenClaims): Promise<Use
       [claims.sub, claims.email]
     ))
   } catch (error) {
-    // users.email is unique. Someone else already holds this address — either a
-    // seeded row, or the same person signing in under a second Supabase
-    // identity. That is a conflict the caller can act on, not a server fault.
-    if (isUniqueViolation(error)) {
-      throw conflict(
-        'That email address is already associated with another account',
-        'email_taken'
-      )
-    }
-    throw error
+    if (!isUniqueViolation(error)) throw error
+    emailCollision = true
   }
 
-  const row = rows[0]
+  let row = rows[0]
   if (!row) {
-    // Only reachable if the row vanished between the upsert and the read.
+    /**
+     * Reached when another request created this user at the same moment. The
+     * insert waits for it, then either hits the id conflict and updates nothing
+     * — the union's read cannot see the new row, sharing a snapshot taken
+     * before it was committed — or trips the unique index on email first and
+     * raises a unique violation. A first page load that sends two
+     * authenticated requests at once lands here. A separate statement takes a
+     * fresh snapshot and sees the row.
+     */
+    ;({ rows } = await db.query(
+      'select id, email, display_name, role, created_at from users where id = $1',
+      [claims.sub]
+    ))
+    row = rows[0]
+  }
+  // users.email is unique. A collision that the row for this id does not
+  // explain means someone else holds the address — a seeded row, or the same
+  // person under a second Supabase identity. That is a conflict the caller can
+  // act on, not a server fault. citext compares case-insensitively; so does this.
+  if (emailCollision && row?.email.toLowerCase() !== claims.email.toLowerCase()) {
+    throw conflict('That email address is already associated with another account', 'email_taken')
+  }
+  if (!row) {
+    // Only reachable if the row was deleted in between.
     throw conflict('Could not establish your account, please try again', 'user_unavailable')
   }
 
