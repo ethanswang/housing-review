@@ -44,8 +44,8 @@ It prints row counts for the main tables, to check the restore against.
   (`brew install --cask session-manager-plugin`), `docker`, `jq` and `tofu`.
 - `backups/` is gitignored and the file is `chmod 600`: **it contains users' email
   addresses.** Keep it off shared drives.
-- TLS is verified against Amazon's RDS roots (`verify-ca`). Hostname verification is
-  impossible through a tunnel, where the server answers as `localhost`.
+- TLS is verified against Amazon's RDS roots, hostname included (`verify-full`): the container
+  maps the RDS hostname to the tunnel and connects by that name.
 
 **This dump is the real backup.** RDS snapshots, including the final snapshot taken on
 deletion, live inside the account and are lost with it. Take one after any batch of real

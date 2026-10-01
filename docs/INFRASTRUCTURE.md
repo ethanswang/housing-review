@@ -162,20 +162,23 @@ aws ssm send-command \
   --parameters 'commands=["systemctl restart api"]'
 ```
 
-Migrations run separately, from a machine that can reach the database — the instance itself,
-since RDS is not reachable from outside the VPC. The image deliberately excludes the migration
-tooling, so the practical route is to send the SQL through Session Manager and apply it with a
-throwaway `postgres` container, mounting the certificate bundle so TLS still verifies:
+### Migrations
 
 ```bash
-aws ssm start-session --target "$(tofu -chdir=infra output -raw api_instance_id)"
-# then, on the instance, with DATABASE_URL from Secrets Manager:
-npm run db:migrate
+infra/migrate-db.sh up --dry-run     # what would run; changes nothing
+infra/migrate-db.sh                  # apply pending migrations
 ```
 
-The image deliberately does not contain the migration tooling, so this needs a checkout or a
-one-off container. That is the cost of keeping `node-pg-migrate` and the rest of the dev
-dependencies out of the production image.
+Run from your machine, not the instance. RDS has no public address, so the script opens a
+Session Manager port forward through the instance and runs `node-pg-migrate` from your
+`server/` checkout (run `npm ci` there first) in a `node:24` container, as the master user —
+migrations create tables, roles and grants, which the API's own login cannot. The production
+image stays free of migration tooling.
+
+`infra/export-db.sh` and `infra/provision-api-role.sh` reach the database the same way; the
+shared tunnel is `infra/lib/db-tunnel.sh`. TLS is verified in full, hostname included: through
+a tunnel the server answers on `localhost`, which its certificate does not name, so the
+container maps the real RDS hostname to the tunnel and connects by that name.
 
 ## Secrets
 
