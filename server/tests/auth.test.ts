@@ -346,7 +346,7 @@ describe('how the user signed in', () => {
     it(`refuses a session that never proved the inbox: [${methods}]`, async () => {
       const response = await me(`Bearer ${await token({ methods })}`)
       expect(response.statusCode).toBe(403)
-      expect(response.json().error.message).toMatch(/link/i)
+      expect(response.json().error.message).toMatch(/code emailed/i)
     })
   }
 

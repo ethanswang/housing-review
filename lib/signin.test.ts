@@ -22,7 +22,9 @@ describe('safeNextPath', () => {
 
   it('falls back to the home page for anything else', () => {
     // Browsers drop tabs and newlines from URLs, so "/\t/evil.com" means "//evil.com".
-    for (const next of [null, undefined, '', 'https://evil.com', '//evil.com', '/\\evil.com', '/\t/evil.com', '/\n/evil.com']) {
+    for (const next of [null, undefined, '', 'https://evil.com', '//evil.com', '/\\evil.com', '/\t/evil.com', '/\n/evil.com',
+      // Dot segments collapse to "//evil.com" once resolved.
+      '/.//evil.com', '/..//evil.com', '/a/..//evil.com', '/%2e//evil.com', '/./\\evil.com']) {
       expect(safeNextPath(next)).toBe('/')
     }
   })

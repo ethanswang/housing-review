@@ -61,7 +61,7 @@ async function authPlugin(app: FastifyInstance, options: AuthOptions) {
       throw forbidden('An @illinois.edu address is required to post or report reviews')
     }
     if (claims.isAnonymous || !claims.authMethods.some((method) => EMAIL_PROOF_METHODS.has(method))) {
-      throw forbidden('Sign in with the link emailed to your @illinois.edu address')
+      throw forbidden('Sign in with the code emailed to your @illinois.edu address')
     }
 
     request.currentUser = await upsertUser(options.db, claims)

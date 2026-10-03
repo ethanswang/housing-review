@@ -25,7 +25,7 @@ export function SignInForm({ next }: { next?: string }) {
           <>
             <input type="hidden" name="email" value={state.sentTo} />
             <p role="status" className="text-body text-ink-soft">
-              We emailed a sign-in code to {state.sentTo}. It expires in an hour.
+              We emailed a sign-in code to {state.sentTo}. It works once, and only for a short while.
             </p>
             <label className="flex flex-col gap-2">
               <span className="text-body font-semibold">Code</span>

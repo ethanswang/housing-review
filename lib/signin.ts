@@ -8,10 +8,12 @@ export function isUniversityEmail(email: string): boolean {
 /**
  * Where to send someone after they sign in: only a path on this site, else the home page.
  * Resolved the way a browser would, because browsers read "//evil.com", "/\evil.com" and
- * "/<tab>/evil.com" as other hosts, and a string check misses some of them.
+ * "/<tab>/evil.com" as other hosts, and a string check misses some of them. The resolved
+ * path is checked too: "/.//evil.com" stays on this site but resolves to "//evil.com".
  */
 export function safeNextPath(next: string | null | undefined): string {
   if (!next?.startsWith('/')) return '/'
   const url = new URL(next, 'http://this.site')
-  return url.origin === 'http://this.site' ? url.pathname + url.search + url.hash : '/'
+  const path = url.pathname + url.search + url.hash
+  return url.origin === 'http://this.site' && !path.startsWith('//') ? path : '/'
 }
