@@ -1,0 +1,10 @@
+<!--
+  Paste into Supabase → Authentication → Emails, as both the "Confirm signup" template
+  (a first sign-in) and the "Magic Link" template (every one after). Subject for both:
+  "Your UIUC Housing Review sign-in code". It deliberately has no link: university mail
+  scanners open links, which would spend a one-time link before the student clicks it.
+-->
+<h2>Your sign-in code</h2>
+<p>Enter this code on UIUC Housing Review to sign in:</p>
+<p style="font-size: 28px; font-weight: bold; letter-spacing: 4px">{{ .Token }}</p>
+<p>It expires in an hour. If you did not ask to sign in, you can ignore this email.</p>

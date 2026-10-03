@@ -25,6 +25,6 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Pages only, not static files or the sign-in callback, which sets the session itself.
-  matcher: ['/((?!_next/static|_next/image|auth/callback|icon.svg).*)'],
+  // Pages only, not static files.
+  matcher: ['/((?!_next/static|_next/image|icon.svg).*)'],
 }

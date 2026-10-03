@@ -1,6 +1,3 @@
-/** Remembers where to return after the emailed link, which cannot carry it itself. */
-export const NEXT_COOKIE = 'signin-next'
-
 /** The API's rule (server/src/auth/plugin.ts): an illinois.edu address or a subdomain of it. */
 const UNIVERSITY_EMAIL = /^[^@\s]+@([a-z0-9-]+\.)*illinois\.edu$/i
 

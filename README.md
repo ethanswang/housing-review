@@ -78,9 +78,9 @@ npm test                           # runs against the compose database
 Supabase until that moves to the API too:
 
 1. In a Supabase project's SQL editor, run `supabase/schema.sql`, then `supabase/seed.sql`. To
-   sign in locally, add `http://localhost:3000/auth/callback` to **Authentication → URL
-   Configuration → Redirect URLs**. List exact URLs only, never a wildcard: anyone can ask
-   Supabase for a link to any listed URL.
+   sign in, set the **Confirm signup** and **Magic Link** templates under **Authentication →
+   Emails** to [`supabase/email-code.html`](supabase/email-code.html), which emails a code
+   instead of a link.
 2. `cp .env.example .env.local` and fill in the project URL and `anon` key from
    **Project Settings → API**. The anon key is public by design; never use the `service_role`
    key here. `API_URL` defaults to the local API.

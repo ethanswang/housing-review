@@ -3,28 +3,22 @@ import { gotoHydrated } from './helpers'
 
 /**
  * Sign-in, as far as it goes without a real Supabase Auth: the stand-in has none,
- * so a link can never be sent or used here. The full emailed-link flow is checked
+ * so a code can never be sent or used here. The full emailed-code flow is checked
  * by hand against the real project.
  */
 
 test('only an Illinois address is accepted', async ({ page }) => {
   await gotoHydrated(page, '/signin')
   await page.getByLabel('Illinois email').fill('someone@gmail.com')
-  await page.getByRole('button', { name: 'Email me a sign-in link' }).click()
+  await page.getByRole('button', { name: 'Email me a code' }).click()
   await expect(page.getByRole('main').getByRole('alert')).toHaveText('Use your @illinois.edu email address.')
 })
 
 test('a failed send says so instead of claiming an email went out', async ({ page }) => {
   await gotoHydrated(page, '/signin')
   await page.getByLabel('Illinois email').fill('netid@illinois.edu')
-  await page.getByRole('button', { name: 'Email me a sign-in link' }).click()
+  await page.getByRole('button', { name: 'Email me a code' }).click()
   await expect(page.getByRole('main').getByRole('alert')).toHaveText('Could not send the email. Try again.')
-})
-
-test('a link without a valid code lands back on sign-in with an explanation', async ({ page }) => {
-  await page.goto('/auth/callback?code=not-a-real-code')
-  await expect(page).toHaveURL('/signin?error=link')
-  await expect(page.getByRole('main').getByRole('alert')).toContainText('That link did not work.')
 })
 
 test('a forged session cookie does not sign anyone in', async ({ page, context }) => {

@@ -99,8 +99,9 @@ job.
   slow network, and each of those tests failed against code that shipped those bugs.
 - **Look and feel** comes from the tokens in `app/globals.css`, explained in
   [DESIGN.md](docs/DESIGN.md). Change the doc along with the design.
-- **Sign-in** is Supabase Auth by emailed link, kept in cookies by `@supabase/ssr`: `lib/auth.ts`
-  on the server, `proxy.ts` to renew sessions, `app/auth/` for the link and sign-out. Check who
+- **Sign-in** is Supabase Auth by emailed one-time code, kept in cookies by `@supabase/ssr`:
+  `lib/auth.ts` on the server, `proxy.ts` to renew sessions, `app/auth/actions.ts` for the code and
+  sign-out. A code, not a link: mail scanners open links and spend them. Check who
   is signed in with `currentUser()`, which verifies the token; never trust the cookie's contents
   directly.
 - Posting a review still goes to Supabase directly; it moves onto the API next.
