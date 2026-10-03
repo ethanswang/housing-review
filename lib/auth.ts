@@ -1,6 +1,7 @@
 import 'server-only'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
+import { isUniversityEmail } from './signin'
 
 /**
  * A Supabase client that keeps the visitor's session in cookies, for sign-in. Reads
@@ -24,10 +25,12 @@ export async function authClient() {
 
 /**
  * The signed-in visitor, or null. getClaims() checks the token's signature against
- * Supabase's published keys, so a forged cookie does not count.
+ * Supabase's published keys, so a forged cookie does not count. Supabase itself lets any
+ * address sign up by calling it directly, so non-Illinois accounts count as signed out,
+ * as they do in the API.
  */
 export async function currentUser(): Promise<{ email: string } | null> {
   const { data } = await (await authClient()).auth.getClaims()
   const email = data?.claims.email
-  return typeof email === 'string' ? { email } : null
+  return typeof email === 'string' && isUniversityEmail(email) ? { email } : null
 }

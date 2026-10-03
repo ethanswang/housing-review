@@ -9,10 +9,12 @@ export function isUniversityEmail(email: string): boolean {
 }
 
 /**
- * Where to send someone after they sign in. Only a path on this site: "//evil.com" and
- * "/\evil.com" are read by browsers as other hosts, so they fall back to the home page.
+ * Where to send someone after they sign in: only a path on this site, else the home page.
+ * Resolved the way a browser would, because browsers read "//evil.com", "/\evil.com" and
+ * "/<tab>/evil.com" as other hosts, and a string check misses some of them.
  */
 export function safeNextPath(next: string | null | undefined): string {
-  if (!next || !next.startsWith('/') || next.startsWith('//') || next.startsWith('/\\')) return '/'
-  return next
+  if (!next?.startsWith('/')) return '/'
+  const url = new URL(next, 'http://this.site')
+  return url.origin === 'http://this.site' ? url.pathname + url.search + url.hash : '/'
 }

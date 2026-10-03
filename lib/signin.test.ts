@@ -21,7 +21,8 @@ describe('safeNextPath', () => {
   })
 
   it('falls back to the home page for anything else', () => {
-    for (const next of [null, undefined, '', 'https://evil.com', '//evil.com', '/\\evil.com']) {
+    // Browsers drop tabs and newlines from URLs, so "/\t/evil.com" means "//evil.com".
+    for (const next of [null, undefined, '', 'https://evil.com', '//evil.com', '/\\evil.com', '/\t/evil.com', '/\n/evil.com']) {
       expect(safeNextPath(next)).toBe('/')
     }
   })
