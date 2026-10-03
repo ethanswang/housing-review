@@ -77,7 +77,9 @@ npm test                           # runs against the compose database
 **The website** reads from the API above, so start that first. It still posts reviews to
 Supabase until that moves to the API too:
 
-1. In a Supabase project's SQL editor, run `supabase/schema.sql`, then `supabase/seed.sql`.
+1. In a Supabase project's SQL editor, run `supabase/schema.sql`, then `supabase/seed.sql`. To
+   sign in locally, add `http://localhost:3000/auth/callback` to **Authentication → URL
+   Configuration → Redirect URLs**.
 2. `cp .env.example .env.local` and fill in the project URL and `anon` key from
    **Project Settings → API**. The anon key is public by design; never use the `service_role`
    key here. `API_URL` defaults to the local API.
