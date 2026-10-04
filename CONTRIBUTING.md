@@ -72,9 +72,10 @@ npm run test:e2e                  # e2e/run.sh: starts e2e/stack, builds, runs P
 ```
 
 The end-to-end suite (`e2e/`) never touches a real project: `e2e/stack` runs the API on its own
-seeded Postgres, plus Postgres with `supabase/schema.sql` and its seed behind PostgREST, served
-where the Supabase client expects it, so tests can post reviews. It replaces your local `.next`
-build.
+seeded Postgres, and a gateway standing in for Supabase: it publishes a test-only signing key,
+so tests sign in (`signIn` in `e2e/helpers.ts`) and post through the API, and serves
+`supabase/schema.sql` behind PostgREST for `e2e/database.spec.ts`. It replaces your local
+`.next` build.
 
 The root `npm run lint` also lints `server/`, so an API-only change can still fail the website
 job.
@@ -104,7 +105,8 @@ job.
   sign-out. A code, not a link: mail scanners open links and spend them. Check who
   is signed in with `currentUser()`, which verifies the token; never trust the cookie's contents
   directly.
-- Posting a review still goes to Supabase directly; it moves onto the API next.
+- **Posting** goes to the API with the student's access token (`accessToken()` in `lib/auth.ts`);
+  the API decides who the author is.
 
 ### API (`server/`)
 

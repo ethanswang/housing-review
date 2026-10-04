@@ -34,3 +34,13 @@ export async function currentUser(): Promise<{ email: string } | null> {
   const email = data?.claims.email
   return typeof email === 'string' && isUniversityEmail(email) ? { email } : null
 }
+
+/** The visitor's access token, to post as them through the API, which verifies it again. */
+export async function accessToken(): Promise<string | null> {
+  const client = await authClient()
+  // Verifies the session, renewing it first if the token has expired.
+  const { data } = await client.auth.getClaims()
+  if (!data) return null
+  const { data: session } = await client.auth.getSession()
+  return session.session?.access_token ?? null
+}

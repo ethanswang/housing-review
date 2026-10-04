@@ -23,6 +23,9 @@
 # misc
 .DS_Store
 *.pem
+# Test-only certificate for the e2e stack's gateway; see e2e/stack/Caddyfile.
+!/e2e/stack/gateway-cert.pem
+!/e2e/stack/gateway-key.pem
 
 # debug
 npm-debug.log*

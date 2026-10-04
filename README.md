@@ -18,8 +18,8 @@ Free, student-run, and not affiliated with the University of Illinois or any lan
   overall and on maintenance, communication, and value. A management company's score is the
   review-weighted average across its buildings.
 - **Reviews are anonymous to readers.**
-- **Reviewers will need an `@illinois.edu` address** to post, limited to one review per
-  building. Sign-in is being built; it is what makes a review from a real student distinct
+- **Reviewers need an `@illinois.edu` address** to post, signing in with a code emailed to it,
+  and get one review per building. That is what makes a review from a real student distinct
   from one written by a landlord.
 - **Reviews will be reportable** for personal information, harassment, or not being from a
   tenant, arriving on the site with sign-in. A report queues the review for a person to look
@@ -74,13 +74,13 @@ npm run dev                        # http://localhost:3001
 npm test                           # runs against the compose database
 ```
 
-**The website** reads from the API above, so start that first. It still posts reviews to
-Supabase until that moves to the API too:
+**The website** reads and posts through the API above, so start that first. Supabase only signs
+students in, so posting locally needs the API to trust your project's tokens: set `SUPABASE_URL`
+in `server/.env` to your project URL.
 
-1. In a Supabase project's SQL editor, run `supabase/schema.sql`, then `supabase/seed.sql`. To
-   sign in, set the **Confirm signup** and **Magic Link** templates under **Authentication →
-   Emails** to [`supabase/email-code.html`](supabase/email-code.html), which emails a code
-   instead of a link.
+1. In your Supabase project, set the **Confirm signup** and **Magic Link** templates under
+   **Authentication → Emails** to [`supabase/email-code.html`](supabase/email-code.html), which
+   emails a code instead of a link.
 2. `cp .env.example .env.local` and fill in the project URL and `anon` key from
    **Project Settings → API**. The anon key is public by design; never use the `service_role`
    key here. `API_URL` defaults to the local API.

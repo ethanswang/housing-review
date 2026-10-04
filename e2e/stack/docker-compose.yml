@@ -3,8 +3,8 @@
 #   e2e/run.sh, at http://localhost:53001;
 # - a stand-in for the Supabase project: Postgres with supabase/schema.sql and
 #   seed.sql, PostgREST, and Caddy serving it at http://localhost:54321/rest/v1
-#   like Supabase does. Reviews are still written there until that moves to
-#   the API.
+#   like Supabase does (e2e/database.spec.ts checks its rules), plus a
+#   test-only signing key so tests can sign in.
 # Nothing here touches a real project, so tests can write and CI needs no secrets.
 services:
   db:
@@ -41,6 +41,9 @@ services:
       - '127.0.0.1:54321:54321'
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./jwks.json:/srv/auth/v1/.well-known/jwks.json:ro
+      - ./gateway-cert.pem:/etc/caddy/gateway-cert.pem:ro
+      - ./gateway-key.pem:/etc/caddy/gateway-key.pem:ro
     depends_on:
       - postgrest
 
@@ -64,13 +67,18 @@ services:
     build: ../../server
     environment:
       DATABASE_URL: postgres://housing:housing_dev@api-db:5432/housing
-      # Only used to find token-signing keys; nothing here signs in yet.
-      SUPABASE_URL: https://placeholder.supabase.co
+      # The gateway's test signing key (see Caddyfile), over https it trusts below.
+      SUPABASE_URL: https://gateway:54322
+      NODE_EXTRA_CA_CERTS: /etc/ssl/gateway-cert.pem
       NODE_ENV: production
       TRUST_PROXY_HOPS: 0
       LOG_LEVEL: warn
     ports:
       - '127.0.0.1:53001:3001'
+    volumes:
+      - ./gateway-cert.pem:/etc/ssl/gateway-cert.pem:ro
     depends_on:
       api-db:
         condition: service_healthy
+      gateway:
+        condition: service_started

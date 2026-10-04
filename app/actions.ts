@@ -1,7 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { insertReview } from '@/lib/queries'
+import { accessToken } from '@/lib/auth'
+import { postReview } from '@/lib/queries'
 import { RATING_KEYS, type RatingKey } from '@/lib/types'
 
 /** What the student typed, so the form can be refilled after an error. */
@@ -21,8 +22,8 @@ const LEASE_TERM_MAX = 40
  *
  * Validation lives here rather than only in the browser because a Server Action
  * is reachable by a direct POST — client-side `required` attributes are a
- * convenience, not a guard. Postgres CHECK constraints (supabase/schema.sql)
- * are the third and final layer.
+ * convenience, not a guard. The API checks everything again and decides who
+ * the author is from the student's token.
  *
  * Every failure returns the submitted values. React resets a form after its
  * action runs, whatever the action returns, so without them one validation
@@ -32,7 +33,6 @@ export async function submitReview(
   _prevState: ReviewFormState,
   formData: FormData
 ): Promise<ReviewFormState> {
-  const propertyId = String(formData.get('property_id') ?? '')
   const slug = String(formData.get('slug') ?? '')
   const rawBody = String(formData.get('body') ?? '')
   const rawLeaseTerm = String(formData.get('lease_term') ?? '')
@@ -51,23 +51,26 @@ export async function submitReview(
     values: { lease_term: rawLeaseTerm, body: rawBody, ratings },
   })
 
-  if (!propertyId || !slug) return fail('Something went wrong. Please reload and try again.')
+  // The API's slug format. Also keeps a forged ".." from steering the post to another API path.
+  if (!/^[a-z0-9-]+$/.test(slug)) return fail('Something went wrong. Please reload and try again.')
   if (RATING_KEYS.some((key) => ratings[key] === undefined)) return fail('Please rate all four categories.')
   if (!leaseTerm) return fail('Please say which lease year this was.')
   if (leaseTerm.length > LEASE_TERM_MAX) return fail('Please keep the lease year short, like 2024-25.')
   if (body.length < 20) return fail('Please write at least 20 characters so the review is useful.')
   if (body.length > 2000) return fail('Please keep your review under 2000 characters.')
 
+  const token = await accessToken()
+  if (!token) return fail('Your sign-in has expired. Sign in again to post; copy your review first.')
+
   try {
-    await insertReview({
-      property_id: propertyId,
-      ...(ratings as Record<RatingKey, number>),
-      body,
-      lease_term: leaseTerm,
-    })
+    const result = await postReview(slug, { ...(ratings as Record<RatingKey, number>), body, lease_term: leaseTerm }, token)
+    if (!result.ok) {
+      console.error('submitReview: the API refused', result.status, result.code)
+      return fail(refusal(result.status, result.code))
+    }
   } catch (error) {
     // Logged in full on the server; the student gets their text back and a
-    // message that does not leak database details.
+    // message that does not leak internals.
     console.error('submitReview failed', error)
     return fail('We couldn’t save your review just now. Please try again in a moment.')
   }
@@ -78,4 +81,14 @@ export async function submitReview(
   revalidatePath('/')
 
   return { error: null, success: true }
+}
+
+/** What to tell the student when the API turns a review down. */
+function refusal(status: number, code?: string): string {
+  if (code === 'already_reviewed') return 'You have already reviewed this building.'
+  if (status === 401) return 'Your sign-in has expired. Sign in again to post; copy your review first.'
+  if (status === 403) return 'Sign in with the code emailed to your @illinois.edu address to post.'
+  if (status === 404) return 'This building is no longer listed.'
+  if (status === 429) return 'Too many reviews in a short time. Please try again later.'
+  return 'We couldn’t save your review just now. Please try again in a moment.'
 }

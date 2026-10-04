@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { RatingSummary } from '@/components/Ratings'
 import { ReviewCard } from '@/components/ReviewCard'
 import { ReviewForm } from '@/components/ReviewForm'
+import { currentUser } from '@/lib/auth'
 import { bedroomList } from '@/lib/format'
 import { getPropertyBySlug } from '@/lib/queries'
 
@@ -12,7 +13,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
   // `params` is a promise in Next 16; the slug is the URL segment, matched
   // against the `slug` column by getPropertyBySlug.
   const { slug } = await params
-  const property = await getPropertyBySlug(slug)
+  const [property, user] = await Promise.all([getPropertyBySlug(slug), currentUser()])
 
   if (!property) notFound()
 
@@ -49,7 +50,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
         ) : (
           <>
             <p className="text-title font-semibold text-balance">No reviews yet — lived here? Be the first.</p>
-            <p className="mt-1 text-meta text-muted">Takes about a minute. No account needed.</p>
+            <p className="mt-1 text-meta text-muted">Takes about a minute. Sign in with your Illinois email.</p>
             <a
               href="#write-review"
               className="mt-4 flex h-12 w-full items-center justify-center rounded-lg bg-accent text-body font-semibold text-surface hover:bg-accent-dark"
@@ -106,7 +107,19 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
           <h2 className="text-title font-semibold">Write a review</h2>
           <p className="mt-1 text-meta text-muted">Posted anonymously · takes about a minute</p>
           <div className="mt-6">
-            <ReviewForm propertyId={property.id} slug={property.slug} />
+            {user ? (
+              <ReviewForm slug={property.slug} />
+            ) : (
+              <p className="text-body">
+                <Link
+                  href={`/signin?next=${encodeURIComponent(`/properties/${property.slug}#write-review`)}`}
+                  className="font-semibold underline"
+                >
+                  Sign in with your @illinois.edu email
+                </Link>{' '}
+                to write a review. Your address is never shown with it.
+              </p>
+            )}
           </div>
         </section>
       </div>

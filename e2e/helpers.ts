@@ -1,4 +1,6 @@
-import type { Locator, Page } from '@playwright/test'
+import { createPrivateKey, randomUUID, sign } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import type { BrowserContext, Locator, Page } from '@playwright/test'
 import { RENT_SLIDER_PAUSE_MS } from '../lib/filters'
 
 /**
@@ -54,4 +56,45 @@ export async function resultCount(page: Page) {
     links.map((a) => a.getAttribute('href'))
   )
   return new Set(hrefs).size
+}
+
+/**
+ * Signs the browser in as a new student, as the emailed code would: a session
+ * cookie holding a token signed with the stack's test-only key, which both the
+ * site and the API check against the gateway's jwks.json. Returns the email.
+ */
+export async function signIn(context: BrowserContext): Promise<string> {
+  const id = randomUUID()
+  const email = `e2e-${id.slice(0, 8)}@illinois.edu`
+  const now = Math.floor(Date.now() / 1000)
+  const jwk = JSON.parse(readFileSync('e2e/stack/auth-key.json', 'utf8'))
+  const b64 = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
+  const unsigned = `${b64({ alg: 'ES256', typ: 'JWT', kid: jwk.kid })}.${b64({
+    // The issuer the API in the stack expects; the site does not check it.
+    iss: 'https://gateway:54322/auth/v1',
+    aud: 'authenticated',
+    role: 'authenticated',
+    sub: id,
+    email,
+    is_anonymous: false,
+    amr: [{ method: 'otp', timestamp: now }],
+    iat: now,
+    exp: now + 3600,
+  })}`
+  const signature = sign('sha256', Buffer.from(unsigned), {
+    key: createPrivateKey({ key: jwk, format: 'jwk' }),
+    dsaEncoding: 'ieee-p1363',
+  }).toString('base64url')
+  const session = {
+    access_token: `${unsigned}.${signature}`,
+    refresh_token: 'e2e-unused',
+    token_type: 'bearer',
+    expires_in: 3600,
+    expires_at: now + 3600,
+    user: { id, email, aud: 'authenticated', role: 'authenticated' },
+  }
+  await context.addCookies([
+    { name: 'sb-localhost-auth-token', value: `base64-${b64(session)}`, url: 'http://localhost:3100' },
+  ])
+  return email
 }
