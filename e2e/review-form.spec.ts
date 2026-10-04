@@ -1,10 +1,14 @@
 import { expect, test, type Page } from '@playwright/test'
-import { gotoHydrated } from './helpers'
+import { gotoHydrated, signIn } from './helpers'
 
 /**
- * The review form on a property page. These write to the e2e database, never
- * to a real project.
+ * The review form on a property page, signed in with the stack's test key.
+ * These post through the e2e stack's API, never to a real project.
  */
+
+test.beforeEach(async ({ context }) => {
+  await signIn(context)
+})
 
 const form = (page: Page) => page.locator('#write-review form')
 
@@ -51,20 +55,21 @@ test('a server-side error keeps everything typed, and what looks selected is wha
     ])
 })
 
-test('a database error is a message on the form, not an error page', async ({ page }) => {
+test('a refusal from the API is a message on the form, keeping the review', async ({ page }) => {
   await gotoHydrated(page, '/properties/lofts-54')
-  await fill(page, '2024-25', 'A body long enough to pass validation on the server.')
-  await page.evaluate(() => {
-    document.querySelector<HTMLInputElement>('#write-review input[name="property_id"]')!.value = 'not-a-uuid'
-  })
+  await fill(page, '2024-25', 'The first review from this account, long enough to post.')
   await form(page).getByRole('button', { name: 'Post review' }).click()
-  await expect(form(page).getByRole('alert')).toContainText('couldn’t save your review')
-  await expect(form(page).locator('input[name="lease_term"]')).toHaveValue('2024-25')
+  await expect(page.getByRole('status')).toHaveText(/your review is live/)
+
+  await gotoHydrated(page, '/properties/lofts-54')
+  const second = 'A second review of the same building, which the API refuses.'
+  await fill(page, '2025-26', second)
+  await form(page).getByRole('button', { name: 'Post review' }).click()
+  await expect(form(page).getByRole('alert')).toHaveText('You have already reviewed this building.')
+  await expect(form(page).locator('textarea[name="body"]')).toHaveValue(second)
 })
 
-// Reviews are still written to Supabase while pages read the API, so a posted
-// review does not appear until writing moves to the API too (feature/api-switch).
-test.fixme('a valid review is posted and shown', async ({ page }) => {
+test('a valid review is posted and shown', async ({ page }) => {
   await gotoHydrated(page, '/properties/campus-circle')
   const marker = `e2e review ${Date.now()}: the laundry room was always open.`
   await fill(page, '2025-26', marker)
@@ -72,4 +77,12 @@ test.fixme('a valid review is posted and shown', async ({ page }) => {
   await expect(page.getByRole('status')).toHaveText(/your review is live/)
   await page.reload()
   await expect(page.getByText(marker)).toBeVisible()
+})
+
+test('a visitor who is not signed in is asked to sign in, and comes back to the form', async ({ browser }) => {
+  const page = await (await browser.newContext()).newPage()
+  await page.goto('/properties/campus-circle')
+  await expect(form(page)).toHaveCount(0)
+  await page.getByRole('link', { name: 'Sign in with your @illinois.edu email' }).click()
+  await expect(page).toHaveURL('/signin?next=%2Fproperties%2Fcampus-circle%23write-review')
 })

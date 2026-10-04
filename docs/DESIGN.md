@@ -164,7 +164,7 @@ Based on Airbnb's detail page structure and Letterboxd's review column.
 
 **Empty state (0 reviews):**
 - Replaces the summary and list with "No reviews yet — lived here? Be the first." in `title`.
-- Adds one line of `meta`, "Takes about a minute. No account needed.", and a primary button "Write the first review" that jumps to the form.
+- Adds one line of `meta`, "Takes about a minute. Sign in with your Illinois email.", and a primary button "Write the first review" that jumps to the form.
 
 **Loading:** no skeleton, on purpose. A `loading.tsx` makes Next.js commit a `200` before the page runs, so a missing property would be served as a soft 404 instead of a real `404`. For the same reason the directory's skeleton sits inside the `(directory)` route group, which scopes it to `/` alone.
 

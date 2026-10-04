@@ -15,7 +15,7 @@ const HINTS: Record<RatingKey, string> = {
 
 const inputClass = 'rounded-lg border border-rule-strong bg-surface px-4 text-body'
 
-export function ReviewForm({ propertyId, slug }: { propertyId: string; slug: string }) {
+export function ReviewForm({ slug }: { slug: string }) {
   const [state, formAction, pending] = useActionState(submitReview, initialState)
   // Marks the form once React has committed it; the end-to-end tests wait for it.
   const formRef = useRef<HTMLFormElement>(null)
@@ -40,7 +40,6 @@ export function ReviewForm({ propertyId, slug }: { propertyId: string; slug: str
   // order on screen moved, so it reads top to bottom like a short survey.
   return (
     <form ref={formRef} action={formAction} className="flex flex-col gap-8">
-      <input type="hidden" name="property_id" value={propertyId} />
       <input type="hidden" name="slug" value={slug} />
 
       <label className="flex flex-col gap-2">

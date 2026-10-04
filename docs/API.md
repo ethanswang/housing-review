@@ -1,7 +1,7 @@
 # Running the API
 
 The API is a Fastify service in `server/`, and the only thing that touches its database. The
-live website does not call it yet: it still reads Supabase directly, until the switch.
+website reads and posts through it (`lib/queries.ts`); Supabase is used only for sign-in.
 
 ## Everything at once
 

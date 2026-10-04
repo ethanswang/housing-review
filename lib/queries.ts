@@ -3,13 +3,12 @@
  *
  *   Browser → Next.js page / Server Action → queries.ts → the API → Postgres
  *
- * Pages never call the API or Supabase directly. The API returns camelCase
+ * Pages never call the API directly. The API returns camelCase
  * records; this file maps them to the types in lib/types.ts, so components do
  * not depend on the API's field names.
  */
 import 'server-only'
 import { headers } from 'next/headers'
-import { supabase } from './supabase'
 import type {
   Averages,
   CompanyWithStats,
@@ -51,13 +50,14 @@ type ApiReview = {
 type Page<T> = { data: T[]; page: number; totalPages: number }
 
 /** GET from the API. null for a 404; any other failure throws, for app/error.tsx. */
-async function get<T>(path: string): Promise<T | null> {
+async function visitorHeaders(): Promise<Record<string, string>> {
   const request = await headers()
   const visitor = request.get('x-real-ip') ?? request.get('x-forwarded-for')?.split(',')[0]?.trim()
-  const response = await fetch(`${API_URL}${path}`, {
-    cache: 'no-store',
-    headers: FRONTEND_SECRET && visitor ? { 'x-frontend-secret': FRONTEND_SECRET, 'x-client-ip': visitor } : {},
-  })
+  return FRONTEND_SECRET && visitor ? { 'x-frontend-secret': FRONTEND_SECRET, 'x-client-ip': visitor } : {}
+}
+
+async function get<T>(path: string): Promise<T | null> {
+  const response = await fetch(`${API_URL}${path}`, { cache: 'no-store', headers: await visitorHeaders() })
   if (response.status === 404) return null
   if (!response.ok) throw new Error(`API GET ${path} answered ${response.status}`)
   return response.json() as Promise<T>
@@ -150,7 +150,6 @@ export async function getFilterOptions() {
 }
 
 export type NewReview = {
-  property_id: string
   maintenance: number
   communication: number
   value: number
@@ -160,11 +159,30 @@ export type NewReview = {
 }
 
 /**
- * Sends only the review's own fields. The anon role may insert exactly these
- * columns (supabase/schema.sql), so `is_sample`, `id` and `created_at` take
- * their defaults and cannot be set by a caller — not even this one.
+ * Posts a review as the signed-in student whose access token this is; the API
+ * verifies the token and decides who the author is. Returns the API's error
+ * code on failure, such as `already_reviewed`, for the form to explain.
  */
-export async function insertReview(review: NewReview) {
-  const { error } = await supabase.from('reviews').insert(review)
-  if (error) throw new Error(`Failed to save review: ${error.message}`)
+export async function postReview(
+  slug: string,
+  review: NewReview,
+  accessToken: string
+): Promise<{ ok: true } | { ok: false; status: number; code?: string }> {
+  const { lease_term, ...rest } = review
+  const response = await fetch(`${API_URL}/api/properties/${encodeURIComponent(slug)}/reviews`, {
+    method: 'POST',
+    cache: 'no-store',
+    headers: {
+      ...(await visitorHeaders()),
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ ...rest, leaseTerm: lease_term }),
+  })
+  if (response.ok) return { ok: true }
+  const code = await response
+    .json()
+    .then((body: { error?: { code?: string } }) => body.error?.code)
+    .catch(() => undefined)
+  return { ok: false, status: response.status, code }
 }
