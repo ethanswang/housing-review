@@ -75,8 +75,8 @@ npm test                           # runs against the compose database
 ```
 
 **The website** reads and posts through the API above, so start that first. Supabase only signs
-students in, so posting locally needs the API to trust your project's tokens: set `SUPABASE_URL`
-in `server/.env` to your project URL.
+students in, so posting locally needs the API to trust your project's tokens: start it with
+`SUPABASE_URL=https://<project-ref>.supabase.co npm run dev`.
 
 1. In your Supabase project, set the **Confirm signup** and **Magic Link** templates under
    **Authentication → Emails** to [`supabase/email-code.html`](supabase/email-code.html), which
