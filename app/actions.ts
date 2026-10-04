@@ -51,7 +51,8 @@ export async function submitReview(
     values: { lease_term: rawLeaseTerm, body: rawBody, ratings },
   })
 
-  if (!slug) return fail('Something went wrong. Please reload and try again.')
+  // The API's slug format. Also keeps a forged ".." from steering the post to another API path.
+  if (!/^[a-z0-9-]+$/.test(slug)) return fail('Something went wrong. Please reload and try again.')
   if (RATING_KEYS.some((key) => ratings[key] === undefined)) return fail('Please rate all four categories.')
   if (!leaseTerm) return fail('Please say which lease year this was.')
   if (leaseTerm.length > LEASE_TERM_MAX) return fail('Please keep the lease year short, like 2024-25.')
@@ -86,7 +87,7 @@ export async function submitReview(
 function refusal(status: number, code?: string): string {
   if (code === 'already_reviewed') return 'You have already reviewed this building.'
   if (status === 401) return 'Your sign-in has expired. Sign in again to post; copy your review first.'
-  if (status === 403) return 'Only @illinois.edu accounts can post reviews.'
+  if (status === 403) return 'Sign in with the code emailed to your @illinois.edu address to post.'
   if (status === 404) return 'This building is no longer listed.'
   if (status === 429) return 'Too many reviews in a short time. Please try again later.'
   return 'We couldn’t save your review just now. Please try again in a moment.'

@@ -69,6 +69,16 @@ test('a refusal from the API is a message on the form, keeping the review', asyn
   await expect(form(page).locator('textarea[name="body"]')).toHaveValue(second)
 })
 
+test('a forged building slug is refused before it reaches the API', async ({ page }) => {
+  await gotoHydrated(page, '/properties/lofts-54')
+  await fill(page, '2024-25', 'A body long enough to pass validation on the server.')
+  await page.evaluate(() => {
+    document.querySelector<HTMLInputElement>('#write-review input[name="slug"]')!.value = '..'
+  })
+  await form(page).getByRole('button', { name: 'Post review' }).click()
+  await expect(form(page).getByRole('alert')).toHaveText('Something went wrong. Please reload and try again.')
+})
+
 test('a valid review is posted and shown', async ({ page }) => {
   await gotoHydrated(page, '/properties/campus-circle')
   const marker = `e2e review ${Date.now()}: the laundry room was always open.`
