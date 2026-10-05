@@ -6,7 +6,7 @@
 # rebuilt, so a tag alone cannot give a reproducible build. The tag stays in the
 # reference so an update (by hand, or a Dependabot security fix) follows the
 # 24-alpine line rather than `latest`.
-FROM node:24-alpine@sha256:760e44b64c78674d9c79fa32e63c0ba8f817f79791e1aa32e07669bb0bfeaeaa
+FROM node:26-alpine@sha256:0b36e8c136b94cd4fcf02188228e76c31ad5872eef3fec8cbd2eee500cfd9e80
 
 ENV NODE_ENV=production
 WORKDIR /app
