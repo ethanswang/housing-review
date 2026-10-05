@@ -158,6 +158,36 @@ export type NewReview = {
 }
 
 /**
+ * The signed-in student's own review of this building, if they have one that
+ * stops them posting another: published, or hidden by a moderator. A withdrawn
+ * review does not count, as the API lets its author post again.
+ *
+ * Null as well when the API cannot say (an expired token, an outage): the page
+ * then shows the form, and the API still refuses a second review.
+ */
+export async function getMyReview(
+  slug: string,
+  accessToken: string
+): Promise<{ status: 'published' | 'hidden' } | null> {
+  try {
+    const response = await fetch(`${API_URL}/api/me/reviews`, {
+      cache: 'no-store',
+      headers: { ...(await visitorHeaders()), authorization: `Bearer ${accessToken}` },
+    })
+    if (!response.ok) {
+      if (response.status !== 401) console.error('getMyReview: the API answered', response.status)
+      return null
+    }
+    const reviews = (await response.json()) as { propertySlug: string; status: string }[]
+    const mine = reviews.find((r) => r.propertySlug === slug && (r.status === 'published' || r.status === 'hidden'))
+    return mine ? { status: mine.status as 'published' | 'hidden' } : null
+  } catch (error) {
+    console.error('getMyReview failed', error)
+    return null
+  }
+}
+
+/**
  * Posts a review as the signed-in student whose access token this is; the API
  * verifies the token and decides who the author is. Returns the API's error
  * code on failure, such as `already_reviewed`, for the form to explain.

@@ -55,14 +55,18 @@ test('a server-side error keeps everything typed, and what looks selected is wha
     ])
 })
 
-test('a refusal from the API is a message on the form, keeping the review', async ({ page }) => {
+test('a refusal from the API is a message on the form, keeping the review', async ({ page, context }) => {
+  // Two tabs open on the building: the page hides the form once a review
+  // exists, so a second review can only be attempted from a tab opened before.
+  const other = await context.newPage()
+  await gotoHydrated(other, '/properties/lofts-54')
   await gotoHydrated(page, '/properties/lofts-54')
   await fill(page, '2024-25', 'The first review from this account, long enough to post.')
   await form(page).getByRole('button', { name: 'Post review' }).click()
-  await expect(page.getByRole('status')).toHaveText(/your review is live/)
+  await expect(page.locator('#write-review').getByRole('status')).toContainText('You have reviewed this building.')
 
-  await gotoHydrated(page, '/properties/lofts-54')
   const second = 'A second review of the same building, which the API refuses.'
+  page = other
   await fill(page, '2025-26', second)
   await form(page).getByRole('button', { name: 'Post review' }).click()
   await expect(form(page).getByRole('alert')).toHaveText('You have already reviewed this building.')
@@ -79,14 +83,19 @@ test('a forged building slug is refused before it reaches the API', async ({ pag
   await expect(form(page).getByRole('alert')).toHaveText('Something went wrong. Please reload and try again.')
 })
 
-test('a valid review is posted and shown', async ({ page }) => {
+test('a valid review is posted and shown, and the form gives way to it for good', async ({ page }) => {
   await gotoHydrated(page, '/properties/campus-circle')
   const marker = `e2e review ${Date.now()}: the laundry room was always open.`
   await fill(page, '2025-26', marker)
   await form(page).getByRole('button', { name: 'Post review' }).click()
-  await expect(page.getByRole('status')).toHaveText(/your review is live/)
+  const yours = page.locator('#write-review').getByRole('status')
+  await expect(yours).toContainText('You have reviewed this building.')
+
   await page.reload()
   await expect(page.getByText(marker)).toBeVisible()
+  await expect(yours).toContainText('You have reviewed this building.')
+  await expect(form(page)).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Write a review' })).toHaveCount(0)
 })
 
 test('a visitor who is not signed in is asked to sign in, and comes back to the form', async ({ browser }) => {
