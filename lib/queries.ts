@@ -47,7 +47,7 @@ type ApiReview = {
   isSample: boolean
   createdAt: string
 }
-type Page<T> = { data: T[]; page: number; totalPages: number }
+type Page<T> = { data: T[]; page: number; totalPages: number; total: number }
 
 /** GET from the API. null for a 404; any other failure throws, for app/error.tsx. */
 async function visitorHeaders(): Promise<Record<string, string>> {
@@ -93,23 +93,22 @@ const toReview = (r: ApiReview): Review => ({
  * The directory. Filtering, sorting and search all happen in the API's SQL;
  * this asks for every page, since the directory shows the whole list.
  */
-export async function listProperties(filters: PropertyFilters = {}): Promise<PropertyWithStats[]> {
-  const params = new URLSearchParams({ perPage: '100', sort: filters.sort ?? 'rating' })
+/** One page of the directory, with the total for the whole filter. */
+export async function listProperties(
+  filters: PropertyFilters = {},
+  page = 1,
+  perPage = 24
+): Promise<{ properties: PropertyWithStats[]; total: number; totalPages: number }> {
+  const params = new URLSearchParams({ page: String(page), perPage: String(perPage), sort: filters.sort ?? 'rating' })
   if (filters.search) params.set('q', filters.search)
   if (filters.companies?.length) params.set('company', filters.companies.join(','))
   if (filters.neighborhoods?.length) params.set('hood', filters.neighborhoods.join(','))
   if (filters.bedrooms?.length) params.set('beds', filters.bedrooms.join(','))
   if (filters.maxRent) params.set('maxRent', String(filters.maxRent))
 
-  const properties: PropertyWithStats[] = []
-  for (let page = 1; ; page++) {
-    params.set('page', String(page))
-    const result = await get<Page<ApiProperty>>(`/api/properties?${params}`)
-    if (!result) break
-    properties.push(...result.data.map(toProperty))
-    if (page >= result.totalPages) break
-  }
-  return properties
+  const result = await get<Page<ApiProperty>>(`/api/properties?${params}`)
+  if (!result) throw new Error('API has no /api/properties')
+  return { properties: result.data.map(toProperty), total: result.total, totalPages: result.totalPages }
 }
 
 export async function getPropertyBySlug(slug: string): Promise<PropertyDetail | null> {

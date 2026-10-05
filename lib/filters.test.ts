@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildQuery, hasActiveFilters, parseFilters } from './filters'
+import { buildQuery, hasActiveFilters, pageQuery, parseFilters, parsePage } from './filters'
 
 describe('parseFilters', () => {
   it('keeps a studio (0 bedrooms) as a bedroom filter', () => {
@@ -48,5 +48,25 @@ describe('buildQuery', () => {
 describe('hasActiveFilters', () => {
   it('counts a studio-only bedroom filter as active', () => {
     expect(hasActiveFilters({ bedrooms: [0] })).toBe(true)
+  })
+})
+
+describe('parsePage', () => {
+  it('reads a positive whole page number, and falls back to 1', () => {
+    expect(parsePage({ page: '3' })).toBe(3)
+    for (const page of [undefined, '', '0', '-2', '1.5', 'abc', '99999999']) {
+      expect(parsePage({ page })).toBe(1)
+    }
+  })
+})
+
+describe('pageQuery', () => {
+  it('keeps the filters and adds the page, leaving page 1 implicit', () => {
+    expect(pageQuery({ search: 'green', sort: 'price' }, 2)).toBe('q=green&sort=price&page=2')
+    expect(pageQuery({ search: 'green' }, 1)).toBe('q=green')
+  })
+
+  it('is not part of the filters, so changing a filter starts from page 1', () => {
+    expect(buildQuery(parseFilters({ q: 'green', page: '4' }))).toBe('q=green')
   })
 })

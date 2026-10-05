@@ -67,6 +67,26 @@ export function buildQuery(filters: PropertyFilters): string {
   return params.toString()
 }
 
+/** Properties per directory page. */
+export const PAGE_SIZE = 24
+
+/**
+ * The directory page from ?page=, 1 when absent or invalid. Kept out of the
+ * filters on purpose: the rail and search box rebuild the URL from the filters,
+ * so any change to them starts again from page 1.
+ */
+export function parsePage(params: RawSearchParams): number {
+  const page = Number(one(params.page))
+  return Number.isInteger(page) && page >= 1 && page <= 10_000 ? page : 1
+}
+
+/** The query string for a page of the current results; page 1 has no page parameter. */
+export function pageQuery(filters: PropertyFilters, page: number): string {
+  const params = new URLSearchParams(buildQuery(filters))
+  if (page > 1) params.set('page', String(page))
+  return params.toString()
+}
+
 export function hasActiveFilters(filters: PropertyFilters): boolean {
   return Boolean(
     filters.search ||
