@@ -4,7 +4,7 @@ import { RatingSummary } from '@/components/Ratings'
 import { ReviewCard } from '@/components/ReviewCard'
 import { ReviewForm } from '@/components/ReviewForm'
 import { currentUser } from '@/lib/auth'
-import { bedroomList } from '@/lib/format'
+import { bedroomList, rentRange } from '@/lib/format'
 import { getPropertyBySlug } from '@/lib/queries'
 
 export const dynamic = 'force-dynamic'
@@ -64,12 +64,10 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
       <div className="lg:col-start-1">
         <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-rule bg-rule">
           <Fact label="Rent">
-            <span className="tnum">
-              ${property.rent_min.toLocaleString()}–{property.rent_max.toLocaleString()}/mo
-            </span>
+            <span className="tnum">{rentRange(property.rent_min, property.rent_max) ?? 'Not listed'}</span>
           </Fact>
           <Fact label="Bedrooms">{bedroomList(property.bedrooms)}</Fact>
-          <Fact label="Area">{property.neighborhood}</Fact>
+          <Fact label="Area">{property.neighborhood ?? 'Not listed'}</Fact>
           {/* The link stretches over the whole cell so the tap target is the cell. */}
           <Fact label="Managed by">
             {property.company ? (

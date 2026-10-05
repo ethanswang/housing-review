@@ -57,3 +57,6 @@ next-env.d.ts
 # Playwright output
 /test-results/
 /playwright-report/
+
+# Property import reports (server/src/ingest/report.ts)
+/server/import-reports/

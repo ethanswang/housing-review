@@ -20,9 +20,10 @@ export type Property = {
   name: string
   slug: string
   address: string
-  neighborhood: string
-  rent_min: number
-  rent_max: number
+  /** Null when unknown, as for buildings imported from public data. */
+  neighborhood: string | null
+  rent_min: number | null
+  rent_max: number | null
   bedrooms: number[]
 }
 

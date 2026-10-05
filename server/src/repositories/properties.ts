@@ -26,9 +26,10 @@ export type PropertySummary = {
   slug: string
   name: string
   address: string
-  neighborhood: string
-  rentMin: number
-  rentMax: number
+  /** Null when unknown, as for buildings imported from public data. */
+  neighborhood: string | null
+  rentMin: number | null
+  rentMax: number | null
   bedrooms: number[]
   company: { slug: string; name: string } | null
   reviewCount: number
@@ -55,7 +56,7 @@ export type Review = {
  */
 const SORT_CLAUSES: Record<SortKey, string> = {
   rating: 'avg_overall desc nulls last, slug asc',
-  price: 'rent_min asc, slug asc',
+  price: 'rent_min asc nulls last, slug asc',
   reviews: 'review_count desc, slug asc',
 }
 
@@ -64,9 +65,9 @@ type PropertyStatsRow = {
   slug: string
   name: string
   address: string
-  neighborhood: string
-  rent_min: number
-  rent_max: number
+  neighborhood: string | null
+  rent_min: number | null
+  rent_max: number | null
   bedrooms: number[]
   company_slug: string | null
   company_name: string | null
@@ -229,7 +230,7 @@ export async function getFilterOptions(db: Database): Promise<FilterOptions> {
     db.query('select slug, name from management_companies order by name, slug'),
     db.query(
       `select
-         coalesce((select array_agg(distinct neighborhood order by neighborhood) from properties), '{}') as neighborhoods,
+         coalesce((select array_agg(distinct neighborhood order by neighborhood) filter (where neighborhood is not null) from properties), '{}') as neighborhoods,
          coalesce((select array_agg(distinct b order by b) from properties, unnest(bedrooms) as b), '{}') as bedrooms,
          coalesce((select max(rent_max) from properties), 0) as max_rent`
     ),

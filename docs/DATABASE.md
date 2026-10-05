@@ -58,6 +58,64 @@ infra/import-catalog.sh server/data/catalog.json --apply
 The script runs this importer from your `server/` checkout in a container that reaches the
 private database through Session Manager (see [INFRASTRUCTURE.md](INFRASTRUCTURE.md#migrations)).
 
+## Importing buildings from public data
+
+The catalog importer above is for hand-curated files. Buildings can also be imported from
+public datasets, which is how the directory gets its long tail. The first source is the
+City of Champaign's [apartment buildings layer](https://gisportal.champaignil.gov/ms/rest/services/Open_Data/Open_Data/MapServer/8)
+(about 3,500 buildings with address, units, stories, building and complex names, outline). It
+has no rent, the managing company is almost always blank, and it covers Champaign only, not
+the Urbana side of campus.
+
+```bash
+cd server
+npm run import:properties                       # dry run: fetches and matches, writes nothing
+npm run import:properties -- --apply            # writes
+npm run import:properties -- --radius-km 2      # a wider area, for one run
+```
+
+It reads `DATABASE_URL` (default: the compose database) and needs network access to the city's
+server. Unknown flags stop it, so a typo cannot turn a dry run into a write. Production:
+`infra/import-properties.sh`, then `infra/import-properties.sh --apply`, through the tunnel as
+the master user like the catalog importer. The report is written before the transaction
+commits; if it cannot be written, nothing is.
+
+**What it does with each record** (`server/src/ingest/importer.ts`):
+
+1. **Outside the target area?** Counted and skipped. The area is a radius around the Main
+   Quad, 1.5 km by default, set in `server/src/ingest/config.ts`. Skipped records are not
+   stored, so widening the area and re-running brings them in.
+2. **Already imported** (same source and id in `property_sources`)? Its property is refreshed.
+3. **Same address as one existing property?** Linked to it. Addresses are compared after
+   normalizing case, punctuation, spacing, state, ZIP and the standard street-type and direction
+   abbreviations (`server/src/ingest/address.ts`); nothing fuzzy, so neighbouring numbers never
+   match, and an address without a city never matches. A property whose name differs from the
+   source's is listed for review.
+4. **Uncertain?** Several properties at the address, or another record from the same source
+   already holding it (two buildings sharing a street number): reported, nothing written.
+5. **Otherwise** a new property: named from the building name, else the complex name, else the
+   address, with rent, neighborhood and bedrooms left unknown.
+
+**What it never does:** delete anything; change a property's name, address or slug; overwrite a
+value with a blank; replace a property's company (it only fills one in). Source-owned fields
+(location, units, stories, type, complex) are refreshed when the source has a value. Companies
+are reused when the normalized name matches exactly, otherwise created and listed for review,
+since the source misspells some.
+
+**Failures:** a page that fails to download is retried three times, and the run stops if the
+total does not match the server's count, rather than importing a partial list. Each record
+writes inside its own savepoint, so one bad record is rolled back alone and reported; a dry
+run rolls everything back.
+
+**The report:** the terminal shows counts; `server/import-reports/<source>-<time>.json`
+(gitignored) lists every ambiguous, skipped, failed and review item, with property ids to look
+up.
+
+**Adding a source:** write `server/src/ingest/sources/<name>.ts` returning `SourceRecord`s
+(`server/src/ingest/types.ts`), with a stable id per record, and register it in `SOURCES` in
+`server/src/import-properties.ts`. Matching, writing and reporting are shared. Run it with
+`--source <name>`.
+
 ## Trust model
 
 **Authorization is enforced in the API, not by row-level security**, because no untrusted
@@ -121,9 +179,18 @@ A property optionally belongs to a company. Deleting a company uses `on delete s
 so the properties survive as independent listings rather than disappearing — losing review
 history because a company record was removed would be the wrong outcome.
 
-`properties_rent_range` rejects `rent_max < rent_min`. `bedrooms` is `integer[]`, since a
-building offers several unit sizes and the filter asks "does this property offer any of
-these sizes".
+`properties_rent_range` rejects `rent_max < rent_min`, and `properties_rent_both` requires
+both or neither: rent and `neighborhood` are null when unknown, as for buildings imported from
+public data. `bedrooms` is `integer[]`, since a building offers several unit sizes and the
+filter asks "does this property offer any of these sizes"; empty when unknown. `latitude`,
+`longitude`, `unit_count`, `stories`, `property_type` and `complex_name` come from imports and
+are null otherwise.
+
+### `property_sources`
+
+Which public-data record each imported property came from: `(source, source_id)` is the
+primary key, so a record maps to one property however often the import runs. A property can be
+linked from several sources. Only the importer reads it, so `api_access` has no grant on it.
 
 ### `reviews`
 

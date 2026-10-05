@@ -258,7 +258,7 @@ describe('GET /api/filters', () => {
     const { rows: companies } = await pool.query('select slug, name from management_companies order by name, slug')
     expect(body.companies).toEqual(companies)
 
-    const { rows: hoods } = await pool.query('select distinct neighborhood from properties order by 1')
+    const { rows: hoods } = await pool.query('select distinct neighborhood from properties where neighborhood is not null order by 1')
     expect(body.neighborhoods).toEqual(hoods.map((r) => r.neighborhood))
 
     const { rows: beds } = await pool.query('select distinct unnest(bedrooms) as b from properties order by 1')
@@ -266,5 +266,29 @@ describe('GET /api/filters', () => {
 
     const { rows: rent } = await pool.query('select max(rent_max) as m from properties')
     expect(body.maxRent).toBe(rent[0].m)
+  })
+})
+
+describe('a property with unknown rent and neighborhood', () => {
+  const slug = `unknown-rent-${crypto.randomUUID().slice(0, 8)}`
+  beforeAll(async () => {
+    await pool.query(`insert into properties (slug, name, address) values ($1, 'Unknown Rent Hall', '1 Unknown St, Champaign')`, [slug])
+  })
+  afterAll(async () => {
+    await pool.query('delete from properties where slug = $1', [slug])
+  })
+
+  it('is listed with nulls, sorts last by price, and never matches a rent limit', async () => {
+    const byPrice = (await get('/api/properties?sort=price&perPage=100')).json()
+    const last = byPrice.data.at(-1)
+    expect(byPrice.page).toBe(byPrice.totalPages)
+    expect(last).toMatchObject({ slug, rentMin: null, rentMax: null, neighborhood: null })
+
+    const limited = (await get('/api/properties?maxRent=100000&perPage=100')).json()
+    expect(limited.data.map((p: { slug: string }) => p.slug)).not.toContain(slug)
+  })
+
+  it('adds no empty neighborhood to the filters', async () => {
+    expect((await get('/api/filters')).json().neighborhoods).not.toContain(null)
   })
 })
