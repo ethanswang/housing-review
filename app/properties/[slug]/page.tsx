@@ -3,9 +3,9 @@ import { notFound } from 'next/navigation'
 import { RatingSummary } from '@/components/Ratings'
 import { ReviewCard } from '@/components/ReviewCard'
 import { ReviewForm } from '@/components/ReviewForm'
-import { currentUser } from '@/lib/auth'
+import { accessToken, currentUser } from '@/lib/auth'
 import { bedroomList, rentRange } from '@/lib/format'
-import { getPropertyBySlug } from '@/lib/queries'
+import { getMyReview, getPropertyBySlug } from '@/lib/queries'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,6 +16,11 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
   const [property, user] = await Promise.all([getPropertyBySlug(slug), currentUser()])
 
   if (!property) notFound()
+
+  // One review per student per building: someone who has one sees it
+  // acknowledged instead of a form the API would refuse.
+  const token = user ? await accessToken() : null
+  const myReview = token ? await getMyReview(property.slug, token) : null
 
   const sampleCount = property.reviews.filter((r) => r.is_sample).length
 
@@ -40,13 +45,18 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
         {hasReviews ? (
           <>
             <RatingSummary averages={property.averages} reviewCount={property.reviewCount} />
-            <a
-              href="#write-review"
-              className="mt-6 flex h-11 w-full items-center justify-center rounded-lg border border-rule-strong bg-surface text-body font-semibold hover:border-ink"
-            >
-              Write a review
-            </a>
+            {!myReview && (
+              <a
+                href="#write-review"
+                className="mt-6 flex h-11 w-full items-center justify-center rounded-lg border border-rule-strong bg-surface text-body font-semibold hover:border-ink"
+              >
+                Write a review
+              </a>
+            )}
           </>
+        ) : myReview ? (
+          // Their review exists but is not shown: a moderator has hidden it.
+          <p className="text-title font-semibold text-balance">No published reviews yet.</p>
         ) : (
           <>
             <p className="text-title font-semibold text-balance">No reviews yet — lived here? Be the first.</p>
@@ -102,10 +112,19 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
         )}
 
         <section id="write-review" className="mt-10 scroll-mt-4 border-t border-ink pt-6">
-          <h2 className="text-title font-semibold">Write a review</h2>
-          <p className="mt-1 text-meta text-muted">Posted anonymously · takes about a minute</p>
+          <h2 className="text-title font-semibold">{myReview ? 'Your review' : 'Write a review'}</h2>
+          {!myReview && <p className="mt-1 text-meta text-muted">Posted anonymously · takes about a minute</p>}
           <div className="mt-6">
-            {user ? (
+            {myReview ? (
+              <div role="status">
+                <p className="text-body font-semibold">You have reviewed this building.</p>
+                <p className="mt-1 text-body text-ink-soft">
+                  {myReview.status === 'hidden'
+                    ? 'A moderator has hidden your review while they look into a report about it.'
+                    : 'It is shown with the other reviews above. Each student can review a building once.'}
+                </p>
+              </div>
+            ) : user ? (
               <ReviewForm slug={property.slug} />
             ) : (
               <p className="text-body">
