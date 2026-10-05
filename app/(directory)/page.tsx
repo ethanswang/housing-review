@@ -31,7 +31,8 @@ export default async function DirectoryPage({
           Apartment reviews from Illinois students
         </h1>
         <p className="mt-2 text-body text-ink-soft">
-          Champaign–Urbana buildings, scored on maintenance, communication, and value.
+          Every review is from a verified @illinois.edu student. Champaign–Urbana buildings, scored
+          on maintenance, communication, and value.
         </p>
         <p className="mt-4 border-l-2 border-rule-strong pl-3 text-meta text-ink-soft">
           <strong className="font-semibold text-ink">Prototype.</strong> Ratings are computed from

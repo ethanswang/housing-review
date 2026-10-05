@@ -4,7 +4,9 @@ Apartment reviews from University of Illinois students. Champaign–Urbana build
 management companies are rated on **maintenance**, **communication**, and **value**, and the
 ratings roll up into scores you can search, filter, and compare.
 
-Free, student-run, and not affiliated with the University of Illinois or any landlord.
+**Every review is from a verified `@illinois.edu` student**: posting takes a code emailed to
+that address, and each account gets one review per building. Free, student-run, and not
+affiliated with the University of Illinois or any landlord.
 
 **[www.uiuchousing.com](https://www.uiuchousing.com)**
 
@@ -21,9 +23,17 @@ Free, student-run, and not affiliated with the University of Illinois or any lan
 - **Reviewers need an `@illinois.edu` address** to post, signing in with a code emailed to it,
   and get one review per building. That is what makes a review from a real student distinct
   from one written by a landlord.
-- **Reviews will be reportable** for personal information, harassment, or not being from a
-  tenant, arriving on the site with sign-in. A report queues the review for a person to look
-  at; reports never remove a review automatically.
+- **Reviews are reportable** (before launch) for personal information, harassment, or not being
+  from a tenant. A report queues the review for a person to look at; reports never remove a
+  review automatically, and a review is not removed for being negative. Moderators can see who
+  wrote a reported review; readers never can.
+- **Policy pages** (before launch): community guidelines, terms, privacy, and a contact
+  address. The guidelines ask reviewers not to name individual staff, and let a landlord
+  dispute a false statement of fact.
+
+**Planned after launch**, as optional questions on the review form:
+- **Rent you paid**, so a building's rent comes from tenants rather than a placeholder.
+- **Would you rent here again?** and **Did you get your deposit back?**, both yes or no.
 
 ## Architecture
 
