@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bedroomLabel, bedroomList, bedroomRange } from './format'
+import { bedroomLabel, bedroomList, bedroomRange, rentRange } from './format'
 
 describe('bedroom labels', () => {
   it('calls 0 bedrooms a studio, never "0 BR"', () => {
@@ -17,6 +17,17 @@ describe('bedroom labels', () => {
 
   it('lists every size for the property page', () => {
     expect(bedroomList([0, 1, 2])).toBe('Studio, 1, 2')
-    expect(bedroomList([])).toBe('')
+    expect(bedroomList([])).toBe('Not listed')
+  })
+})
+
+describe('rentRange', () => {
+  it('shows a range, or one price when both ends match', () => {
+    expect(rentRange(875, 1250)).toBe('$875–1,250/mo')
+    expect(rentRange(900, 900)).toBe('$900/mo')
+  })
+
+  it('is null when the rent is not known, rather than inventing one', () => {
+    expect(rentRange(null, null)).toBeNull()
   })
 })

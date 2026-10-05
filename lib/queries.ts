@@ -28,9 +28,9 @@ type ApiProperty = {
   slug: string
   name: string
   address: string
-  neighborhood: string
-  rentMin: number
-  rentMax: number
+  neighborhood: string | null
+  rentMin: number | null
+  rentMax: number | null
   bedrooms: number[]
   company: { slug: string; name: string } | null
   reviewCount: number

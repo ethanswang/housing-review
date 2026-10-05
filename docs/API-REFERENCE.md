@@ -58,8 +58,9 @@ Every error has the same shape:
 type Averages = { overall: number | null; maintenance: number | null; communication: number | null; value: number | null }
 
 type PropertySummary = {
-  id: string; slug: string; name: string; address: string; neighborhood: string
-  rentMin: number; rentMax: number; bedrooms: number[]          // 0 is a studio
+  id: string; slug: string; name: string; address: string; neighborhood: string | null
+  rentMin: number | null; rentMax: number | null                // both null when unknown
+  bedrooms: number[]                                            // 0 is a studio; empty when unknown
   company: { slug: string; name: string } | null                 // null: independent landlord
   reviewCount: number; averages: Averages
 }
@@ -113,8 +114,8 @@ The directory. Every parameter is optional; an empty value (`?q=`) means "no fil
 | `company` | Company slugs. Repeated (`?company=a&company=b`) or comma-separated (`?company=a,b`) |
 | `hood` | Neighborhoods, same forms |
 | `beds` | Bedroom counts 0–20, same forms. Matches a property offering **any** of them |
-| `maxRent` | Whole dollars, 1–100,000. Matches when the **cheapest** unit is within it |
-| `sort` | `rating` (default; unreviewed last), `price` (cheapest first), `reviews` (most first) |
+| `maxRent` | Whole dollars, 1–100,000. Matches when the **cheapest** unit is within it; a property with unknown rent never matches |
+| `sort` | `rating` (default; unreviewed last), `price` (cheapest first, unknown rent last), `reviews` (most first) |
 | `page`, `perPage` | Default `1` and `24` |
 
 `200` — page of `PropertySummary`.

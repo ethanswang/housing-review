@@ -13,7 +13,14 @@ export function bedroomRange(bedrooms: number[]): string | null {
   return `${min === 0 ? 'Studio' : min}–${max} BR`
 }
 
-/** Every size, for the property page: "Studio, 1, 2". */
+/** Every size, for the property page: "Studio, 1, 2", or "Not listed". */
 export function bedroomList(bedrooms: number[]): string {
+  if (!bedrooms.length) return 'Not listed'
   return bedrooms.map((count) => (count === 0 ? 'Studio' : String(count))).join(', ')
+}
+
+/** "$875–$1,250/mo", "$900/mo", or null when the rent is not known. */
+export function rentRange(min: number | null, max: number | null): string | null {
+  if (min === null || max === null) return null
+  return min === max ? `$${min.toLocaleString('en-US')}/mo` : `$${min.toLocaleString('en-US')}–${max.toLocaleString('en-US')}/mo`
 }
