@@ -1,8 +1,9 @@
 import Link from 'next/link'
 import { FilterRail } from '@/components/FilterRail'
+import { Pagination } from '@/components/Pagination'
 import { PropertyRow } from '@/components/PropertyRow'
 import { SearchBox } from '@/components/SearchBox'
-import { buildQuery, parseFilters, hasActiveFilters, type RawSearchParams } from '@/lib/filters'
+import { buildQuery, hasActiveFilters, PAGE_SIZE, pageQuery, parseFilters, parsePage, type RawSearchParams } from '@/lib/filters'
 import { getFilterOptions, listProperties } from '@/lib/queries'
 
 // Reviews change whenever someone submits one, so the directory is rendered per
@@ -15,11 +16,15 @@ export default async function DirectoryPage({
   searchParams: Promise<RawSearchParams>
 }) {
   // In Next 16 `searchParams` is a promise — reading it is what marks the page dynamic.
-  const filters = parseFilters(await searchParams)
+  const params = await searchParams
+  const filters = parseFilters(params)
+  const page = parsePage(params)
 
-  const [properties, options] = await Promise.all([listProperties(filters), getFilterOptions()])
-
-  const totalReviews = properties.reduce((sum, p) => sum + p.reviewCount, 0)
+  const [{ properties, total, totalPages }, options] = await Promise.all([
+    listProperties(filters, page, PAGE_SIZE),
+    getFilterOptions(),
+  ])
+  const first = (page - 1) * PAGE_SIZE + 1
 
   // "Clear filters" keeps the chosen sort, matching the rail's "Clear all".
   const clearedQuery = buildQuery({ sort: filters.sort })
@@ -42,16 +47,24 @@ export default async function DirectoryPage({
       </section>
 
       <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-x-12 lg:mt-10 lg:grid-cols-[15rem_minmax(0,45rem)]">
-        <FilterRail filters={filters} options={options} resultCount={properties.length} />
+        <FilterRail filters={filters} options={options} resultCount={total} />
 
         <section aria-label="Results">
           <p className="border-b border-rule py-3 text-meta text-muted">
-            {properties.length} {properties.length === 1 ? 'property' : 'properties'} ·{' '}
-            {totalReviews} {totalReviews === 1 ? 'review' : 'reviews'}
+            {total > PAGE_SIZE && properties.length > 0 && `${first}–${first + properties.length - 1} of `}
+            {total} {total === 1 ? 'property' : 'properties'}
             {filters.search && ` · matching “${filters.search}”`}
           </p>
 
-          {properties.length === 0 ? (
+          {properties.length === 0 && total > 0 ? (
+            // A page past the end, from an old link or a hand-edited URL.
+            <div className="py-12">
+              <p className="text-title font-semibold">There is no page {page}.</p>
+              <Link href={pageQuery(filters, 1) ? `/?${pageQuery(filters, 1)}` : '/'} className="mt-4 inline-flex h-11 items-center rounded-lg border border-rule-strong bg-surface px-4 text-body font-semibold">
+                Back to the first page
+              </Link>
+            </div>
+          ) : properties.length === 0 ? (
             <div className="py-12">
               <p className="text-title font-semibold">
                 {hasActiveFilters(filters)
@@ -74,11 +87,14 @@ export default async function DirectoryPage({
               )}
             </div>
           ) : (
-            <ul>
-              {properties.map((property) => (
-                <PropertyRow key={property.id} property={property} />
-              ))}
-            </ul>
+            <>
+              <ul>
+                {properties.map((property) => (
+                  <PropertyRow key={property.id} property={property} />
+                ))}
+              </ul>
+              <Pagination filters={filters} page={page} totalPages={totalPages} />
+            </>
           )}
         </section>
       </div>
