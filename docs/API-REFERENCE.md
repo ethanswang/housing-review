@@ -61,6 +61,7 @@ type PropertySummary = {
   id: string; slug: string; name: string; address: string; neighborhood: string | null
   rentMin: number | null; rentMax: number | null                // both null when unknown
   bedrooms: number[]                                            // 0 is a studio; empty when unknown
+  unitCount: number | null; stories: number | null              // from public building data
   company: { slug: string; name: string } | null                 // null: not known
   reviewCount: number; averages: Averages
 }
@@ -118,7 +119,7 @@ type. Some imported buildings (Greek houses, for now) are in neither, but `GET
 | `hood` | Neighborhoods, same forms |
 | `beds` | Bedroom counts 0–20, same forms. Matches a property offering **any** of them |
 | `maxRent` | Whole dollars, 1–100,000. Matches when the **cheapest** unit is within it; a property with unknown rent never matches |
-| `sort` | `rating` (default; unreviewed last), `price` (cheapest first, unknown rent last), `reviews` (most first) |
+| `sort` | `rating` (default; unreviewed last), `price` (cheapest first, unknown rent last), `reviews` (most first). Ties go largest building first |
 | `page`, `perPage` | Default `1` and `24` |
 
 `200` — page of `PropertySummary`.

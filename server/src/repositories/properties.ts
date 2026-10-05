@@ -31,6 +31,9 @@ export type PropertySummary = {
   rentMin: number | null
   rentMax: number | null
   bedrooms: number[]
+  /** From public building data; null when not known. */
+  unitCount: number | null
+  stories: number | null
   company: { slug: string; name: string } | null
   reviewCount: number
   averages: Averages
@@ -54,10 +57,13 @@ export type Review = {
  * unique tiebreaker, rows with equal ratings can appear on two pages or on
  * none as the planner reshuffles equal keys between queries.
  */
+// Ties, such as every unreviewed building under `rating`, go largest first:
+// with few reviews, that puts the buildings most students live in at the top
+// rather than small ones that happen to sort first by address.
 const SORT_CLAUSES: Record<SortKey, string> = {
-  rating: 'avg_overall desc nulls last, slug asc',
-  price: 'rent_min asc nulls last, slug asc',
-  reviews: 'review_count desc, slug asc',
+  rating: 'avg_overall desc nulls last, unit_count desc nulls last, slug asc',
+  price: 'rent_min asc nulls last, unit_count desc nulls last, slug asc',
+  reviews: 'review_count desc, unit_count desc nulls last, slug asc',
 }
 
 type PropertyStatsRow = {
@@ -69,6 +75,8 @@ type PropertyStatsRow = {
   rent_min: number | null
   rent_max: number | null
   bedrooms: number[]
+  unit_count: number | null
+  stories: number | null
   company_slug: string | null
   company_name: string | null
   review_count: number
@@ -88,6 +96,8 @@ export function toSummary(row: PropertyStatsRow): PropertySummary {
     rentMin: row.rent_min,
     rentMax: row.rent_max,
     bedrooms: row.bedrooms,
+    unitCount: row.unit_count,
+    stories: row.stories,
     company:
       row.company_slug && row.company_name
         ? { slug: row.company_slug, name: row.company_name }

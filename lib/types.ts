@@ -25,6 +25,9 @@ export type Property = {
   rent_min: number | null
   rent_max: number | null
   bedrooms: number[]
+  /** From public building data; null when not known. */
+  unit_count: number | null
+  stories: number | null
 }
 
 /** The categories shown as bars. `overall` is displayed separately as the headline score. */

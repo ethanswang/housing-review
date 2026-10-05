@@ -325,3 +325,29 @@ describe('visibility', () => {
   })
 })
 
+describe('building size', () => {
+  const tag = crypto.randomUUID().slice(0, 8)
+  beforeAll(async () => {
+    // Named so that alphabetical order is the opposite of size order.
+    for (const [n, units, stories] of [['a-small', 4, 2], ['b-large', 120, 12]] as const) {
+      await pool.query(
+        `insert into properties (slug, name, address, unit_count, stories) values ($1, $2, $3, $4, $5)`,
+        [`size-${tag}-${n}`, `Size${tag} ${n}`, `1 Size${tag} St, Champaign`, units, stories]
+      )
+    }
+  })
+  afterAll(async () => {
+    await pool.query('delete from properties where slug like $1', [`size-${tag}-%`])
+  })
+
+  it('is part of every summary', async () => {
+    const body = (await get(`/api/properties/size-${tag}-b-large`)).json()
+    expect(body).toMatchObject({ unitCount: 120, stories: 12 })
+  })
+
+  it('breaks ties largest first, so unreviewed buildings list big ones before small', async () => {
+    const slugs = (await get(`/api/properties?q=Size${tag}`)).json().data.map((p: { slug: string }) => p.slug)
+    expect(slugs).toEqual([`size-${tag}-b-large`, `size-${tag}-a-small`])
+  })
+})
+

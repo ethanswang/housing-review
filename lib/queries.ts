@@ -31,6 +31,8 @@ type ApiProperty = {
   neighborhood: string | null
   rentMin: number | null
   rentMax: number | null
+  unitCount: number | null
+  stories: number | null
   bedrooms: number[]
   company: { slug: string; name: string } | null
   reviewCount: number
@@ -71,6 +73,8 @@ const toProperty = (p: ApiProperty): PropertyWithStats => ({
   neighborhood: p.neighborhood,
   rent_min: p.rentMin,
   rent_max: p.rentMax,
+  unit_count: p.unitCount,
+  stories: p.stories,
   bedrooms: p.bedrooms,
   company: p.company,
   averages: p.averages,

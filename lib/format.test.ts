@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bedroomLabel, bedroomList, bedroomRange, rentRange } from './format'
+import { bedroomLabel, bedroomList, bedroomRange, rentRange, sizeLabel } from './format'
 
 describe('bedroom labels', () => {
   it('calls 0 bedrooms a studio, never "0 BR"', () => {
@@ -29,5 +29,15 @@ describe('rentRange', () => {
 
   it('is null when the rent is not known, rather than inventing one', () => {
     expect(rentRange(null, null)).toBeNull()
+  })
+})
+
+describe('sizeLabel', () => {
+  it('shows what is known of the size, in the singular where it should be', () => {
+    expect(sizeLabel(36, 3)).toBe('36 units · 3 stories')
+    expect(sizeLabel(1, 1)).toBe('1 unit · 1 story')
+    expect(sizeLabel(12, null)).toBe('12 units')
+    expect(sizeLabel(null, 4)).toBe('4 stories')
+    expect(sizeLabel(null, null)).toBeNull()
   })
 })

@@ -101,7 +101,7 @@ export async function listCompanyProperties(
     `select *, count(*) over() as total_count
      from property_stats
      where company_id = $1 and visibility <> 'hidden'
-     order by avg_overall desc nulls last, slug asc
+     order by avg_overall desc nulls last, unit_count desc nulls last, slug asc
      limit $2 offset $3`,
     [companyId, perPage, (page - 1) * perPage]
   )

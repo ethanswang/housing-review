@@ -4,7 +4,7 @@ import { RatingSummary } from '@/components/Ratings'
 import { ReviewCard } from '@/components/ReviewCard'
 import { ReviewForm } from '@/components/ReviewForm'
 import { accessToken, currentUser } from '@/lib/auth'
-import { bedroomList, rentRange } from '@/lib/format'
+import { bedroomList, rentRange, sizeLabel } from '@/lib/format'
 import { getMyReview, getPropertyBySlug } from '@/lib/queries'
 
 export const dynamic = 'force-dynamic'
@@ -25,6 +25,32 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
   const sampleCount = property.reviews.filter((r) => r.is_sample).length
 
   const hasReviews = property.reviewCount > 0
+
+  // The facts the site knows, and a single line naming what it does not, rather
+  // than a grid of "not listed".
+  const rent = rentRange(property.rent_min, property.rent_max)
+  const size = sizeLabel(property.unit_count, property.stories)
+  const known: [string, React.ReactNode | null][] = [
+    ['Rent', rent && <span className="tnum">{rent}</span>],
+    ['Bedrooms', property.bedrooms.length ? bedroomList(property.bedrooms) : null],
+    ['Size', size && <span className="tnum">{size}</span>],
+    ['Area', property.neighborhood],
+    [
+      'Managed by',
+      property.company && (
+        // The link stretches over the whole cell so the tap target is the cell.
+        <Link href={`/companies/${property.company.slug}`} className="text-accent underline underline-offset-2 after:absolute after:inset-0">
+          {property.company.name}
+        </Link>
+      ),
+    ],
+  ]
+  const facts = known.filter(([, value]) => value)
+  const missing = [
+    !rent && 'Rent',
+    !property.bedrooms.length && 'bedrooms',
+    !property.company && 'the management company',
+  ].filter((x): x is string => Boolean(x))
 
   return (
     <div className="mx-auto max-w-6xl px-4 pt-2 md:px-6 md:pt-6 lg:grid lg:grid-cols-[minmax(0,42rem)_20rem] lg:justify-between lg:gap-x-12">
@@ -72,23 +98,20 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
       </aside>
 
       <div className="lg:col-start-1">
-        <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-rule bg-rule">
-          <Fact label="Rent">
-            <span className="tnum">{rentRange(property.rent_min, property.rent_max) ?? 'Pricing unavailable'}</span>
-          </Fact>
-          <Fact label="Bedrooms">{bedroomList(property.bedrooms)}</Fact>
-          <Fact label="Area">{property.neighborhood ?? 'Not listed'}</Fact>
-          {/* The link stretches over the whole cell so the tap target is the cell. */}
-          <Fact label="Managed by">
-            {property.company ? (
-              <Link href={`/companies/${property.company.slug}`} className="text-accent underline underline-offset-2 after:absolute after:inset-0">
-                {property.company.name}
-              </Link>
-            ) : (
-              'Not listed'
-            )}
-          </Fact>
-        </dl>
+        {facts.length > 0 && (
+          <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-rule bg-rule">
+            {facts.map(([label, value]) => (
+              <Fact key={label} label={label}>
+                {value}
+              </Fact>
+            ))}
+          </dl>
+        )}
+        {missing.length > 0 && (
+          <p className="mt-3 text-meta text-muted">
+            {sentence(missing)} {missing.length === 1 ? 'is' : 'are'} not listed for this building yet.
+          </p>
+        )}
 
         {hasReviews && (
           <section className="mt-10" aria-labelledby="reviews-heading">
@@ -151,4 +174,10 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
       <dd className="text-body font-semibold">{children}</dd>
     </div>
   )
+}
+
+/** "Rent", "Rent and bedrooms", "Rent, bedrooms and the management company". */
+function sentence(items: string[]): string {
+  const text = items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items.at(-1)}` : (items[0] ?? '')
+  return text.charAt(0).toUpperCase() + text.slice(1)
 }

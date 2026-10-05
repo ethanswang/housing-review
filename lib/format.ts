@@ -24,3 +24,12 @@ export function rentRange(min: number | null, max: number | null): string | null
   if (min === null || max === null) return null
   return min === max ? `$${min.toLocaleString('en-US')}/mo` : `$${min.toLocaleString('en-US')}–${max.toLocaleString('en-US')}/mo`
 }
+
+/** "36 units · 3 stories", either half alone, or null when neither is known. */
+export function sizeLabel(units: number | null, stories: number | null): string | null {
+  const parts = [
+    units ? `${units} ${units === 1 ? 'unit' : 'units'}` : null,
+    stories ? `${stories} ${stories === 1 ? 'story' : 'stories'}` : null,
+  ].filter(Boolean)
+  return parts.length ? parts.join(' · ') : null
+}
