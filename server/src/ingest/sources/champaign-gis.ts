@@ -1,4 +1,6 @@
 import { normalizeAddress } from '../address.ts'
+import type { PropertyType } from '../property-types.ts'
+import { getJson } from '../fetch.ts'
 import type { Problem, Source, SourceRecord } from '../types.ts'
 
 /**
@@ -10,7 +12,24 @@ import type { Problem, Source, SourceRecord } from '../types.ts'
 export const CHAMPAIGN_GIS_URL =
   'https://gisportal.champaignil.gov/ms/rest/services/Open_Data/Open_Data/MapServer/8'
 
-const FIELDS = ['GlobalID', 'Address', 'Units', 'Stories', 'Building_Name', 'Complex_Name', 'Building_Type', 'Managing_Company']
+const FIELDS = [
+  'OBJECTID', 'GlobalID', 'Parcel', 'Address', 'Units', 'Stories', 'Building_Name', 'Complex_Name', 'Building_Type',
+  'Managing_Company', 'Status',
+]
+
+/**
+ * The layer's Building_Type, in the shared vocabulary. "Complex" is a building
+ * in an apartment complex; "Building" and "Over Commercial" are other buildings
+ * with several units. Anything new is 'other' until it is mapped here.
+ */
+const TYPES: Record<string, PropertyType> = {
+  Complex: 'apartment',
+  Building: 'multi_unit',
+  'Over Commercial': 'multi_unit',
+  House: 'house',
+  'Fraternity or Sorority': 'greek_house',
+  Other: 'other',
+}
 
 export type GisFeature = {
   properties: Record<string, unknown> | null
@@ -90,9 +109,14 @@ export function transform(feature: GisFeature): SourceRecord | Problem {
     ...point,
     unitCount: count(p.Units),
     stories: count(p.Stories),
-    propertyType: text(p.Building_Type)?.toLowerCase() ?? null,
+    propertyType: mapType(text(p.Building_Type)),
     manager: text(p.Managing_Company),
+    raw: p,
   }
+}
+
+function mapType(value: string | null): PropertyType | null {
+  return value === null ? null : (TYPES[value] ?? 'other')
 }
 
 /** Trimmed, with blank as null: the layer uses null, "" and " " interchangeably. */
@@ -136,27 +160,4 @@ export function centroid(geometry: GisFeature['geometry']): { latitude: number; 
   if (!best || !Number.isFinite(best.x) || !Number.isFinite(best.y)) return null
   if (Math.abs(best.y) > 90 || Math.abs(best.x) > 180) return null
   return { latitude: best.y, longitude: best.x }
-}
-
-/**
- * GET with a timeout and three tries, backing off, for network errors and 5xx.
- * ArcGIS reports some failures as 200 with an `error` body, so that counts too.
- */
-export async function getJson(url: string): Promise<unknown> {
-  let lastError: unknown
-  for (let attempt = 0; attempt < 3; attempt++) {
-    if (attempt) await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** attempt))
-    try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(30_000) })
-      if (response.status >= 500) throw new Error(`HTTP ${response.status}`)
-      if (!response.ok) throw Object.assign(new Error(`HTTP ${response.status}`), { fatal: true })
-      const body = (await response.json()) as { error?: { message?: string } }
-      if (body?.error) throw new Error(`GIS error: ${body.error.message ?? 'unknown'}`)
-      return body
-    } catch (error) {
-      if ((error as { fatal?: boolean }).fatal) throw error
-      lastError = error
-    }
-  }
-  throw new Error(`Could not fetch ${url}: ${(lastError as Error)?.message}`)
 }

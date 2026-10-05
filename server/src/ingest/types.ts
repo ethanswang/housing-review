@@ -1,3 +1,5 @@
+import type { PropertyType } from './property-types.ts'
+
 /**
  * The shape every source is turned into before matching, so the matcher and
  * importer never see a source's own field names. Null means the source did not
@@ -17,12 +19,22 @@ export type SourceRecord = {
   longitude: number | null
   unitCount: number | null
   stories: number | null
-  propertyType: string | null
+  /** Mapped to the shared vocabulary; the source's own value stays in `raw`. */
+  propertyType: PropertyType | null
+  /** The management company exactly as the source spelled it. */
   manager: string | null
+  /** Every field the source gave, kept in property_sources.raw. */
+  raw: Record<string, unknown>
 }
 
 /** A record that could not be used, kept for the report rather than dropped silently. */
-export type Problem = { sourceId: string | null; reason: string; detail?: unknown }
+export type Problem = {
+  sourceId: string | null
+  reason: string
+  detail?: unknown
+  /** A usable record the source itself marks as out of scope (not currently a rental), rather than a broken one. */
+  outOfScope?: boolean
+}
 
 export type Source = {
   name: string

@@ -61,7 +61,7 @@ type PropertySummary = {
   id: string; slug: string; name: string; address: string; neighborhood: string | null
   rentMin: number | null; rentMax: number | null                // both null when unknown
   bedrooms: number[]                                            // 0 is a studio; empty when unknown
-  company: { slug: string; name: string } | null                 // null: independent landlord
+  company: { slug: string; name: string } | null                 // null: not known
   reviewCount: number; averages: Averages
 }
 
@@ -106,7 +106,10 @@ and answered 404 from the internet by Caddy; query it on the instance
 ## Properties
 
 ### `GET /api/properties`
-The directory. Every parameter is optional; an empty value (`?q=`) means "no filter".
+The directory. Every parameter is optional; an empty value (`?q=`) means "no filter". Without
+`q` it lists the directory's buildings; with `q` it also finds houses and buildings of unknown
+type. Some imported buildings (Greek houses, for now) are in neither, but `GET
+/api/properties/:slug` still returns them.
 
 | Query | Meaning |
 | --- | --- |

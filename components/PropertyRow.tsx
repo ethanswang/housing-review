@@ -25,11 +25,11 @@ export function PropertyRow({
         <div className="min-w-0 flex-1">
           <Heading className="text-title font-semibold group-hover:underline">{property.name}</Heading>
           <p className="truncate text-meta text-muted">
-            {property.company?.name ?? 'Independent'}
+            {property.company?.name ?? 'Management company not listed'}
             {property.neighborhood ? ` · ${property.neighborhood}` : ''}
           </p>
           <p className="tnum mt-1 text-meta text-ink-soft">
-            {[rentRange(property.rent_min, property.rent_max) ?? 'Rent not listed', beds].filter(Boolean).join(' · ')}
+            {[rentRange(property.rent_min, property.rent_max) ?? 'Pricing unavailable', beds].filter(Boolean).join(' · ')}
           </p>
         </div>
         <div className="w-20 shrink-0 text-right">

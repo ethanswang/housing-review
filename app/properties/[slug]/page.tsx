@@ -64,7 +64,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
       <div className="lg:col-start-1">
         <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-rule bg-rule">
           <Fact label="Rent">
-            <span className="tnum">{rentRange(property.rent_min, property.rent_max) ?? 'Not listed'}</span>
+            <span className="tnum">{rentRange(property.rent_min, property.rent_max) ?? 'Pricing unavailable'}</span>
           </Fact>
           <Fact label="Bedrooms">{bedroomList(property.bedrooms)}</Fact>
           <Fact label="Area">{property.neighborhood ?? 'Not listed'}</Fact>
@@ -75,7 +75,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
                 {property.company.name}
               </Link>
             ) : (
-              'Independent'
+              'Not listed'
             )}
           </Fact>
         </dl>
