@@ -11,6 +11,8 @@
     "db:migrate": "DATABASE_URL=${DATABASE_URL:-postgres://housing:housing_dev@localhost:5433/housing} node-pg-migrate up",
     "db:rollback": "DATABASE_URL=${DATABASE_URL:-postgres://housing:housing_dev@localhost:5433/housing} node-pg-migrate down",
     "db:seed": "node scripts/seed.mjs",
+    "remove:sample-data": "DATABASE_URL=${DATABASE_URL:-postgres://housing:housing_dev@localhost:5433/housing} node src/remove-sample-data.ts",
+    "import:properties": "DATABASE_URL=${DATABASE_URL:-postgres://housing:housing_dev@localhost:5433/housing} node src/import-properties.ts",
     "db:benchmark": "node scripts/benchmark.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",

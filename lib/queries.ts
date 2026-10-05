@@ -1,171 +1,155 @@
 /**
- * Every database read and write in the app happens in this file.
+ * Every read and write the site makes goes through this file.
  *
- *   Browser → Next.js page / Server Action → queries.ts → Supabase client → Postgres
+ *   Browser → Next.js page / Server Action → queries.ts → the API → Postgres
  *
- * Pages never import the Supabase client directly. Keeping data access in one
- * place means the filter logic is reviewable in a single sitting, and the
- * storage layer can be swapped without touching a single component.
+ * Pages never call the API directly. The API returns camelCase
+ * records; this file maps them to the types in lib/types.ts, so components do
+ * not depend on the API's field names.
  */
-import { containsFilter } from './search'
-import { averageRatings, companyAverages, sortProperties, type RatingRow } from './stats'
-import { supabase } from './supabase'
-import {
-  type Company,
-  type CompanyWithStats,
-  type PropertyDetail,
-  type PropertyFilters,
-  type PropertyWithStats,
-  type Review,
+import 'server-only'
+import { headers } from 'next/headers'
+import type {
+  Averages,
+  CompanyWithStats,
+  PropertyDetail,
+  PropertyFilters,
+  PropertyWithStats,
+  Review,
 } from './types'
 
-/** Shape Supabase returns for a property row with its company and ratings joined in. */
-type PropertyRow = {
+const API_URL = process.env.API_URL ?? 'http://localhost:3001'
+// Shared with the API. With it, the API rate-limits each visitor by their own
+// address rather than this server's (docs/API.md).
+const FRONTEND_SECRET = process.env.FRONTEND_SECRET
+
+type ApiProperty = {
   id: string
-  name: string
   slug: string
+  name: string
   address: string
-  neighborhood: string
-  rent_min: number
-  rent_max: number
+  neighborhood: string | null
+  rentMin: number | null
+  rentMax: number | null
   bedrooms: number[]
-  company_id: string | null
-  company: Company | null
-  reviews: RatingRow[]
+  company: { slug: string; name: string } | null
+  reviewCount: number
+  averages: Averages
+}
+type ApiReview = {
+  id: string
+  maintenance: number
+  communication: number
+  value: number
+  overall: number
+  body: string
+  leaseTerm: string
+  isSample: boolean
+  createdAt: string
+}
+type Page<T> = { data: T[]; page: number; totalPages: number }
+
+/** GET from the API. null for a 404; any other failure throws, for app/error.tsx. */
+async function visitorHeaders(): Promise<Record<string, string>> {
+  const request = await headers()
+  const visitor = request.get('x-real-ip') ?? request.get('x-forwarded-for')?.split(',')[0]?.trim()
+  return FRONTEND_SECRET && visitor ? { 'x-frontend-secret': FRONTEND_SECRET, 'x-client-ip': visitor } : {}
 }
 
-const PROPERTY_SELECT = `
-  id, name, slug, address, neighborhood, rent_min, rent_max, bedrooms, company_id,
-  company:management_companies (id, name, slug),
-  reviews (maintenance, communication, value, overall)
-`
-
-function toPropertyWithStats(row: PropertyRow): PropertyWithStats {
-  const { reviews, ...property } = row
-  return { ...property, averages: averageRatings(reviews), reviewCount: reviews.length }
+async function get<T>(path: string): Promise<T | null> {
+  const response = await fetch(`${API_URL}${path}`, { cache: 'no-store', headers: await visitorHeaders() })
+  if (response.status === 404) return null
+  if (!response.ok) throw new Error(`API GET ${path} answered ${response.status}`)
+  return response.json() as Promise<T>
 }
+
+const toProperty = (p: ApiProperty): PropertyWithStats => ({
+  id: p.id,
+  slug: p.slug,
+  name: p.name,
+  address: p.address,
+  neighborhood: p.neighborhood,
+  rent_min: p.rentMin,
+  rent_max: p.rentMax,
+  bedrooms: p.bedrooms,
+  company: p.company,
+  averages: p.averages,
+  reviewCount: p.reviewCount,
+})
+
+const toReview = (r: ApiReview): Review => ({
+  id: r.id,
+  maintenance: r.maintenance,
+  communication: r.communication,
+  value: r.value,
+  overall: r.overall,
+  body: r.body,
+  lease_term: r.leaseTerm,
+  is_sample: r.isSample,
+  created_at: r.createdAt,
+})
 
 /**
- * The directory query. Each filter below maps to exactly one clause, which is
- * what makes "how does a URL param become a database condition" answerable.
+ * The directory. Filtering, sorting and search all happen in the API's SQL;
+ * this asks for every page, since the directory shows the whole list.
  */
 export async function listProperties(filters: PropertyFilters = {}): Promise<PropertyWithStats[]> {
-  let query = supabase.from('properties').select(PROPERTY_SELECT)
+  const params = new URLSearchParams({ perPage: '100', sort: filters.sort ?? 'rating' })
+  if (filters.search) params.set('q', filters.search)
+  if (filters.companies?.length) params.set('company', filters.companies.join(','))
+  if (filters.neighborhoods?.length) params.set('hood', filters.neighborhoods.join(','))
+  if (filters.bedrooms?.length) params.set('beds', filters.bedrooms.join(','))
+  if (filters.maxRent) params.set('maxRent', String(filters.maxRent))
 
-  if (filters.search) {
-    query = query.or(containsFilter(filters.search))
+  const properties: PropertyWithStats[] = []
+  for (let page = 1; ; page++) {
+    params.set('page', String(page))
+    const result = await get<Page<ApiProperty>>(`/api/properties?${params}`)
+    if (!result) break
+    properties.push(...result.data.map(toProperty))
+    if (page >= result.totalPages) break
   }
-  if (filters.neighborhoods?.length) {
-    query = query.in('neighborhood', filters.neighborhoods)
-  }
-  if (filters.maxRent) {
-    // Match if the cheapest unit is within budget, not the most expensive.
-    query = query.lte('rent_min', filters.maxRent)
-  }
-  if (filters.bedrooms?.length) {
-    // `overlaps` = the property offers at least one of the requested sizes.
-    query = query.overlaps('bedrooms', filters.bedrooms)
-  }
-
-  const { data, error } = await query
-  if (error) throw new Error(`Failed to load properties: ${error.message}`)
-
-  let properties = (data as unknown as PropertyRow[]).map(toPropertyWithStats)
-
-  // Company is filtered here because it lives on the joined table; filtering a
-  // joined column server-side would turn the join into an inner join and drop
-  // properties whose company row is missing.
-  if (filters.companies?.length) {
-    properties = properties.filter((p) => p.company && filters.companies!.includes(p.company.slug))
-  }
-
-  return sortProperties(properties, filters.sort)
+  return properties
 }
 
 export async function getPropertyBySlug(slug: string): Promise<PropertyDetail | null> {
-  const { data, error } = await supabase
-    .from('properties')
-    .select(PROPERTY_SELECT)
-    .eq('slug', slug)
-    .maybeSingle()
-
-  if (error) throw new Error(`Failed to load property: ${error.message}`)
-  if (!data) return null
-
-  const property = toPropertyWithStats(data as unknown as PropertyRow)
-
-  const { data: reviews, error: reviewsError } = await supabase
-    .from('reviews')
-    .select('*')
-    .eq('property_id', property.id)
-    .order('created_at', { ascending: false })
-
-  if (reviewsError) throw new Error(`Failed to load reviews: ${reviewsError.message}`)
-
-  return { ...property, reviews: (reviews ?? []) as Review[] }
+  const result = await get<ApiProperty & { reviews: Page<ApiReview> }>(
+    `/api/properties/${encodeURIComponent(slug)}?perPage=100`
+  )
+  return result && { ...toProperty(result), reviews: result.reviews.data.map(toReview) }
 }
 
 export async function getCompanyBySlug(slug: string): Promise<CompanyWithStats | null> {
-  const { data: company, error } = await supabase
-    .from('management_companies')
-    .select('id, name, slug')
-    .eq('slug', slug)
-    .maybeSingle()
-
-  if (error) throw new Error(`Failed to load company: ${error.message}`)
-  if (!company) return null
-
-  const { data, error: propertiesError } = await supabase
-    .from('properties')
-    .select(PROPERTY_SELECT)
-    .eq('company_id', company.id)
-
-  if (propertiesError) throw new Error(`Failed to load company properties: ${propertiesError.message}`)
-
-  const properties = sortProperties(
-    (data as unknown as PropertyRow[]).map(toPropertyWithStats),
-    'rating'
+  const result = await get<{
+    slug: string
+    name: string
+    reviewCount: number
+    averages: Averages
+    properties: Page<ApiProperty>
+  }>(`/api/companies/${encodeURIComponent(slug)}?perPage=100`)
+  return (
+    result && {
+      slug: result.slug,
+      name: result.name,
+      averages: result.averages,
+      reviewCount: result.reviewCount,
+      properties: result.properties.data.map(toProperty),
+    }
   )
-
-  /**
-   * See companyAverages for why this is not a weighted average of each
-   * building's score.
-   *
-   * Known limitation: management experience is not always property-specific.
-   * Lease terms, deposits and billing are company-level concerns that an
-   * average of building reviews cannot capture.
-   */
-  const averages = companyAverages(data as unknown as PropertyRow[])
-
-  return {
-    ...company,
-    properties,
-    averages,
-    reviewCount: properties.reduce((sum, p) => sum + p.reviewCount, 0),
-  }
 }
 
-/** Filter-rail options. Companies come from the table; neighborhoods are derived. */
 export async function getFilterOptions() {
-  const [companiesResult, propertiesResult] = await Promise.all([
-    supabase.from('management_companies').select('id, name, slug').order('name'),
-    supabase.from('properties').select('neighborhood, bedrooms, rent_max'),
-  ])
-
-  if (companiesResult.error) throw new Error(`Failed to load companies: ${companiesResult.error.message}`)
-  if (propertiesResult.error) throw new Error(`Failed to load filter options: ${propertiesResult.error.message}`)
-
-  const rows = propertiesResult.data ?? []
-  return {
-    companies: (companiesResult.data ?? []) as Company[],
-    neighborhoods: [...new Set(rows.map((r) => r.neighborhood))].sort(),
-    bedrooms: [...new Set(rows.flatMap((r) => r.bedrooms as number[]))].sort((a, b) => a - b),
-    maxRent: rows.reduce((max, r) => Math.max(max, r.rent_max as number), 0),
-  }
+  const result = await get<{
+    companies: { slug: string; name: string }[]
+    neighborhoods: string[]
+    bedrooms: number[]
+    maxRent: number
+  }>('/api/filters')
+  if (!result) throw new Error('API has no /api/filters')
+  return result
 }
 
 export type NewReview = {
-  property_id: string
   maintenance: number
   communication: number
   value: number
@@ -175,11 +159,30 @@ export type NewReview = {
 }
 
 /**
- * Sends only the review's own fields. The anon role may insert exactly these
- * columns (supabase/schema.sql), so `is_sample`, `id` and `created_at` take
- * their defaults and cannot be set by a caller — not even this one.
+ * Posts a review as the signed-in student whose access token this is; the API
+ * verifies the token and decides who the author is. Returns the API's error
+ * code on failure, such as `already_reviewed`, for the form to explain.
  */
-export async function insertReview(review: NewReview) {
-  const { error } = await supabase.from('reviews').insert(review)
-  if (error) throw new Error(`Failed to save review: ${error.message}`)
+export async function postReview(
+  slug: string,
+  review: NewReview,
+  accessToken: string
+): Promise<{ ok: true } | { ok: false; status: number; code?: string }> {
+  const { lease_term, ...rest } = review
+  const response = await fetch(`${API_URL}/api/properties/${encodeURIComponent(slug)}/reviews`, {
+    method: 'POST',
+    cache: 'no-store',
+    headers: {
+      ...(await visitorHeaders()),
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ ...rest, leaseTerm: lease_term }),
+  })
+  if (response.ok) return { ok: true }
+  const code = await response
+    .json()
+    .then((body: { error?: { code?: string } }) => body.error?.code)
+    .catch(() => undefined)
+  return { ok: false, status: response.status, code }
 }

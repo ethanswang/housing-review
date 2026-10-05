@@ -1,12 +1,10 @@
 export type Company = {
-  id: string
   name: string
   slug: string
 }
 
 export type Review = {
   id: string
-  property_id: string
   maintenance: number
   communication: number
   value: number
@@ -22,11 +20,11 @@ export type Property = {
   name: string
   slug: string
   address: string
-  neighborhood: string
-  rent_min: number
-  rent_max: number
+  /** Null when unknown, as for buildings imported from public data. */
+  neighborhood: string | null
+  rent_min: number | null
+  rent_max: number | null
   bedrooms: number[]
-  company_id: string | null
 }
 
 /** The categories shown as bars. `overall` is displayed separately as the headline score. */

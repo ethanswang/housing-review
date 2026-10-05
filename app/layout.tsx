@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Public_Sans } from 'next/font/google'
+import { AccountNav } from '@/components/AccountNav'
 import './globals.css'
 
 const body = Public_Sans({
@@ -27,9 +28,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/" className="flex min-h-11 items-center text-title font-semibold tracking-tight">
               UIUC Housing Review
             </Link>
-            <p className="pb-1 text-meta text-muted">
-              Student-run · Not affiliated with UIUC or any landlord
-            </p>
+            <div className="flex flex-wrap items-baseline gap-x-6">
+              <p className="pb-1 text-meta text-muted">
+                Student-run · Not affiliated with UIUC or any landlord
+              </p>
+              <AccountNav />
+            </div>
           </div>
         </header>
 

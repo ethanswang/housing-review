@@ -18,8 +18,8 @@ The API runs on AWS. The frontend stays on Vercel. Everything here is OpenTofu/T
         browser
            │
            ▼
-   Vercel (Next.js)  ── frontend; still reads Supabase directly, and
-           │              calls this API once the switch is made
+   Vercel (Next.js)  ── frontend; reads and posts through this API,
+           │              signs students in with Supabase Auth
            │  HTTPS, api.uiuchousing.com
            ▼
    ┌───────────────────────── VPC 10.20.0.0/16 ─────────────────────────┐

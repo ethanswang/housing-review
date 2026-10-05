@@ -46,7 +46,8 @@ It reads `DATABASE_URL`. `data/catalog.example.json` shows the format.
   and the writes share one transaction, so a bad file leaves the database as it was.
 - **Dry run by default.** Without `--apply` the transaction is rolled back after counting.
 - A property's `company` may be a company in the same file or one already in the database;
-  `null` means an independent landlord. Omitting a company's `website` clears it.
+  `null` means the company is not known. Omitting a company's `website` clears it. A company's
+  `aliases` are other spellings public data uses for it; see below.
 
 **Production:** run it through the tunnel, as the master user, with the same dry-run default:
 
@@ -57,6 +58,126 @@ infra/import-catalog.sh server/data/catalog.json --apply
 
 The script runs this importer from your `server/` checkout in a container that reaches the
 private database through Session Manager (see [INFRASTRUCTURE.md](INFRASTRUCTURE.md#migrations)).
+
+## Importing buildings from public data
+
+The catalog importer above is for hand-curated files. Buildings also come from public datasets,
+which is how the directory gets its long tail. Each source is an adapter
+(`server/src/ingest/sources/`) that turns its own rows into a shared `SourceRecord`
+(`server/src/ingest/types.ts`); matching, writing and reporting are shared.
+
+| Source (`--source`) | Stored as | Data | Source id |
+| --- | --- | --- | --- |
+| `champaign` | `champaign_gis` | City of Champaign [apartment buildings layer](https://gisportal.champaignil.gov/ms/rest/services/Open_Data/Open_Data/MapServer/8): ~3,500 buildings with address, units, stories, building and complex names, type, outline | `GlobalID` |
+| `urbana` | `urbana_rental` | City of Urbana [rental inspection listing](https://data.illinois.gov/resource/k5wm-jkx9.json) on data.illinois.gov: ~2,300 registered rentals with address, parcel, latest inspection grade, license status | parcel number |
+
+**They are not the same kind of data.** Champaign's layer is an inventory of apartment
+buildings. Urbana's is a list of registered rental properties, many of them houses, with no
+building type, unit count, floors or manager, so Urbana records arrive with type unknown and are
+search-only (below). Neither has rent, and Champaign names a manager for only about 50 buildings
+near campus. Urbana's GIS-style "Residential Rental Registry" with unit counts does not exist; a
+layer by that name on ArcGIS Online is Halifax, Nova Scotia's.
+
+```bash
+cd server
+npm run import:properties                                  # Champaign, dry run
+npm run import:properties -- --source urbana               # Urbana, dry run
+npm run import:properties -- --source all                  # both, dry run
+npm run import:properties -- --source all --apply          # both, writes
+npm run import:properties -- --source all --radius-km 2    # a wider area, for one run
+```
+
+It reads `DATABASE_URL` (default: the compose database) and needs network access to the
+sources. Unknown flags stop it, so a typo cannot turn a dry run into a write. `all` runs the
+sources one after another, each in its own transaction with its own report. Production:
+`infra/import-properties.sh [same options]`, through the tunnel as the master user. The report
+is written before the transaction commits; if it cannot be written, nothing is.
+
+**Target area.** A radius around the Main Quad, 1.5 km by default, in
+`server/src/ingest/config.ts`, shared by every source. Records outside it are counted and not
+stored, so widening it and re-running brings them in.
+
+**What happens to each record** (`server/src/ingest/match.ts`, `importer.ts`):
+
+1. **Same source and id already in `property_sources`?** That property is refreshed. This is the
+   authoritative identity; a re-run never creates a second property.
+2. **New record at an address that other records of the same source already hold?** A separate
+   building (a complex sharing a street number), imported and noted for review, unless it is at
+   the same spot (within 10 m) with the same unit count, which is the source listing one
+   building twice: reported, not imported.
+3. **New record at the address of a property from elsewhere** (hand-entered, another source)?
+   Linked to it only with nothing against it: within 75 m when both have coordinates; with
+   several such properties, the one within 75 m and of the same name, if exactly one. Otherwise
+   reported as ambiguous, with the candidates.
+4. **Otherwise** a new property, named from the building name, else the complex name, else the
+   address.
+
+Addresses are compared after normalizing case, punctuation, spacing, state, ZIP and the standard
+street-type and direction abbreviations (`address.ts`), and always with the city, so a Champaign
+and an Urbana address never match. Nothing fuzzy; an address is evidence, never identity.
+
+**What it never does:** delete anything; change a property's name, address, slug or visibility;
+overwrite a value with a blank; replace a property's company; create a company. Source-owned
+fields (location, units, stories, type, complex) are refreshed when the source has a value, and
+`property_sources.raw` keeps every field the source sent, as sent.
+
+**Managers.** A source's manager name, as written, stays in `raw`. It sets a property's company
+(only where it has none) when it matches a company's name or an alias in
+`management_company_aliases` after normalizing case and punctuation. An unknown name sets nothing
+and is listed in the report, with any existing company within two letters of it as a suggestion
+("Green Streeet Realty" → Green Street Realty). To resolve one, add the company, or the spelling
+as an alias, in the catalog file, then re-run the import:
+
+```json
+{ "slug": "green-street-realty", "name": "Green Street Realty", "aliases": ["Green Streeet Realty"] }
+```
+
+The production list of companies is `server/data/catalog.json`. It holds only companies that
+are clearly identifiable from the sources' spellings; ambiguous names such as "Smile" stay
+unmatched, and their buildings show no company, until someone confirms them.
+
+No company means not known, never "independent"; the site says "Management company not listed".
+Unknown rent is null, shown as "Pricing unavailable".
+
+**Types and visibility.** Sources map their own types to `apartment`, `multi_unit`, `duplex`,
+`house`, `greek_house` or `other` (the source's value stays in `raw`). On import, a building gets
+a `visibility`: `listed` (the directory), `search_only` (found by search; houses, and buildings of
+unknown type such as Urbana's), or `hidden` (only its own page; Greek houses, for now). It is set
+once and then left alone, so it can be changed by hand. Hand-entered properties are listed.
+
+**Failures.** A failed download is retried three times, and a run stops if the total does not
+match the source's own count, rather than importing a partial list. Each record writes inside
+its own savepoint, so a bad record is rolled back alone and reported; a dry run rolls back
+everything.
+
+**The report.** The terminal shows counts per source: fetched, malformed, skipped, outside and
+inside the area, new, matched by id (updated or unchanged), matched by address, ambiguous,
+errors, and items to review. `server/import-reports/<source>-<time>.json` (gitignored) lists
+each ambiguous record (address, normalized address, name, coordinates, candidate properties,
+reason), review notes, unknown manager names with suggestions, and skipped, malformed and failed
+records.
+
+**Adding a source:** write `server/src/ingest/sources/<name>.ts` returning `SourceRecord`s with a
+stable id per record (never the address), its types mapped conservatively and its row in `raw`,
+and register it in `SOURCES` in `server/src/import-properties.ts`.
+
+## Removing the sample data
+
+The site launched with eight sample buildings and their sample reviews (`supabase/seed.sql`).
+Their "block of" addresses are deliberately vague, so imported buildings never match them;
+remove them before launch so the directory does not list both.
+
+```bash
+cd server
+npm run remove:sample-data             # dry run: what would go
+npm run remove:sample-data -- --apply  # deletes
+infra/remove-sample-data.sh [--apply]  # production, through the tunnel
+```
+
+It deletes reviews marked `is_sample` (only the seed sets that; the API cannot), then each of the
+eight buildings listed in `server/src/sample-data.ts`, only if its slug and its exact sample
+address both match, no review of it is left, and no public source is linked to it. Anything else
+is reported and kept. The seed's companies are real companies and stay.
 
 ## Trust model
 
@@ -121,9 +242,25 @@ A property optionally belongs to a company. Deleting a company uses `on delete s
 so the properties survive as independent listings rather than disappearing — losing review
 history because a company record was removed would be the wrong outcome.
 
-`properties_rent_range` rejects `rent_max < rent_min`. `bedrooms` is `integer[]`, since a
-building offers several unit sizes and the filter asks "does this property offer any of
-these sizes".
+`properties_rent_range` rejects `rent_max < rent_min`, and `properties_rent_both` requires
+both or neither: rent and `neighborhood` are null when unknown, as for buildings imported from
+public data. `bedrooms` is `integer[]`, since a building offers several unit sizes and the
+filter asks "does this property offer any of these sizes"; empty when unknown. `latitude`,
+`longitude`, `unit_count`, `stories`, `property_type` and `complex_name` come from imports and
+are null otherwise.
+
+### `property_sources`
+
+Which public-data record each imported property came from: `(source, source_id)` is the
+primary key, so a record maps to one property however often the import runs. A property can be
+linked from several sources. `raw` keeps every field the source sent. Only the importer reads
+it, so `api_access` has no grant on it; nor on `management_company_aliases`, the other spellings
+of company names that sources use.
+
+`properties.visibility` is `listed`, `search_only` or `hidden`; the directory shows listed
+properties, a search adds search-only ones, and hidden ones have only their own page.
+`property_type` is one of `apartment`, `multi_unit`, `duplex`, `house`, `greek_house`, `other`,
+or null when unknown.
 
 ### `reviews`
 

@@ -248,3 +248,80 @@ describe('query parsing tolerates what real clients send', () => {
     expect((await get('/api/properties?sort=cheapest')).statusCode).toBe(400)
   })
 })
+
+describe('GET /api/filters', () => {
+  it('lists the options the directory filters on, drawn from the data', async () => {
+    const response = await get('/api/filters')
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+
+    const { rows: companies } = await pool.query('select slug, name from management_companies order by name, slug')
+    expect(body.companies).toEqual(companies)
+
+    const { rows: hoods } = await pool.query('select distinct neighborhood from properties where neighborhood is not null order by 1')
+    expect(body.neighborhoods).toEqual(hoods.map((r) => r.neighborhood))
+
+    const { rows: beds } = await pool.query('select distinct unnest(bedrooms) as b from properties order by 1')
+    expect(body.bedrooms).toEqual(beds.map((r) => r.b))
+
+    const { rows: rent } = await pool.query('select max(rent_max) as m from properties')
+    expect(body.maxRent).toBe(rent[0].m)
+  })
+})
+
+describe('a property with unknown rent and neighborhood', () => {
+  const slug = `unknown-rent-${crypto.randomUUID().slice(0, 8)}`
+  beforeAll(async () => {
+    await pool.query(`insert into properties (slug, name, address) values ($1, 'Unknown Rent Hall', '1 Unknown St, Champaign')`, [slug])
+  })
+  afterAll(async () => {
+    await pool.query('delete from properties where slug = $1', [slug])
+  })
+
+  it('is listed with nulls, sorts last by price, and never matches a rent limit', async () => {
+    const byPrice = (await get('/api/properties?sort=price&perPage=100')).json()
+    const last = byPrice.data.at(-1)
+    expect(byPrice.page).toBe(byPrice.totalPages)
+    expect(last).toMatchObject({ slug, rentMin: null, rentMax: null, neighborhood: null })
+
+    const limited = (await get('/api/properties?maxRent=100000&perPage=100')).json()
+    expect(limited.data.map((p: { slug: string }) => p.slug)).not.toContain(slug)
+  })
+
+  it('adds no empty neighborhood to the filters', async () => {
+    expect((await get('/api/filters')).json().neighborhoods).not.toContain(null)
+  })
+})
+
+describe('visibility', () => {
+  const tag = crypto.randomUUID().slice(0, 8)
+  const slug = (v: string) => `vis-${tag}-${v}`
+  beforeAll(async () => {
+    for (const v of ['search_only', 'hidden']) {
+      await pool.query(
+        `insert into properties (slug, name, address, visibility) values ($1, $2, $3, $4)`,
+        [slug(v), `Vis${tag} ${v}`, `1 Vis${tag} St, Champaign`, v]
+      )
+    }
+  })
+  afterAll(async () => {
+    await pool.query('delete from properties where slug like $1', [`vis-${tag}-%`])
+  })
+  const slugs = async (url: string) => (await get(url)).json().data.map((p: { slug: string }) => p.slug)
+
+  it('browsing shows only listed buildings', async () => {
+    const all = await slugs('/api/properties?perPage=100')
+    expect(all).not.toContain(slug('search_only'))
+    expect(all).not.toContain(slug('hidden'))
+  })
+
+  it('a search also finds search-only buildings, never hidden ones', async () => {
+    expect(await slugs(`/api/properties?q=Vis${tag}`)).toEqual([slug('search_only')])
+    expect((await get(`/api/properties?q=Vis${tag}`)).json().total).toBe(1)
+  })
+
+  it('a hidden building still has its own page', async () => {
+    expect((await get(`/api/properties/${slug('hidden')}`)).statusCode).toBe(200)
+  })
+})
+

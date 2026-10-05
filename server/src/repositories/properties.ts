@@ -26,9 +26,10 @@ export type PropertySummary = {
   slug: string
   name: string
   address: string
-  neighborhood: string
-  rentMin: number
-  rentMax: number
+  /** Null when unknown, as for buildings imported from public data. */
+  neighborhood: string | null
+  rentMin: number | null
+  rentMax: number | null
   bedrooms: number[]
   company: { slug: string; name: string } | null
   reviewCount: number
@@ -55,7 +56,7 @@ export type Review = {
  */
 const SORT_CLAUSES: Record<SortKey, string> = {
   rating: 'avg_overall desc nulls last, slug asc',
-  price: 'rent_min asc, slug asc',
+  price: 'rent_min asc nulls last, slug asc',
   reviews: 'review_count desc, slug asc',
 }
 
@@ -64,9 +65,9 @@ type PropertyStatsRow = {
   slug: string
   name: string
   address: string
-  neighborhood: string
-  rent_min: number
-  rent_max: number
+  neighborhood: string | null
+  rent_min: number | null
+  rent_max: number | null
   bedrooms: number[]
   company_slug: string | null
   company_name: string | null
@@ -105,7 +106,9 @@ export async function listProperties(
   db: Database,
   query: PropertyQuery
 ): Promise<Page<PropertySummary>> {
-  const conditions: string[] = []
+  // Browsing shows listed buildings; a search also finds houses and buildings
+  // of unknown type. Hidden ones (Greek houses, for now) only by their own page.
+  const conditions: string[] = [query.search ? `visibility in ('listed', 'search_only')` : `visibility = 'listed'`]
   const filterParams: unknown[] = []
 
   if (query.search) {
@@ -131,7 +134,7 @@ export async function listProperties(
     conditions.push(`bedrooms && $${filterParams.length}::int[]`)
   }
 
-  const where = conditions.length ? `where ${conditions.join(' and ')}` : ''
+  const where = `where ${conditions.join(' and ')}`
   const offset = (query.page - 1) * query.perPage
   const params = [...filterParams, query.perPage, offset]
 
@@ -153,7 +156,7 @@ export async function listProperties(
   const total = await totalForPage(rows, query.page, async () => {
     const { rows: counted } = await db.query(
       `select count(*)::int as total from (
-         select p.name, p.address, p.neighborhood, p.rent_min, p.bedrooms,
+         select p.name, p.address, p.neighborhood, p.rent_min, p.bedrooms, p.visibility,
                 c.slug as company_slug
          from properties p
          left join management_companies c on c.id = p.company_id
@@ -214,4 +217,31 @@ export async function listReviewsForProperty(
     perPage,
     total
   )
+}
+
+export type FilterOptions = {
+  companies: { slug: string; name: string }[]
+  neighborhoods: string[]
+  bedrooms: number[]
+  maxRent: number
+}
+
+/** What the directory's filters offer, drawn from the data rather than hard-coded. */
+export async function getFilterOptions(db: Database): Promise<FilterOptions> {
+  const [companies, options] = await Promise.all([
+    db.query('select slug, name from management_companies order by name, slug'),
+    db.query(
+      `select
+         coalesce((select array_agg(distinct neighborhood order by neighborhood) filter (where neighborhood is not null) from properties), '{}') as neighborhoods,
+         coalesce((select array_agg(distinct b order by b) from properties, unnest(bedrooms) as b), '{}') as bedrooms,
+         coalesce((select max(rent_max) from properties), 0) as max_rent`
+    ),
+  ])
+  const row = options.rows[0]
+  return {
+    companies: companies.rows,
+    neighborhoods: row.neighborhoods,
+    bedrooms: row.bedrooms,
+    maxRent: row.max_rent,
+  }
 }

@@ -58,9 +58,10 @@ Every error has the same shape:
 type Averages = { overall: number | null; maintenance: number | null; communication: number | null; value: number | null }
 
 type PropertySummary = {
-  id: string; slug: string; name: string; address: string; neighborhood: string
-  rentMin: number; rentMax: number; bedrooms: number[]          // 0 is a studio
-  company: { slug: string; name: string } | null                 // null: independent landlord
+  id: string; slug: string; name: string; address: string; neighborhood: string | null
+  rentMin: number | null; rentMax: number | null                // both null when unknown
+  bedrooms: number[]                                            // 0 is a studio; empty when unknown
+  company: { slug: string; name: string } | null                 // null: not known
   reviewCount: number; averages: Averages
 }
 
@@ -105,7 +106,10 @@ and answered 404 from the internet by Caddy; query it on the instance
 ## Properties
 
 ### `GET /api/properties`
-The directory. Every parameter is optional; an empty value (`?q=`) means "no filter".
+The directory. Every parameter is optional; an empty value (`?q=`) means "no filter". Without
+`q` it lists the directory's buildings; with `q` it also finds houses and buildings of unknown
+type. Some imported buildings (Greek houses, for now) are in neither, but `GET
+/api/properties/:slug` still returns them.
 
 | Query | Meaning |
 | --- | --- |
@@ -113,8 +117,8 @@ The directory. Every parameter is optional; an empty value (`?q=`) means "no fil
 | `company` | Company slugs. Repeated (`?company=a&company=b`) or comma-separated (`?company=a,b`) |
 | `hood` | Neighborhoods, same forms |
 | `beds` | Bedroom counts 0–20, same forms. Matches a property offering **any** of them |
-| `maxRent` | Whole dollars, 1–100,000. Matches when the **cheapest** unit is within it |
-| `sort` | `rating` (default; unreviewed last), `price` (cheapest first), `reviews` (most first) |
+| `maxRent` | Whole dollars, 1–100,000. Matches when the **cheapest** unit is within it; a property with unknown rent never matches |
+| `sort` | `rating` (default; unreviewed last), `price` (cheapest first, unknown rent last), `reviews` (most first) |
 | `page`, `perPage` | Default `1` and `24` |
 
 `200` — page of `PropertySummary`.
@@ -176,6 +180,15 @@ One company with a page of its buildings, highest rated first. Query: `page`, `p
 24).
 
 `200` — `CompanySummary & { properties: Page<PropertySummary> }`. `404` if there is no such company.
+
+## Filters
+
+### `GET /api/filters`
+The choices the directory's filters offer, from the whole catalog.
+
+`200` — `{ companies: { slug, name }[], neighborhoods: string[], bedrooms: number[], maxRent: number }`,
+companies by name, the rest ascending; `bedrooms` uses `0` for a studio, and `maxRent` is the
+highest `rentMax`, or `0` with no buildings.
 
 ## You
 

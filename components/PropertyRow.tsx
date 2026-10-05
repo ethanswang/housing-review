@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Score } from './Ratings'
-import { bedroomRange } from '@/lib/format'
+import { bedroomRange, rentRange } from '@/lib/format'
 import type { PropertyWithStats } from '@/lib/types'
 
 
@@ -25,11 +25,11 @@ export function PropertyRow({
         <div className="min-w-0 flex-1">
           <Heading className="text-title font-semibold group-hover:underline">{property.name}</Heading>
           <p className="truncate text-meta text-muted">
-            {property.company?.name ?? 'Independent'} · {property.neighborhood}
+            {property.company?.name ?? 'Management company not listed'}
+            {property.neighborhood ? ` · ${property.neighborhood}` : ''}
           </p>
           <p className="tnum mt-1 text-meta text-ink-soft">
-            ${property.rent_min.toLocaleString()}–{property.rent_max.toLocaleString()}/mo
-            {beds ? ` · ${beds}` : ''}
+            {[rentRange(property.rent_min, property.rent_max) ?? 'Pricing unavailable', beds].filter(Boolean).join(' · ')}
           </p>
         </div>
         <div className="w-20 shrink-0 text-right">

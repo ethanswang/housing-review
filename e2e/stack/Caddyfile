@@ -4,8 +4,18 @@
 #
 # `route` keeps these in the order written. Without it Caddy sorts handle_path
 # ahead of respond, the proxy matches first, and the key check never runs.
+#
+# It also publishes the test-only signing key (jwks.json) where Supabase Auth
+# publishes a project's, so tests can sign in with tokens from auth-key.json:
+# here for the site, which checks sessions against it, and over https on
+# gateway:54322 for the API, which only accepts an https Supabase URL.
 :54321 {
 	route {
+		handle /auth/v1/.well-known/jwks.json {
+			root * /srv
+			file_server
+		}
+
 		@no_key not header apikey *
 		respond @no_key "No API key found in request" 401
 
@@ -13,4 +23,12 @@
 			reverse_proxy postgrest:3000
 		}
 	}
+}
+
+# gateway-cert.pem is a test-only self-signed certificate, which the API
+# trusts through NODE_EXTRA_CA_CERTS.
+https://gateway:54322 {
+	tls /etc/caddy/gateway-cert.pem /etc/caddy/gateway-key.pem
+	root * /srv
+	file_server
 }

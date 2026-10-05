@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { Database } from '../db.ts'
 import { notFound } from '../errors.ts'
 import {
+  getFilterOptions,
   getPropertyBySlug,
   listProperties,
   listReviewsForProperty,
@@ -57,6 +58,8 @@ export async function propertyRoutes(app: FastifyInstance, options: { db: Databa
       perPage: query.perPage ?? 24,
     })
   })
+
+  app.get('/filters', async () => getFilterOptions(options.db))
 
   app.get('/properties/:slug', async (request) => {
     const { slug } = parse(z.object({ slug: slugSchema }), request.params)
