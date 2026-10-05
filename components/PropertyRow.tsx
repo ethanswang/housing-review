@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Score } from './Ratings'
-import { bedroomRange, rentRange } from '@/lib/format'
+import { bedroomRange, rentRange, sizeLabel } from '@/lib/format'
 import type { PropertyWithStats } from '@/lib/types'
 
 
@@ -17,20 +17,27 @@ export function PropertyRow({
   headingLevel?: 2 | 3
 }) {
   const Heading = headingLevel === 3 ? 'h3' : 'h2'
-  const beds = bedroomRange(property.bedrooms)
+  // Only what is known: imported buildings often have a size and nothing else,
+  // and a row of "not listed" says less than leaving it out.
+  // The address tells apart buildings that share a name (Champaign has two
+  // "Latitude" towers); it is left out when the name already is the address.
+  const address = property.address.toLowerCase().startsWith(property.name.toLowerCase()) ? null : property.address
+  const who = [property.company?.name, property.neighborhood, address].filter(Boolean).join(' · ')
+  const facts = [
+    rentRange(property.rent_min, property.rent_max),
+    bedroomRange(property.bedrooms),
+    sizeLabel(property.unit_count, property.stories),
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   return (
     <li className="border-b border-rule">
       <Link href={`/properties/${property.slug}`} className="group flex gap-4 py-4">
         <div className="min-w-0 flex-1">
           <Heading className="text-title font-semibold group-hover:underline">{property.name}</Heading>
-          <p className="truncate text-meta text-muted">
-            {property.company?.name ?? 'Management company not listed'}
-            {property.neighborhood ? ` · ${property.neighborhood}` : ''}
-          </p>
-          <p className="tnum mt-1 text-meta text-ink-soft">
-            {[rentRange(property.rent_min, property.rent_max) ?? 'Pricing unavailable', beds].filter(Boolean).join(' · ')}
-          </p>
+          {who && <p className="truncate text-meta text-muted">{who}</p>}
+          {facts && <p className="tnum mt-1 text-meta text-ink-soft">{facts}</p>}
         </div>
         <div className="w-20 shrink-0 text-right">
           <Score score={property.averages.overall} />
