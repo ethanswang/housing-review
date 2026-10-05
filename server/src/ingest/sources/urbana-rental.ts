@@ -1,3 +1,4 @@
+import { normalizeAddress } from '../address.ts'
 import { getJson } from '../fetch.ts'
 import type { Problem, Source, SourceRecord } from '../types.ts'
 
@@ -23,10 +24,23 @@ export function urbanaRental({ url = URBANA_RENTAL_URL, fetchJson = getJson, pag
       const rows = await fetchAll(url, fetchJson, pageSize)
       const records: SourceRecord[] = []
       const problems: Problem[] = []
-      for (const row of rows) {
-        const result = transform(row)
-        if ('reason' in result) problems.push(result)
-        else records.push(result)
+      // Condo units are registered one per row ("… Apt N1", "… Apt N3"), each
+      // with its own parcel. The site lists buildings, so the lowest parcel
+      // stands for the building and the other units are reported, not imported.
+      const buildings = new Set<string>()
+      const results = rows.map(transform).sort((a, b) => (a.sourceId ?? '').localeCompare(b.sourceId ?? ''))
+      for (const result of results) {
+        if ('reason' in result) {
+          problems.push(result)
+          continue
+        }
+        const key = normalizeAddress(result.street ?? '', result.city)
+        if (key && buildings.has(key)) {
+          problems.push({ sourceId: result.sourceId, reason: 'another unit of a building already listed', detail: result.raw, outOfScope: true })
+          continue
+        }
+        if (key) buildings.add(key)
+        records.push(result)
       }
       return { records, problems }
     },
@@ -54,7 +68,8 @@ export async function fetchAll(url: string, fetchJson: Fetch, pageSize: number):
 export function transform(row: Row): SourceRecord | Problem {
   const sourceId = text(row.parcel_number)
   if (!sourceId) return { sourceId: null, reason: 'no parcel number', detail: row }
-  const street = text(row.property_address)
+  // The building's address: a unit ("Apt 101", "Unit B") is dropped, and stays in raw.
+  const street = text(row.property_address)?.replace(/\s+(apt|apartment|unit|#)\s*\S+$/i, '') ?? null
   if (!street) return { sourceId, reason: 'no address', detail: row }
   if (text(row.license_status) === 'Temporarily Not a Rental') {
     return { sourceId, reason: 'not currently a rental', detail: { address: street }, outOfScope: true }

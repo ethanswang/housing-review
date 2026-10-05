@@ -63,6 +63,18 @@ export class PropertyIndex {
   get(propertyId: string) {
     return this.known.get(propertyId)
   }
+
+  /** What a refresh just wrote: source values fill in, never blank out, as in the database. */
+  learn(propertyId: string, values: { latitude: number | null; longitude: number | null; unitCount: number | null }) {
+    const p = this.known.get(propertyId)
+    if (!p) return
+    this.known.set(propertyId, {
+      name: p.name,
+      latitude: values.latitude ?? p.latitude,
+      longitude: values.longitude ?? p.longitude,
+      unitCount: values.unitCount ?? p.unitCount,
+    })
+  }
 }
 
 export type Strategy = (record: SourceRecord, index: PropertyIndex) => Match | null

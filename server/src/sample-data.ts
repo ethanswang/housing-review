@@ -43,7 +43,8 @@ export async function removeSampleData(client: pg.ClientBase, { apply }: { apply
         `select p.id, p.address,
                 (select count(*)::int from reviews r where r.property_id = p.id) as real_reviews,
                 (select count(*)::int from property_sources s where s.property_id = p.id) as sources
-         from properties p where p.slug = $1`,
+         from properties p where p.slug = $1
+         for update of p`,
         [sample.slug]
       )
       const row = rows[0]

@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import type { Client } from 'pg'
 import { TARGET_AREA } from '../src/ingest/config.ts'
 import { importRecords } from '../src/ingest/importer.ts'
-import { coordinates, fetchAll, transform } from '../src/ingest/sources/urbana-rental.ts'
+import { coordinates, fetchAll, transform, urbanaRental } from '../src/ingest/sources/urbana-rental.ts'
 import type { SourceRecord } from '../src/ingest/types.ts'
 import { connect } from './helpers.ts'
 
@@ -48,6 +48,23 @@ describe('urbana_rental transform', () => {
     expect(transform(row({ license_status: 'Temporarily Not a Rental' }))).toMatchObject({ reason: 'not currently a rental', outOfScope: true })
     expect(transform(row({ parcel_number: ' ' }))).toMatchObject({ reason: 'no parcel number' })
     expect(transform(row({ property_address: null }))).toMatchObject({ reason: 'no address' })
+  })
+})
+
+describe('urbana_rental units', () => {
+  it('drops the unit from an address, and keeps one record per building', async () => {
+    const rows = [
+      row({ parcel_number: '2', property_address: '502 West Green Street Apt N3' }),
+      row({ parcel_number: '1', property_address: '502 West Green Street Apt N1' }),
+      row({ parcel_number: '3', property_address: '807 North Mathews Avenue' }),
+    ]
+    const source = urbanaRental({ fetchJson: async (url) => (url.includes('select') ? [{ count: '3' }] : rows) })
+    const { records, problems } = await source.fetchRecords()
+    expect(records.map((r) => [r.sourceId, r.street])).toEqual([
+      ['1', '502 West Green Street'],
+      ['3', '807 North Mathews Avenue'],
+    ])
+    expect(problems).toEqual([expect.objectContaining({ sourceId: '2', reason: 'another unit of a building already listed', outOfScope: true })])
   })
 })
 

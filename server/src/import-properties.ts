@@ -26,7 +26,14 @@ const SOURCES: Record<string, () => Source> = {
 const args = process.argv.slice(2)
 const option = (name: string) => {
   const i = args.indexOf(name)
-  return i >= 0 ? args[i + 1] : undefined
+  if (i < 0) return undefined
+  const value = args[i + 1]
+  // "--report --apply" must not read --apply as the file name.
+  if (value === undefined || value.startsWith('--')) {
+    console.error(`${name} needs a value`)
+    process.exit(2)
+  }
+  return value
 }
 // Anything unrecognized stops the run: a mistyped flag must not change what it does.
 const FLAGS = ['--apply']
@@ -41,9 +48,12 @@ const radius = option('--radius-km')
 const area = radius === undefined ? TARGET_AREA : { ...TARGET_AREA, radiusKm: Number(radius) }
 const stamp = new Date().toISOString().replace(/[:.]/g, '-')
 const chosen = sourceName === 'all' ? Object.keys(SOURCES) : [sourceName]
-// One report per source; --report names it when there is only one.
-const reportPath = (name: string) =>
-  chosen.length === 1 && option('--report') ? option('--report')! : `import-reports/${name}-${stamp}.json`
+// One report per source; --report names it, so it needs a single source.
+if (option('--report') && chosen.length > 1) {
+  console.error('--report needs a single --source; with all, each source writes its own report')
+  process.exit(2)
+}
+const reportPath = (name: string) => option('--report') ?? `import-reports/${name}-${stamp}.json`
 
 if (!process.env.DATABASE_URL || !chosen.every((name) => SOURCES[name]) || !(area.radiusKm > 0) || unknown.length) {
   if (unknown.length) console.error(`unknown argument(s): ${unknown.join(' ')}`)

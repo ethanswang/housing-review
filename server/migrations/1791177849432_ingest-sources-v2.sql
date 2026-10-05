@@ -22,7 +22,9 @@ create table management_company_aliases (
 create index management_company_aliases_company_id on management_company_aliases (company_id);
 
 -- One vocabulary across sources. No imported rows existed in production when
--- this was written; the update only maps a local database's first import.
+-- this was written; the update only maps a local database's first import, and
+-- leaves values already in the vocabulary alone, so a rollback and re-apply
+-- does not turn them into 'other'.
 update properties set property_type = case property_type
   when 'complex' then 'apartment'
   when 'over commercial' then 'multi_unit'
@@ -31,7 +33,8 @@ update properties set property_type = case property_type
   when 'fraternity or sorority' then 'greek_house'
   else 'other'
 end
-where property_type is not null;
+where property_type is not null
+  and property_type not in ('apartment', 'multi_unit', 'duplex', 'house', 'greek_house', 'other');
 alter table properties
   add constraint properties_property_type check
     (property_type in ('apartment', 'multi_unit', 'duplex', 'house', 'greek_house', 'other'));
@@ -69,6 +72,24 @@ left join lateral (
          round(avg(r.value), 1)         as avg_value
   from reviews r
   where r.property_id = p.id and r.status = 'published'
+) s on true;
+
+-- A company's building count matches its page, which leaves hidden ones out.
+create or replace view company_stats with (security_invoker = true) as
+select c.id, c.slug, c.name, c.website,
+       (select count(*)::int from properties p where p.company_id = c.id and p.visibility <> 'hidden') as property_count,
+       s.review_count,
+       s.avg_overall, s.avg_maintenance, s.avg_communication, s.avg_value
+from management_companies c
+left join lateral (
+  select count(*)::int                  as review_count,
+         round(avg(r.overall), 1)       as avg_overall,
+         round(avg(r.maintenance), 1)   as avg_maintenance,
+         round(avg(r.communication), 1) as avg_communication,
+         round(avg(r.value), 1)         as avg_value
+  from reviews r
+  join properties p on p.id = r.property_id
+  where p.company_id = c.id and r.status = 'published'
 ) s on true;
 
 -- Down Migration

@@ -245,6 +245,12 @@ describe('importRecords', () => {
     expect(report.ambiguous[0]).toMatchObject({ sourceId: `{${tag}-9}`, normalizedAddress: `1 INGEST${tag.toUpperCase()} ST|CHAMPAIGN` })
   })
 
+  it('remembers what an address match just learned, so a twin later in the run is still caught', async () => {
+    await db.query(`insert into properties (slug, name, address) values ($1, 'No coordinates yet', $2)`, [`ingest-${tag}-p`, `${street(1)}, Champaign`])
+    const report = await run([record(1), record(9, { street: street(1) })])
+    expect(report.counts).toMatchObject({ linkedByAddress: 1, inserted: 0, ambiguous: 1 })
+  })
+
   it('does not link across sources at the same address when the locations disagree', async () => {
     await db.query(
       `insert into properties (slug, name, address, latitude, longitude) values ($1, 'Far', $2, $3, $4)`,

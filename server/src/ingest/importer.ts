@@ -250,7 +250,10 @@ async function importOne(client: pg.ClientBase, record: SourceRecord, state: Sta
   const propertyId = result.propertyId
   const companyId = state.companyOf.get(propertyId) ? null : company(record, state, report, done)
   const changed = await refresh(client, propertyId, record, companyId)
-  if (companyId) done.push(() => state.companyOf.set(propertyId, companyId))
+  done.push(() => {
+    if (companyId) state.companyOf.set(propertyId, companyId)
+    state.index.learn(propertyId, record)
+  })
 
   if (result.kind === 'address') {
     await link(client, record, propertyId)
