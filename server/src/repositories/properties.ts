@@ -106,7 +106,9 @@ export async function listProperties(
   db: Database,
   query: PropertyQuery
 ): Promise<Page<PropertySummary>> {
-  const conditions: string[] = []
+  // Browsing shows listed buildings; a search also finds houses and buildings
+  // of unknown type. Hidden ones (Greek houses, for now) only by their own page.
+  const conditions: string[] = [query.search ? `visibility in ('listed', 'search_only')` : `visibility = 'listed'`]
   const filterParams: unknown[] = []
 
   if (query.search) {
@@ -132,7 +134,7 @@ export async function listProperties(
     conditions.push(`bedrooms && $${filterParams.length}::int[]`)
   }
 
-  const where = conditions.length ? `where ${conditions.join(' and ')}` : ''
+  const where = `where ${conditions.join(' and ')}`
   const offset = (query.page - 1) * query.perPage
   const params = [...filterParams, query.perPage, offset]
 
@@ -154,7 +156,7 @@ export async function listProperties(
   const total = await totalForPage(rows, query.page, async () => {
     const { rows: counted } = await db.query(
       `select count(*)::int as total from (
-         select p.name, p.address, p.neighborhood, p.rent_min, p.bedrooms,
+         select p.name, p.address, p.neighborhood, p.rent_min, p.bedrooms, p.visibility,
                 c.slug as company_slug
          from properties p
          left join management_companies c on c.id = p.company_id

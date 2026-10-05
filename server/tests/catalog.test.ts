@@ -38,6 +38,18 @@ function catalog(overrides: Partial<Catalog> = {}): Catalog {
 const countBySlug = async (table: string, slug: string) =>
   (await db.query(`select count(*)::int as n from ${table} where slug = $1`, [slug])).rows[0].n
 
+describe('importCatalog aliases', () => {
+  it('records a company\'s other spellings, normalized, pointing at it', async () => {
+    await importCatalog(db, catalog({ companies: [{ slug: s('acme'), name: 'Acme Rentals', aliases: ['Acme Rentels, LLC'] }] }), { apply: true })
+    const { rows } = await db.query(
+      `select a.alias, a.alias_normalized, c.slug from management_company_aliases a
+       join management_companies c on c.id = a.company_id where c.slug = $1`,
+      [s('acme')]
+    )
+    expect(rows).toEqual([{ alias: 'Acme Rentels, LLC', alias_normalized: 'acme rentels llc', slug: s('acme') }])
+  })
+})
+
 describe('importCatalog', () => {
   it('inserts new companies and properties when applied', async () => {
     const result = await importCatalog(db, catalog(), { apply: true })

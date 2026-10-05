@@ -7,16 +7,17 @@ export function summarize(report: ImportReport): string {
   const c = report.counts
   return [
     `source: ${report.source}, area: within ${report.area.radiusKm} km of ${report.area.name}`,
-    `  fetched             ${c.fetched}`,
-    `  outside the area    ${c.outsideArea}`,
-    `  new properties      ${c.inserted}`,
-    `  matched by address  ${c.linkedByAddress}`,
-    `  updated             ${c.updated}`,
-    `  unchanged           ${c.unchanged}`,
-    `  companies created   ${c.companiesCreated}`,
-    `  ambiguous           ${c.ambiguous}`,
-    `  skipped             ${c.skipped}`,
-    `  errors              ${c.errors}`,
+    `  fetched              ${c.fetched}`,
+    `  malformed            ${c.malformed}`,
+    `  skipped              ${c.skipped}`,
+    `  outside the area     ${c.outsideArea}`,
+    `  inside the area      ${c.inArea}`,
+    `    new properties     ${c.inserted}`,
+    `    matched by id      ${c.matchedBySourceId} (${c.updated} updated, ${c.unchanged} unchanged)`,
+    `    matched by address ${c.linkedByAddress}`,
+    `    ambiguous          ${c.ambiguous}`,
+    `    errors             ${c.errors}`,
+    `  to review: ${report.review.length} notes, ${c.managersToReview} manager names`,
     report.applied ? 'Applied.' : 'Dry run: nothing was written. Re-run with --apply to write.',
   ].join('\n')
 }

@@ -1,6 +1,7 @@
 {
   "companies": [
     { "slug": "jsm", "name": "JSM", "website": "https://www.jsmliving.com" },
+    { "slug": "green-street-realty", "name": "Green Street Realty", "aliases": ["Green Streeet Realty"] },
     { "slug": "roland-realty", "name": "Roland Realty" }
   ],
   "properties": [

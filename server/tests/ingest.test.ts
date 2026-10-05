@@ -75,9 +75,22 @@ describe('champaign_gis transform', () => {
       longitude: expect.closeTo(-88.2384, 4),
       unitCount: 36,
       stories: 3,
-      propertyType: 'building',
+      propertyType: 'multi_unit',
       manager: null,
+      raw: expect.objectContaining({ Building_Type: 'Building', Managing_Company: null }),
     })
+  })
+
+  it('maps building types to the shared vocabulary, and unknown values to other', () => {
+    const type = (Building_Type: unknown) => (transform(feature({ Building_Type })) as SourceRecord).propertyType
+    expect([type('Complex'), type('Over Commercial'), type('House'), type('Fraternity or Sorority'), type('Other')])
+      .toEqual(['apartment', 'multi_unit', 'house', 'greek_house', 'other'])
+    expect(type('Something New')).toBe('other')
+    expect(type(null)).toBeNull()
+  })
+
+  it('keeps the manager exactly as the source spelled it', () => {
+    expect((transform(feature({ Managing_Company: 'Green Streeet Realty' })) as SourceRecord).manager).toBe('Green Streeet Realty')
   })
 
   it('treats a count it cannot read as unknown, not zero', () => {
@@ -139,8 +152,9 @@ describe('importRecords', () => {
     longitude: area.longitude,
     unitCount: 12,
     stories: 3,
-    propertyType: 'building',
+    propertyType: 'multi_unit',
     manager: null,
+    raw: { n },
     ...overrides,
   })
 
@@ -213,14 +227,45 @@ describe('importRecords', () => {
     }
     const report = await run([record(1)])
     expect(report.counts).toMatchObject({ ambiguous: 1, inserted: 0, linkedByAddress: 0 })
-    expect(report.ambiguous[0]?.reason).toBe('several properties at this address')
+    expect(report.ambiguous[0]?.reason).toBe('2 properties at this address, none clearly this one')
     expect((await rows()).every((r) => r.links.length === 0)).toBe(true)
   })
 
-  it('reports a second record at an address another record of the same source already holds', async () => {
+  it('keeps two records of one source at one address as two buildings, and notes it', async () => {
+    // About 55 m apart: a complex sharing a street number.
+    const report = await run([record(1), record(9, { street: street(1), latitude: area.latitude + 0.0005 })])
+    expect(report.counts).toMatchObject({ inserted: 2, ambiguous: 0 })
+    expect(report.review.map((r) => r.note)).toEqual([`shares its address with 1 other ${source} record(s)`])
+    expect(await rows()).toHaveLength(2)
+  })
+
+  it('reports, rather than imports, the same building entered twice by a source', async () => {
     const report = await run([record(1), record(9, { street: street(1) })])
     expect(report.counts).toMatchObject({ inserted: 1, ambiguous: 1 })
-    expect(await rows()).toHaveLength(1)
+    expect(report.ambiguous[0]).toMatchObject({ sourceId: `{${tag}-9}`, normalizedAddress: `1 INGEST${tag.toUpperCase()} ST|CHAMPAIGN` })
+  })
+
+  it('does not link across sources at the same address when the locations disagree', async () => {
+    await db.query(
+      `insert into properties (slug, name, address, latitude, longitude) values ($1, 'Far', $2, $3, $4)`,
+      [`ingest-${tag}-far`, `${street(1)}, Champaign`, area.latitude + 0.01, area.longitude]
+    )
+    const report = await run([record(1)])
+    expect(report.counts).toMatchObject({ ambiguous: 1, linkedByAddress: 0, inserted: 0 })
+    expect(report.ambiguous[0]?.reason).toMatch(/m apart/)
+  })
+
+  it('picks the one nearby, same-named candidate when several share an address', async () => {
+    for (const [n, name, dLat] of [[1, 'Ingest Hall', 0], [2, 'Other Hall', 0], [3, 'Ingest Hall', 0.01]] as const) {
+      await db.query(
+        `insert into properties (slug, name, address, latitude, longitude) values ($1, $2, $3, $4, $5)`,
+        [`ingest-${tag}-cand-${n}`, name, `${street(1)}, Champaign`, area.latitude + dLat, area.longitude]
+      )
+    }
+    const report = await run([record(1, { name: 'Ingest Hall' })])
+    expect(report.counts).toMatchObject({ linkedByAddress: 1, ambiguous: 0 })
+    const linked = (await rows()).filter((r) => r.links.length)
+    expect(linked.map((r) => r.name)).toEqual(['Ingest Hall'])
   })
 
   it('writes nothing on a dry run', async () => {
@@ -253,12 +298,44 @@ describe('importRecords', () => {
 
   it('forgets what a failed record did, so later records are not affected', async () => {
     const manager = `Ghost ${tag} Realty`
-    const report = await run([record(1, { name: 'x'.repeat(121), manager }), record(2, { manager })])
-    expect(report.counts).toMatchObject({ errors: 1, inserted: 1, companiesCreated: 1 })
-    expect(report.review).toHaveLength(1)
+    const report = await run([record(1, { name: 'x'.repeat(121), manager }), record(2)])
+    expect(report.counts).toMatchObject({ errors: 1, inserted: 1, managersToReview: 0 })
   })
 
-  it('creates no company for a property that already has one', async () => {
+  it('stores no company when the source names none', async () => {
+    await run([record(1)])
+    const { rows: [row] } = await db.query('select company_id from properties where address like $1', [`%Ingest${tag}%`])
+    expect(row.company_id).toBeNull()
+  })
+
+  it('never creates a company: an unknown name is kept raw and listed, with a suggestion', async () => {
+    await db.query(`insert into management_companies (slug, name) values ($1, $2)`, [`ingest-${tag}-real`, `Real ${tag} Realty`])
+    const report = await run([
+      record(1, { manager: `Reel ${tag} Realty`, raw: { Managing_Company: `Reel ${tag} Realty` } }),
+      record(2, { manager: `reel ${tag} realty` }),
+    ])
+    expect(report.managers).toEqual([{ name: `Reel ${tag} Realty`, suggestion: `Real ${tag} Realty`, sourceIds: [`{${tag}-1}`, `{${tag}-2}`] }])
+    const { rows: [link] } = await db.query(`select raw from property_sources where source = $1 and source_id = $2`, [source, `{${tag}-1}`])
+    expect(link.raw).toEqual({ Managing_Company: `Reel ${tag} Realty` })
+    expect((await db.query('select count(*)::int as n from management_companies where name ilike $1', [`%reel ${tag}%`])).rows[0].n).toBe(0)
+  })
+
+  it('sets the canonical company through an alias, and fills it in on a later run', async () => {
+    const { rows: [real] } = await db.query(
+      `insert into management_companies (slug, name) values ($1, $2) returning id`, [`ingest-${tag}-alias`, `Alias ${tag} Co`]
+    )
+    await run([record(1, { manager: `Alias ${tag} Coo` })])
+    await db.query(
+      `insert into management_company_aliases (alias_normalized, alias, company_id) values ($1, $2, $3)`,
+      [`alias ${tag} coo`, `Alias ${tag} Coo`, real.id]
+    )
+    const report = await run([record(1, { manager: `Alias ${tag} Coo` })])
+    expect(report.counts).toMatchObject({ updated: 1, managersToReview: 0 })
+    const { rows: [row] } = await db.query('select company_id from properties where address like $1', [`%Ingest${tag}%`])
+    expect(row.company_id).toBe(real.id)
+  })
+
+  it('looks up no company for a property that already has one', async () => {
     const { rows: [acme] } = await db.query(
       `insert into management_companies (slug, name) values ($1, $2) returning id`,
       [`ingest-${tag}-curated`, `Curated ${tag} Co`]
@@ -268,16 +345,24 @@ describe('importRecords', () => {
       [`ingest-${tag}-owned`, `${street(1)}, Champaign`, acme.id]
     )
     const report = await run([record(1, { manager: `Source ${tag} Spelling` })])
-    expect(report.counts).toMatchObject({ linkedByAddress: 1, companiesCreated: 0 })
-    expect((await db.query('select count(*)::int as n from management_companies where name = $1', [`Source ${tag} Spelling`])).rows[0].n).toBe(0)
+    expect(report.counts).toMatchObject({ linkedByAddress: 1, managersToReview: 0 })
   })
 
-  it('reuses a company with the same normalized name, and lists any it creates', async () => {
-    const report = await run([
-      record(1, { manager: `Acme ${tag} Rentals, LLC` }),
-      record(2, { manager: `acme ${tag} rentals llc` }),
+  it('sets visibility from the type on import: houses search-only, Greek houses hidden', async () => {
+    await run([
+      record(1, { propertyType: 'apartment' }),
+      record(2, { propertyType: 'house' }),
+      record(3, { propertyType: 'greek_house' }),
+      record(4, { propertyType: null }),
     ])
-    expect(report.counts.companiesCreated).toBe(1)
-    expect(report.review.map((r) => r.note)).toEqual([`created company "Acme ${tag} Rentals, LLC"`])
+    const { rows: found } = await db.query(
+      'select property_type, visibility from properties where address like $1 order by address', [`%Ingest${tag}%`]
+    )
+    expect(found).toEqual([
+      { property_type: 'apartment', visibility: 'listed' },
+      { property_type: 'house', visibility: 'search_only' },
+      { property_type: 'greek_house', visibility: 'hidden' },
+      { property_type: null, visibility: 'search_only' },
+    ])
   })
 })

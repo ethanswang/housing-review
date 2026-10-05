@@ -100,7 +100,7 @@ export async function listCompanyProperties(
   const { rows } = await db.query(
     `select *, count(*) over() as total_count
      from property_stats
-     where company_id = $1
+     where company_id = $1 and visibility <> 'hidden'
      order by avg_overall desc nulls last, slug asc
      limit $2 offset $3`,
     [companyId, perPage, (page - 1) * perPage]
@@ -108,7 +108,7 @@ export async function listCompanyProperties(
 
   const total = await totalForPage(rows, page, async () => {
     const { rows: counted } = await db.query(
-      'select count(*)::int as total from properties where company_id = $1',
+      `select count(*)::int as total from properties where company_id = $1 and visibility <> 'hidden'`,
       [companyId]
     )
     return counted[0].total

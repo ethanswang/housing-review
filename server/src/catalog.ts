@@ -1,5 +1,6 @@
 import type pg from 'pg'
 import { z } from 'zod'
+import { normalizeCompanyName } from './ingest/address.ts'
 
 /**
  * Loads the list of management companies and properties into the database.
@@ -30,6 +31,9 @@ const companySchema = z.object({
   // http(s) only. z.url() alone accepts `javascript:alert(1)`, which becomes a
   // script the moment any page renders the website as a link.
   website: z.url({ protocol: /^https?$/, error: 'must be an http:// or https:// URL' }).optional(),
+  // Other spellings public data uses for this company ("Green Streeet Realty"),
+  // so the property importer recognises them. Added or re-pointed, never removed.
+  aliases: z.array(z.string().trim().min(1).max(120)).optional(),
 })
 
 const propertySchema = z
@@ -45,8 +49,8 @@ const propertySchema = z
     bedrooms: z
       .array(z.number().int().min(0).max(20))
       .transform((sizes) => [...new Set(sizes)].sort((a, b) => a - b)),
-    // A company slug from this file or already in the database; null for an
-    // independent landlord.
+    // A company slug from this file or already in the database; null when the
+    // company is not known.
     company: slug.nullable(),
   })
   .refine((p) => p.rentMax >= p.rentMin, { message: 'rentMax must be at least rentMin', path: ['rentMax'] })
@@ -137,6 +141,16 @@ async function upsertCompanies(client: pg.ClientBase, companies: Catalog['compan
       [company.slug, company.name, company.website ?? null]
     )
     if (rows[0]) written.push(rows[0].slug)
+  }
+  for (const company of companies) {
+    for (const alias of company.aliases ?? []) {
+      await client.query(
+        `insert into management_company_aliases (alias_normalized, alias, company_id)
+         select $1, $2, id from management_companies where slug = $3
+         on conflict (alias_normalized) do update set alias = excluded.alias, company_id = excluded.company_id`,
+        [normalizeCompanyName(alias), alias, company.slug]
+      )
+    }
   }
   return count(companies.length, written, existed)
 }
