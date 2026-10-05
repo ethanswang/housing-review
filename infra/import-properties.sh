@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Imports buildings from public data into the production database.
 #
-#   infra/import-properties.sh --dry-run          # reports, writes nothing
-#   infra/import-properties.sh                    # writes
+#   infra/import-properties.sh                    # dry run: reports, writes nothing
+#   infra/import-properties.sh --apply            # writes
 #   infra/import-properties.sh --radius-km 2 ...  # any server/src/import-properties.ts option
 #
 # Runs server/src/import-properties.ts in a node:24-alpine container through the

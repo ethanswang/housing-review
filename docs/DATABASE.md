@@ -69,14 +69,16 @@ the Urbana side of campus.
 
 ```bash
 cd server
-npm run import:properties -- --dry-run                  # fetches and matches, writes nothing
-npm run import:properties                               # writes
-npm run import:properties -- --dry-run --radius-km 2    # a wider area, for one run
+npm run import:properties                       # dry run: fetches and matches, writes nothing
+npm run import:properties -- --apply            # writes
+npm run import:properties -- --radius-km 2      # a wider area, for one run
 ```
 
 It reads `DATABASE_URL` (default: the compose database) and needs network access to the city's
-server. Production: `infra/import-properties.sh --dry-run`, then without `--dry-run`, through
-the tunnel as the master user like the catalog importer.
+server. Unknown flags stop it, so a typo cannot turn a dry run into a write. Production:
+`infra/import-properties.sh`, then `infra/import-properties.sh --apply`, through the tunnel as
+the master user like the catalog importer. The report is written before the transaction
+commits; if it cannot be written, nothing is.
 
 **What it does with each record** (`server/src/ingest/importer.ts`):
 

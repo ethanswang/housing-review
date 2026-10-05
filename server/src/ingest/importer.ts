@@ -18,6 +18,9 @@ import type { Problem, SourceRecord } from './types.ts'
  *   - Nothing is deleted.
  *   - One transaction, with a savepoint per record: a record that fails is
  *     rolled back alone and reported, and a dry run rolls everything back.
+ *   - GlobalID-style source ids are trusted to be stable. If a source ever
+ *     reissues them, every record reports "address already linked to another
+ *     ... record" instead of duplicating; a flood of those means that happened.
  */
 
 export type ImportReport = {
@@ -47,7 +50,7 @@ export async function importRecords(
   source: string,
   records: SourceRecord[],
   problems: Problem[],
-  { apply, area }: { apply: boolean; area: TargetArea }
+  { apply, area, beforeFinish }: { apply: boolean; area: TargetArea; beforeFinish?: (report: ImportReport) => void }
 ): Promise<ImportReport> {
   const report: ImportReport = {
     source,
@@ -92,15 +95,20 @@ export async function importRecords(
         continue
       }
       await client.query('savepoint record')
+      const done: Done = []
       try {
-        await importOne(client, record, state, report)
+        await importOne(client, record, state, report, done)
         await client.query('release savepoint record')
+        for (const step of done) step()
       } catch (error) {
         await client.query('rollback to savepoint record')
         report.errors.push({ sourceId: record.sourceId, message: (error as Error).message })
         report.counts.errors++
       }
     }
+    // Before committing, so a report that cannot be written rolls the run back
+    // rather than leaving changes nobody can review.
+    beforeFinish?.(report)
     await client.query(apply ? 'commit' : 'rollback')
     return report
   } catch (error) {
@@ -116,19 +124,30 @@ type State = {
   companies: Map<string, string>
   companySlugs: Set<string>
   names: Map<string, string>
+  /** property id → its company, to create a company only where one will be used */
+  companyOf: Map<string, string | null>
 }
+
+/**
+ * What a record changes in memory (state and report), queued and run only once
+ * its savepoint is released: a record rolled back in the database must leave
+ * no trace here either, or a later record would trust a company that is gone.
+ */
+type Done = (() => void)[]
 
 async function load(client: pg.ClientBase): Promise<State> {
   const index = new PropertyIndex()
   const slugs = new Set<string>()
   const names = new Map<string, string>()
-  const { rows: properties } = await client.query<{ id: string; slug: string; name: string; address: string }>(
-    'select id, slug, name, address from properties'
-  )
+  const companyOf = new Map<string, string | null>()
+  const { rows: properties } = await client.query<{
+    id: string; slug: string; name: string; address: string; company_id: string | null
+  }>('select id, slug, name, address, company_id from properties')
   for (const p of properties) {
     index.addProperty(p.id, p.address)
     slugs.add(p.slug)
     names.set(p.id, p.name)
+    companyOf.set(p.id, p.company_id)
   }
   const { rows: links } = await client.query<{ source: string; source_id: string; property_id: string }>(
     'select source, source_id, property_id from property_sources'
@@ -142,24 +161,26 @@ async function load(client: pg.ClientBase): Promise<State> {
     index,
     slugs,
     names,
+    companyOf,
     companies: new Map(companies.map((c) => [normalizeCompanyName(c.name), c.id])),
     companySlugs: new Set(companies.map((c) => c.slug)),
   }
 }
 
-async function importOne(client: pg.ClientBase, record: SourceRecord, state: State, report: ImportReport) {
+async function importOne(client: pg.ClientBase, record: SourceRecord, state: State, report: ImportReport, done: Done) {
   const result = match(record, state.index)
   if (result.kind === 'ambiguous') {
-    report.ambiguous.push({ sourceId: record.sourceId, address: record.street, reason: result.reason, propertyIds: result.propertyIds })
-    report.counts.ambiguous++
+    done.push(() => {
+      report.ambiguous.push({ sourceId: record.sourceId, address: record.street, reason: result.reason, propertyIds: result.propertyIds })
+      report.counts.ambiguous++
+    })
     return
   }
-
-  const companyId = record.manager ? await company(client, record, record.manager, state, report) : null
 
   if (result.kind === 'none') {
     const name = record.name ?? record.complexName ?? record.street!
     if (name.length > 120) throw new Error(`name longer than 120 characters: ${name}`)
+    const companyId = await company(client, record, state, report, done)
     const slug = uniqueSlug([name, `${name} ${record.street}`], state.slugs)
     const address = `${record.street}, ${record.city}`
     const { rows } = await client.query<{ id: string }>(
@@ -172,34 +193,45 @@ async function importOne(client: pg.ClientBase, record: SourceRecord, state: Sta
     )
     const id = rows[0]!.id
     await link(client, record, id)
-    state.index.addProperty(id, address)
-    state.index.addLink(record.source, record.sourceId, id)
-    state.slugs.add(slug)
-    report.counts.inserted++
+    done.push(() => {
+      state.index.addProperty(id, address)
+      state.index.addLink(record.source, record.sourceId, id)
+      state.slugs.add(slug)
+      state.names.set(id, name)
+      state.companyOf.set(id, companyId)
+      report.counts.inserted++
+    })
     return
   }
 
-  const changed = await refresh(client, result.propertyId, record, companyId)
+  const propertyId = result.propertyId
+  // Only a property with no company gets one, so only then is one looked up or created.
+  const companyId = state.companyOf.get(propertyId) ? null : await company(client, record, state, report, done)
+  const changed = await refresh(client, propertyId, record, companyId)
+  if (companyId) done.push(() => state.companyOf.set(propertyId, companyId))
+
   if (result.kind === 'address') {
-    await link(client, record, result.propertyId)
-    state.index.addLink(record.source, record.sourceId, result.propertyId)
-    report.counts.linkedByAddress++
-    const existing = state.names.get(result.propertyId)
+    await link(client, record, propertyId)
+    const existing = state.names.get(propertyId)
     const incoming = record.name ?? record.complexName
-    if (existing && incoming && simplify(existing) !== simplify(incoming)) {
-      report.review.push({
-        sourceId: record.sourceId,
-        propertyId: result.propertyId,
-        note: `linked by address; the property is named "${existing}", the source says "${incoming}"`,
-      })
-    }
+    done.push(() => {
+      state.index.addLink(record.source, record.sourceId, propertyId)
+      report.counts.linkedByAddress++
+      if (existing && incoming && simplify(existing) !== simplify(incoming)) {
+        report.review.push({
+          sourceId: record.sourceId,
+          propertyId,
+          note: `linked by address; the property is named "${existing}", the source says "${incoming}"`,
+        })
+      }
+    })
     return
   }
   await client.query(
     `update property_sources set last_seen_at = now(), source_address = $3 where source = $1 and source_id = $2`,
     [record.source, record.sourceId, record.street]
   )
-  report.counts[changed ? 'updated' : 'unchanged']++
+  done.push(() => report.counts[changed ? 'updated' : 'unchanged']++)
 }
 
 /**
@@ -231,8 +263,10 @@ async function link(client: pg.ClientBase, record: SourceRecord, propertyId: str
   )
 }
 
-/** An existing company with the same normalized name, or a new one. */
-async function company(client: pg.ClientBase, record: SourceRecord, name: string, state: State, report: ImportReport) {
+/** The record's company: an existing one with the same normalized name, or a new one. */
+async function company(client: pg.ClientBase, record: SourceRecord, state: State, report: ImportReport, done: Done) {
+  const name = record.manager
+  if (!name) return null
   const key = normalizeCompanyName(name)
   const found = state.companies.get(key)
   if (found) return found
@@ -243,12 +277,14 @@ async function company(client: pg.ClientBase, record: SourceRecord, name: string
     [slug, name]
   )
   const id = rows[0]!.id
-  state.companies.set(key, id)
-  state.companySlugs.add(slug)
-  report.counts.companiesCreated++
-  // The source spells companies inconsistently ("Green Streeet Realty"), and
-  // only exact names are matched, so every new one is listed for a person to check.
-  report.review.push({ sourceId: record.sourceId, propertyId: '', note: `created company "${name}"` })
+  done.push(() => {
+    state.companies.set(key, id)
+    state.companySlugs.add(slug)
+    report.counts.companiesCreated++
+    // The source spells companies inconsistently ("Green Streeet Realty"), and
+    // only exact names are matched, so every new one is listed for a person to check.
+    report.review.push({ sourceId: record.sourceId, propertyId: '', note: `created company "${name}"` })
+  })
   return id
 }
 

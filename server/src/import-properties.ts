@@ -1,7 +1,8 @@
 /**
- * node src/import-properties.ts [--dry-run] [--radius-km <km>] [--report <file>]
- * (npm run import:properties -- --dry-run)
+ * node src/import-properties.ts [--apply] [--radius-km <km>] [--report <file>]
+ * (npm run import:properties [-- --apply])
  *
+ * A dry run unless --apply is given, like the catalog importer.
  * Fetches buildings from a public dataset and adds or refreshes them as
  * properties. Safe to re-run. Against production it runs through
  * infra/import-properties.sh. See docs/DATABASE.md, "Importing buildings from
@@ -22,16 +23,21 @@ const option = (name: string) => {
   const i = args.indexOf(name)
   return i >= 0 ? args[i + 1] : undefined
 }
-const dryRun = args.includes('--dry-run')
+// Anything unrecognized stops the run: a mistyped flag must not change what it does.
+const FLAGS = ['--apply']
+const OPTIONS = ['--source', '--radius-km', '--report']
+const unknown = args.filter((arg, i) => !FLAGS.includes(arg) && !OPTIONS.includes(arg) && !OPTIONS.includes(args[i - 1] ?? ''))
+const apply = args.includes('--apply')
 const sourceName = option('--source') ?? 'champaign_gis'
 const radius = option('--radius-km')
 const area = radius === undefined ? TARGET_AREA : { ...TARGET_AREA, radiusKm: Number(radius) }
 const reportPath = option('--report') ?? `import-reports/${sourceName}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
 
 const makeSource = SOURCES[sourceName]
-if (!process.env.DATABASE_URL || !makeSource || !(area.radiusKm > 0)) {
+if (!process.env.DATABASE_URL || !makeSource || !(area.radiusKm > 0) || unknown.length) {
+  if (unknown.length) console.error(`unknown argument(s): ${unknown.join(' ')}`)
   console.error(
-    'usage: DATABASE_URL=... node src/import-properties.ts [--dry-run] [--radius-km <km>] [--report <file>] ' +
+    'usage: DATABASE_URL=... node src/import-properties.ts [--apply] [--radius-km <km>] [--report <file>] ' +
       `[--source ${Object.keys(SOURCES).join('|')}]`
   )
   process.exit(2)
@@ -43,8 +49,11 @@ try {
   console.log(`Fetching ${source.name}…`)
   const { records, problems } = await source.fetchRecords()
   await client.connect()
-  const report = await importRecords(client, source.name, records, problems, { apply: !dryRun, area })
-  writeReport(report, reportPath)
+  const report = await importRecords(client, source.name, records, problems, {
+    apply,
+    area,
+    beforeFinish: (r) => writeReport(r, reportPath),
+  })
   console.log(summarize(report))
   console.log(`Report: ${reportPath}`)
   if (report.counts.errors) process.exitCode = 1

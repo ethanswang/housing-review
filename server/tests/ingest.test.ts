@@ -229,6 +229,17 @@ describe('importRecords', () => {
     expect(await rows()).toHaveLength(0)
   })
 
+  it('writes nothing if the report cannot be written', async () => {
+    await expect(
+      importRecords(db, source, [record(1)], [], {
+        apply: true,
+        area,
+        beforeFinish: () => { throw new Error('disk full') },
+      })
+    ).rejects.toThrow('disk full')
+    expect(await rows()).toHaveLength(0)
+  })
+
   it('skips buildings outside the target area', async () => {
     const report = await run([record(1, { latitude: 40.2, longitude: -88.4 })])
     expect(report.counts).toMatchObject({ outsideArea: 1, inserted: 0 })
@@ -238,6 +249,27 @@ describe('importRecords', () => {
     const report = await run([record(1, { name: 'x'.repeat(121) }), record(2)])
     expect(report.counts).toMatchObject({ errors: 1, inserted: 1 })
     expect((await rows()).map((r) => r.address)).toEqual([`${street(2)}, Champaign`])
+  })
+
+  it('forgets what a failed record did, so later records are not affected', async () => {
+    const manager = `Ghost ${tag} Realty`
+    const report = await run([record(1, { name: 'x'.repeat(121), manager }), record(2, { manager })])
+    expect(report.counts).toMatchObject({ errors: 1, inserted: 1, companiesCreated: 1 })
+    expect(report.review).toHaveLength(1)
+  })
+
+  it('creates no company for a property that already has one', async () => {
+    const { rows: [acme] } = await db.query(
+      `insert into management_companies (slug, name) values ($1, $2) returning id`,
+      [`ingest-${tag}-curated`, `Curated ${tag} Co`]
+    )
+    await db.query(
+      `insert into properties (slug, name, address, company_id) values ($1, 'Owned', $2, $3)`,
+      [`ingest-${tag}-owned`, `${street(1)}, Champaign`, acme.id]
+    )
+    const report = await run([record(1, { manager: `Source ${tag} Spelling` })])
+    expect(report.counts).toMatchObject({ linkedByAddress: 1, companiesCreated: 0 })
+    expect((await db.query('select count(*)::int as n from management_companies where name = $1', [`Source ${tag} Spelling`])).rows[0].n).toBe(0)
   })
 
   it('reuses a company with the same normalized name, and lists any it creates', async () => {

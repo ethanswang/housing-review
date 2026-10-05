@@ -17,7 +17,7 @@ export function summarize(report: ImportReport): string {
     `  ambiguous           ${c.ambiguous}`,
     `  skipped             ${c.skipped}`,
     `  errors              ${c.errors}`,
-    report.applied ? 'Applied.' : 'Dry run: nothing was written.',
+    report.applied ? 'Applied.' : 'Dry run: nothing was written. Re-run with --apply to write.',
   ].join('\n')
 }
 
