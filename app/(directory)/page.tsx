@@ -34,10 +34,6 @@ export default async function DirectoryPage({
           Every review is from a verified @illinois.edu student. Champaign–Urbana buildings, scored
           on maintenance, communication, and value.
         </p>
-        <p className="mt-4 border-l-2 border-rule-strong pl-3 text-meta text-ink-soft">
-          <strong className="font-semibold text-ink">Prototype.</strong> Ratings are computed from
-          sample reviews written to demonstrate the site, not from real tenants.
-        </p>
 
         <div className="mt-6">
           {/* Keyed so the input resets when a chip or "Clear all" drops the search. */}

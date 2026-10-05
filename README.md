@@ -10,9 +10,8 @@ affiliated with the University of Illinois or any landlord.
 
 **[www.uiuchousing.com](https://www.uiuchousing.com)**
 
-> **Status: in development.** The reviews on the site today are sample data written to
-> demonstrate it, and every one carries a "Sample data" badge. The site is kept out of search
-> results until they are replaced by real reviews.
+> **Status: early.** Buildings come from Champaign and Urbana public data; reviews come from
+> students as they post them. The site is kept out of search results until there are some.
 
 ## How reviews work
 
