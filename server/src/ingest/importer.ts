@@ -224,7 +224,10 @@ async function importOne(client: pg.ClientBase, record: SourceRecord, state: Sta
     const name = record.name ?? record.complexName ?? record.street!
     if (name.length > 120) throw new Error(`name longer than 120 characters: ${name}`)
     const companyId = company(record, state, report, done)
-    const slug = uniqueSlug([name, `${name} ${record.street}`], state.slugs)
+    // A second building of the same name is told apart by its address, unless
+    // the name is the address; then it is numbered ("610-s-fourth-st-2").
+    const candidates = slugify(name) === slugify(record.street!) ? [name] : [name, `${name} ${record.street}`]
+    const slug = uniqueSlug(candidates, state.slugs)
     const address = `${record.street}, ${record.city}`
     const { rows } = await client.query<{ id: string }>(
       `insert into properties

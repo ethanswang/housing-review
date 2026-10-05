@@ -239,6 +239,14 @@ describe('importRecords', () => {
     expect(await rows()).toHaveLength(2)
   })
 
+  it('numbers the URL of a second building whose name is its address, instead of repeating the address', async () => {
+    const shared = { street: street(1), name: null }
+    await run([record(1, shared), record(9, { ...shared, latitude: area.latitude + 0.0005 })])
+    const { rows: slugs } = await db.query('select slug from properties where address like $1 order by slug', [`%Ingest${tag}%`])
+    const base = `1-ingest${tag}-st`
+    expect(slugs.map((r) => r.slug)).toEqual([base, `${base}-2`])
+  })
+
   it('reports, rather than imports, the same building entered twice by a source', async () => {
     const report = await run([record(1), record(9, { street: street(1) })])
     expect(report.counts).toMatchObject({ inserted: 1, ambiguous: 1 })

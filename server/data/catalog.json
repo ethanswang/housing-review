@@ -1,0 +1,18 @@
+{
+  "companies": [
+    { "slug": "green-street-realty", "name": "Green Street Realty", "aliases": ["Green Streeet Realty"] },
+    { "slug": "the-university-group", "name": "The University Group" },
+    { "slug": "gmh-communities", "name": "GMH Communities" },
+    { "slug": "student-quarters", "name": "Student Quarters" },
+    { "slug": "bankier-apartments", "name": "Bankier Apartments" },
+    { "slug": "mhm-properties", "name": "MHM Properties" },
+    { "slug": "cochrane-premier-properties", "name": "Cochrane Premier Properties" },
+    { "slug": "core-spaces", "name": "Core Spaces" },
+    { "slug": "campus-advantage", "name": "Campus Advantage" },
+    { "slug": "american-campus-communities", "name": "American Campus Communities", "aliases": ["American Campus"] },
+    { "slug": "jsj-property-management", "name": "JSJ Property Management" },
+    { "slug": "roland-realty", "name": "Roland Realty" },
+    { "slug": "smile-student-living", "name": "Smile Student Living" }
+  ],
+  "properties": []
+}

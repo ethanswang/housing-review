@@ -132,6 +132,10 @@ as an alias, in the catalog file, then re-run the import:
 { "slug": "green-street-realty", "name": "Green Street Realty", "aliases": ["Green Streeet Realty"] }
 ```
 
+The production list of companies is `server/data/catalog.json`. It holds only companies that
+are clearly identifiable from the sources' spellings; ambiguous names such as "Smile" stay
+unmatched, and their buildings show no company, until someone confirms them.
+
 No company means not known, never "independent"; the site says "Management company not listed".
 Unknown rent is null, shown as "Pricing unavailable".
 
