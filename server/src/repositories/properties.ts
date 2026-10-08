@@ -34,6 +34,8 @@ export type PropertySummary = {
   /** From public building data; null when not known. */
   unitCount: number | null
   stories: number | null
+  /** The building's own leasing site, entered by hand; null when not known. */
+  website: string | null
   company: { slug: string; name: string } | null
   reviewCount: number
   averages: Averages
@@ -77,6 +79,7 @@ type PropertyStatsRow = {
   bedrooms: number[]
   unit_count: number | null
   stories: number | null
+  website: string | null
   company_slug: string | null
   company_name: string | null
   review_count: number
@@ -98,6 +101,7 @@ export function toSummary(row: PropertyStatsRow): PropertySummary {
     bedrooms: row.bedrooms,
     unitCount: row.unit_count,
     stories: row.stories,
+    website: row.website,
     company:
       row.company_slug && row.company_name
         ? { slug: row.company_slug, name: row.company_name }

@@ -28,6 +28,8 @@ export type Property = {
   /** From public building data; null when not known. */
   unit_count: number | null
   stories: number | null
+  /** The building's own leasing site; null when not known. */
+  website: string | null
 }
 
 /** The categories shown as bars. `overall` is displayed separately as the headline score. */

@@ -28,6 +28,7 @@ try {
   const result = await importCatalog(client, catalog, { apply })
   console.log(`companies:  ${format(result.companies)}`)
   console.log(`properties: ${format(result.properties)}`)
+  console.log(`updates:    ${result.updates.updated} updated, ${result.updates.unchanged} unchanged`)
   console.log(result.applied ? 'Applied.' : 'Dry run: nothing was written. Re-run with --apply to write.')
 } catch (error) {
   console.error((error as Error).message)

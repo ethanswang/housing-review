@@ -33,6 +33,7 @@ type ApiProperty = {
   rentMax: number | null
   unitCount: number | null
   stories: number | null
+  website: string | null
   bedrooms: number[]
   company: { slug: string; name: string } | null
   reviewCount: number
@@ -75,6 +76,8 @@ const toProperty = (p: ApiProperty): PropertyWithStats => ({
   rent_max: p.rentMax,
   unit_count: p.unitCount,
   stories: p.stories,
+  // An API from before websites existed sends none.
+  website: p.website ?? null,
   bedrooms: p.bedrooms,
   company: p.company,
   averages: p.averages,

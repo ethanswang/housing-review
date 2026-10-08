@@ -16,6 +16,10 @@ import { normalizeCompanyName } from './ingest/address.ts'
  *     share one transaction, so a bad file leaves the database as it was.
  *   - Without `apply` the transaction is rolled back, so the default run is a
  *     dry run that reports what would happen.
+ *
+ * `properties` are whole hand-entered buildings. `updates` fill in details on
+ * buildings that already exist, usually imported from public data: only the
+ * fields given are written, and the property importer never overwrites them.
  */
 
 const slug = z
@@ -55,14 +59,41 @@ const propertySchema = z
   })
   .refine((p) => p.rentMax >= p.rentMin, { message: 'rentMax must be at least rentMin', path: ['rentMax'] })
 
+const bedrooms = z
+  .array(z.number().int().min(0).max(20))
+  .transform((sizes) => [...new Set(sizes)].sort((a, b) => a - b))
+
+const updateSchema = z
+  .object({
+    slug,
+    rentMin: z.number().int().positive().optional(),
+    rentMax: z.number().int().positive().optional(),
+    bedrooms: bedrooms.optional(),
+    neighborhood: z.string().trim().min(1).max(60).optional(),
+    // A company slug from this file or already in the database.
+    company: slug.optional(),
+    // The building's own leasing page. http(s) only, as for companies.
+    website: z.url({ protocol: /^https?$/, error: 'must be an http:// or https:// URL' }).max(500).optional(),
+  })
+  .refine((u) => (u.rentMin === undefined) === (u.rentMax === undefined), {
+    message: 'give rentMin and rentMax together',
+    path: ['rentMax'],
+  })
+  .refine((u) => u.rentMin === undefined || u.rentMax === undefined || u.rentMax >= u.rentMin, {
+    message: 'rentMax must be at least rentMin',
+    path: ['rentMax'],
+  })
+  .refine((u) => Object.keys(u).some((key) => key !== 'slug'), { message: 'nothing to update', path: ['slug'] })
+
 export const catalogSchema = z
   .object({
     companies: z.array(companySchema),
     properties: z.array(propertySchema),
+    updates: z.array(updateSchema).default([]),
   })
   .superRefine((catalog, ctx) => {
     // Two rows with one slug would silently collapse into whichever came last.
-    for (const key of ['companies', 'properties'] as const) {
+    for (const key of ['companies', 'properties', 'updates'] as const) {
       const seen = new Set<string>()
       catalog[key].forEach((row, index) => {
         if (seen.has(row.slug)) {
@@ -76,7 +107,12 @@ export const catalogSchema = z
 export type Catalog = z.infer<typeof catalogSchema>
 
 export type ImportCounts = { inserted: number; updated: number; unchanged: number }
-export type ImportResult = { applied: boolean; companies: ImportCounts; properties: ImportCounts }
+export type ImportResult = {
+  applied: boolean
+  companies: ImportCounts
+  properties: ImportCounts
+  updates: { updated: number; unchanged: number }
+}
 
 /** Parses and validates, naming every problem at once rather than the first. */
 export function parseCatalog(input: unknown): Catalog {
@@ -99,8 +135,9 @@ export async function importCatalog(
   try {
     const companies = await upsertCompanies(client, catalog.companies)
     const properties = await upsertProperties(client, catalog.properties)
+    const updates = await applyUpdates(client, catalog.updates)
     await client.query(apply ? 'commit' : 'rollback')
-    return { applied: apply, companies, properties }
+    return { applied: apply, companies, properties, updates }
   } catch (error) {
     await client.query('rollback')
     throw error
@@ -195,4 +232,49 @@ async function upsertProperties(client: pg.ClientBase, properties: Catalog['prop
     if (rows[0]) written.push(rows[0].slug)
   }
   return count(properties.length, written, existed)
+}
+
+/** Columns an update may set, by its field name. */
+const UPDATE_COLUMNS = {
+  rentMin: 'rent_min',
+  rentMax: 'rent_max',
+  bedrooms: 'bedrooms',
+  neighborhood: 'neighborhood',
+  company: 'company_id',
+  website: 'website',
+} as const
+
+async function applyUpdates(client: pg.ClientBase, updates: Catalog['updates']) {
+  const slugs = updates.map((u) => u.slug)
+  const { rows: found } = await client.query<{ slug: string }>('select slug from properties where slug = any($1::text[])', [slugs])
+  const known = new Set(found.map((row) => row.slug))
+  const unknown = slugs.filter((s) => !known.has(s))
+  if (unknown.length) throw new Error(`Unknown property slug(s) in updates: ${unknown.join(', ')}`)
+
+  const companySlugs = [...new Set(updates.flatMap((u) => (u.company ? [u.company] : [])))]
+  const { rows: companies } = await client.query<{ id: string; slug: string }>(
+    'select id, slug from management_companies where slug = any($1::text[])',
+    [companySlugs]
+  )
+  const companyIds = new Map(companies.map((row) => [row.slug, row.id]))
+  const missing = companySlugs.filter((s) => !companyIds.has(s))
+  if (missing.length) {
+    throw new Error(`Unknown company slug(s) in updates, not in the file or the database: ${missing.join(', ')}`)
+  }
+
+  let updated = 0
+  for (const update of updates) {
+    // Only the fields this update gives; column names come from the fixed map.
+    const fields = (Object.keys(UPDATE_COLUMNS) as (keyof typeof UPDATE_COLUMNS)[]).filter((key) => update[key] !== undefined)
+    const columns = fields.map((key) => UPDATE_COLUMNS[key])
+    const values = fields.map((key) => (key === 'company' ? companyIds.get(update.company!)! : update[key]))
+    const placeholders = values.map((_, i) => `$${i + 2}`)
+    const { rowCount } = await client.query(
+      `update properties set (${columns.join(', ')}) = row(${placeholders.join(', ')})
+       where slug = $1 and (${columns.join(', ')}) is distinct from (${placeholders.join(', ')})`,
+      [update.slug, ...values]
+    )
+    if (rowCount) updated++
+  }
+  return { updated, unchanged: updates.length - updated }
 }
