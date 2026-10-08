@@ -49,6 +49,22 @@ It reads `DATABASE_URL`. `data/catalog.example.json` shows the format.
   `null` means the company is not known. Omitting a company's `website` clears it. A company's
   `aliases` are other spellings public data uses for it; see below.
 
+**Filling in an existing building.** Most buildings come from public data with no rent,
+bedrooms or area. An `updates` entry fills in details on a building that already exists, by its
+slug (its URL), writing only the fields it gives:
+
+```json
+"updates": [
+  { "slug": "the-dean-campustown", "rentMin": 1100, "rentMax": 1900, "bedrooms": [0, 1, 2, 4],
+    "neighborhood": "Campustown", "company": "gmh-communities", "website": "https://…" }
+]
+```
+
+`rentMin` and `rentMax` come together; `website` is the building's own leasing page, http(s)
+only. An unknown slug or company stops the whole file. The property importer never overwrites
+these fields (it only fills in a company where there is none), so a re-import keeps them. Enter
+them by hand from public listings; do not scrape them.
+
 **Production:** run it through the tunnel, as the master user, with the same dry-run default:
 
 ```bash

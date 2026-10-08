@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import type { Client } from 'pg'
 import { type Catalog, importCatalog, parseCatalog } from '../src/catalog.ts'
 import { connect, insertReview } from './helpers.ts'
@@ -181,3 +181,76 @@ describe('parseCatalog', () => {
     expect(message).toMatch(/rentMin/)
   })
 })
+
+describe('importCatalog updates', () => {
+  const imported = s('imported')
+  beforeEach(async () => {
+    await db.query(
+      `insert into properties (slug, name, address, unit_count, latitude, longitude)
+       values ($1, 'Imported Tower', '1 Imported St, Champaign', 120, 40.1, -88.2)`,
+      [imported]
+    )
+  })
+  const row = async () =>
+    (await db.query(
+      `select p.rent_min, p.rent_max, p.bedrooms, p.neighborhood, p.website, p.unit_count, c.slug as company
+       from properties p left join management_companies c on c.id = p.company_id where p.slug = $1`,
+      [imported]
+    )).rows[0]
+  const withUpdates = (updates: unknown[]) => parseCatalog({ companies: [{ slug: s('acme'), name: 'Acme Rentals' }], properties: [], updates })
+
+  it('fills in only the fields given, and leaves the rest as imported', async () => {
+    const result = await importCatalog(
+      db,
+      withUpdates([{ slug: imported, rentMin: 900, rentMax: 1400, bedrooms: [2, 1], company: s('acme'), website: 'https://tower.example' }]),
+      { apply: true }
+    )
+    expect(result.updates).toEqual({ updated: 1, unchanged: 0 })
+    expect(await row()).toEqual({
+      rent_min: 900, rent_max: 1400, bedrooms: [1, 2], neighborhood: null,
+      website: 'https://tower.example', unit_count: 120, company: s('acme'),
+    })
+
+    await importCatalog(db, withUpdates([{ slug: imported, neighborhood: 'Campustown' }]), { apply: true })
+    expect(await row()).toMatchObject({ rent_min: 900, neighborhood: 'Campustown', website: 'https://tower.example' })
+  })
+
+  it('reports an unchanged update as unchanged, and writes nothing on a dry run', async () => {
+    await importCatalog(db, withUpdates([{ slug: imported, neighborhood: 'Campustown' }]), { apply: true })
+    const again = await importCatalog(db, withUpdates([{ slug: imported, neighborhood: 'Campustown' }]), { apply: true })
+    expect(again.updates).toEqual({ updated: 0, unchanged: 1 })
+    await importCatalog(db, withUpdates([{ slug: imported, neighborhood: 'Downtown' }]), { apply: false })
+    expect((await row()).neighborhood).toBe('Campustown')
+  })
+
+  it('refuses an unknown building or company, and changes nothing', async () => {
+    await expect(importCatalog(db, withUpdates([{ slug: s('nope'), neighborhood: 'X' }]), { apply: true }))
+      .rejects.toThrow(`Unknown property slug(s) in updates: ${s('nope')}`)
+    await expect(importCatalog(db, withUpdates([{ slug: imported, company: s('nobody') }]), { apply: true }))
+      .rejects.toThrow('Unknown company slug(s) in updates')
+    expect((await row()).company).toBeNull()
+  })
+
+  it('validates the file: rent as a pair, an http(s) website, something to change', () => {
+    expect(() => withUpdates([{ slug: imported, rentMin: 900 }])).toThrow('give rentMin and rentMax together')
+    expect(() => withUpdates([{ slug: imported, rentMin: 900, rentMax: 800 }])).toThrow('rentMax must be at least rentMin')
+    expect(() => withUpdates([{ slug: imported, website: 'javascript:alert(1)' }])).toThrow('http:// or https://')
+    expect(() => withUpdates([{ slug: imported }])).toThrow('nothing to update')
+    expect(() => withUpdates([{ slug: imported, neighborhood: 'A' }, { slug: imported, neighborhood: 'B' }])).toThrow('duplicate slug')
+  })
+
+  it('keeps hand-entered details when the building is imported again', async () => {
+    await importCatalog(db, withUpdates([{ slug: imported, rentMin: 900, rentMax: 1400, company: s('acme') }]), { apply: true })
+    await db.query(`insert into property_sources (source, source_id, property_id, source_address)
+                    select 'test_catalog', $1, id, '1 Imported St' from properties where slug = $1`, [imported])
+    const { importRecords } = await import('../src/ingest/importer.ts')
+    const { TARGET_AREA } = await import('../src/ingest/config.ts')
+    await importRecords(db, 'test_catalog', [{
+      source: 'test_catalog', sourceId: imported, name: 'Imported Tower', complexName: null, street: '1 Imported St',
+      city: 'Champaign', latitude: TARGET_AREA.latitude, longitude: TARGET_AREA.longitude, unitCount: 130, stories: null,
+      propertyType: 'apartment', manager: 'Someone Else', raw: {},
+    }], [], { apply: true, area: TARGET_AREA })
+    expect(await row()).toMatchObject({ rent_min: 900, rent_max: 1400, company: s('acme'), unit_count: 130 })
+  })
+})
+

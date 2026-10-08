@@ -36,6 +36,21 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
     ['Size', size && <span className="tnum">{size}</span>],
     ['Area', property.neighborhood],
     [
+      'Website',
+      property.website && (
+        // Stretched over the cell like the company link; opens the building's
+        // own site without telling it which page sent the visitor.
+        <a
+          href={property.website}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-accent underline underline-offset-2 after:absolute after:inset-0"
+        >
+          {URL.canParse(property.website) ? new URL(property.website).hostname.replace(/^www\./, '') : property.website}
+        </a>
+      ),
+    ],
+    [
       'Managed by',
       property.company && (
         // The link stretches over the whole cell so the tap target is the cell.

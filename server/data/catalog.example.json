@@ -1,8 +1,21 @@
 {
   "companies": [
-    { "slug": "jsm", "name": "JSM", "website": "https://www.jsmliving.com" },
-    { "slug": "green-street-realty", "name": "Green Street Realty", "aliases": ["Green Streeet Realty"] },
-    { "slug": "roland-realty", "name": "Roland Realty" }
+    {
+      "slug": "jsm",
+      "name": "JSM",
+      "website": "https://www.jsmliving.com"
+    },
+    {
+      "slug": "green-street-realty",
+      "name": "Green Street Realty",
+      "aliases": [
+        "Green Streeet Realty"
+      ]
+    },
+    {
+      "slug": "roland-realty",
+      "name": "Roland Realty"
+    }
   ],
   "properties": [
     {
@@ -12,7 +25,11 @@
       "neighborhood": "Campustown",
       "rentMin": 875,
       "rentMax": 1250,
-      "bedrooms": [1, 2, 3],
+      "bedrooms": [
+        1,
+        2,
+        3
+      ],
       "company": "jsm"
     },
     {
@@ -22,8 +39,19 @@
       "neighborhood": "Engineering Campus",
       "rentMin": 700,
       "rentMax": 995,
-      "bedrooms": [2, 3, 4],
+      "bedrooms": [
+        2,
+        3,
+        4
+      ],
       "company": "roland-realty"
+    }
+  ],
+  "updates": [
+    {
+      "slug": "green-street-towers",
+      "neighborhood": "Campustown",
+      "website": "https://www.example.com/green-street-towers"
     }
   ]
 }

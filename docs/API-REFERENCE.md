@@ -62,6 +62,7 @@ type PropertySummary = {
   rentMin: number | null; rentMax: number | null                // both null when unknown
   bedrooms: number[]                                            // 0 is a studio; empty when unknown
   unitCount: number | null; stories: number | null              // from public building data
+  website: string | null                                        // the building's leasing site
   company: { slug: string; name: string } | null                 // null: not known
   reviewCount: number; averages: Averages
 }
