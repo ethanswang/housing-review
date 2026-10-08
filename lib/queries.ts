@@ -222,3 +222,27 @@ export async function postReview(
     .catch(() => undefined)
   return { ok: false, status: response.status, code }
 }
+
+export const REPORT_REASONS = ['spam', 'harassment', 'not_a_tenant', 'personal_info', 'other'] as const
+export type ReportReason = (typeof REPORT_REASONS)[number]
+
+/** Files a report as the signed-in student; the API keeps it for a moderator and hides nothing. */
+export async function reportReview(
+  reviewId: string,
+  report: { reason: ReportReason; details: string | null },
+  accessToken: string
+): Promise<{ ok: true } | { ok: false; status: number; code?: string }> {
+  const response = await fetch(`${API_URL}/api/reviews/${encodeURIComponent(reviewId)}/reports`, {
+    method: 'POST',
+    cache: 'no-store',
+    headers: { ...(await visitorHeaders()), authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+    body: JSON.stringify(report.details ? report : { reason: report.reason }),
+  })
+  if (response.ok) return { ok: true }
+  const code = await response
+    .json()
+    .then((body: { error?: { code?: string } }) => body.error?.code)
+    .catch(() => undefined)
+  return { ok: false, status: response.status, code }
+}
+

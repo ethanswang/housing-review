@@ -143,7 +143,11 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
             )}
             <div className="mt-4">
               {property.reviews.map((review) => (
-                <ReviewCard key={review.id} review={review} />
+                <ReviewCard
+                  key={review.id}
+                  review={review}
+                  report={{ signedIn: Boolean(user), signInHref: `/signin?next=${encodeURIComponent(`/properties/${property.slug}#reviews-heading`)}` }}
+                />
               ))}
             </div>
           </section>

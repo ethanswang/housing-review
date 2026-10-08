@@ -1,5 +1,6 @@
 import type { Review } from '@/lib/types'
 import { SampleBadge, SubRatingsInline } from './Ratings'
+import { ReportReview } from './ReportReview'
 
 /** "Mar 2025". Fixed time zone so the month doesn't depend on the server's locale. */
 function postedMonth(iso: string) {
@@ -14,7 +15,14 @@ function postedMonth(iso: string) {
  * One review in a divided list. The overall score sits in its own narrow column
  * so scores and text can each be scanned straight down the page.
  */
-export function ReviewCard({ review }: { review: Review }) {
+export function ReviewCard({
+  review,
+  report,
+}: {
+  review: Review
+  /** Offers "Report" under the review; left out where reporting makes no sense (samples). */
+  report?: { signedIn: boolean; signInHref: string }
+}) {
   return (
     <article className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-3 border-t border-rule py-6">
       <p className="tnum text-title font-semibold">
@@ -34,6 +42,10 @@ export function ReviewCard({ review }: { review: Review }) {
         <p className="text-body break-words">{review.body}</p>
 
         <SubRatingsInline ratings={review} />
+
+        {report && !review.is_sample && (
+          <ReportReview reviewId={review.id} signedIn={report.signedIn} signInHref={report.signInHref} />
+        )}
       </div>
     </article>
   )
