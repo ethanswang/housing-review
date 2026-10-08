@@ -28,9 +28,10 @@ infra/moderate.sh dismiss <review-id> --apply   # keep the review; its open repo
 infra/moderate.sh restore <review-id> --apply   # undo a hide
 ```
 
-A hidden review disappears from the building page and its averages. Its author still sees it,
-with a note that a moderator hid it, and cannot post another review of that building while it is
-hidden. A review its author withdrew is never touched. Nothing is deleted.
+A hidden review disappears from the building page and its averages. Its author sees a note on the
+building page that a moderator hid it, and cannot post another review of that building while it
+is hidden. Authors can still edit a hidden review through the API, so `restore` prints the
+review's current text first: check it before applying. A review its author withdrew is never touched. Nothing is deleted.
 
 ## Deciding
 

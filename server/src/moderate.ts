@@ -7,7 +7,7 @@
  * through infra/moderate.sh. See docs/MODERATION.md.
  */
 import pg from 'pg'
-import { listRecent, listReported, moderate } from './moderation.ts'
+import { describeReview, listRecent, listReported, moderate, printable } from './moderation.ts'
 
 const [command, arg, ...rest] = process.argv.slice(2)
 const apply = rest.includes('--apply') || arg === '--apply'
@@ -25,7 +25,8 @@ if (!process.env.DATABASE_URL || !valid) {
 }
 
 const client = new pg.Client({ connectionString: process.env.DATABASE_URL })
-const excerpt = (text: string) => (text.length > 300 ? `${text.slice(0, 300)}…` : text)
+// Everything students wrote goes through printable(): it may hold escape sequences.
+const excerpt = printable
 const date = (d: Date) => d.toISOString().slice(0, 10)
 
 try {
@@ -34,17 +35,20 @@ try {
     const reported = await listReported(client)
     if (!reported.length) console.log('No open reports.')
     for (const r of reported) {
-      console.log(`\n${r.reviewId}  [${r.status}]  ${r.property} (/properties/${r.propertySlug})`)
+      console.log(`\n${r.reviewId}  [${r.status}]  ${excerpt(r.property)} (/properties/${r.propertySlug})`)
       console.log(`  ${r.reports} report(s) since ${date(r.firstReportedAt)}: ${r.reasons.join(', ')}`)
       for (const d of r.details) console.log(`  · "${excerpt(d)}"`)
       console.log(`  ${r.overall}/5, posted ${date(r.postedAt)}: ${excerpt(r.body)}`)
     }
   } else if (command === 'recent') {
     for (const r of await listRecent(client, Number(arg ?? 20))) {
-      console.log(`\n${r.reviewId}  [${r.status}]  ${r.property}, ${r.overall}/5, ${date(r.postedAt)}`)
+      console.log(`\n${r.reviewId}  [${r.status}]  ${excerpt(r.property)}, ${r.overall}/5, ${date(r.postedAt)}`)
       console.log(`  ${excerpt(r.body)}`)
     }
   } else {
+    // Show what the id points at, as it reads now: an author may have edited it since it was reported.
+    const review = await describeReview(client, arg!)
+    if (review) console.log(`${arg}  [${review.status}]  ${review.property}\n  ${review.body}\n`)
     const result = await moderate(client, command as 'hide' | 'restore' | 'dismiss', arg!, { apply })
     console.log(`review: ${result.review}; reports closed: ${result.reportsClosed}`)
     console.log(result.applied ? 'Applied.' : 'Dry run: nothing was changed. Re-run with --apply.')

@@ -31,7 +31,9 @@ export function ReportReview({ reviewId, signedIn, signInHref }: { reviewId: str
 
   return (
     <details className="text-meta text-muted">
-      <summary className="inline-flex min-h-11 cursor-pointer items-center underline-offset-2 hover:underline">Report</summary>
+      <summary className="inline-flex min-h-11 cursor-pointer items-center underline-offset-2 hover:underline">
+        Report<span className="sr-only"> this review</span>
+      </summary>
       {signedIn ? (
         <form action={formAction} className="mt-2 flex flex-col gap-3 rounded-lg border border-rule bg-surface p-4 text-body text-ink">
           <input type="hidden" name="review_id" value={reviewId} />
@@ -39,14 +41,27 @@ export function ReportReview({ reviewId, signedIn, signInHref }: { reviewId: str
             <legend className="font-semibold">What is wrong with this review?</legend>
             {REASONS.map(([value, label]) => (
               <label key={value} className="flex min-h-11 items-center gap-3">
-                <input type="radio" name="reason" value={value} required className="size-4" />
+                <input
+                  type="radio"
+                  name="reason"
+                  value={value}
+                  required
+                  defaultChecked={state.values?.reason === value}
+                  className="size-4"
+                />
                 {label}
               </label>
             ))}
           </fieldset>
           <label className="flex flex-col gap-2">
             <span className="text-meta text-muted">Anything a moderator should know (optional)</span>
-            <textarea name="details" rows={2} maxLength={1000} className="rounded-lg border border-rule-strong bg-surface px-3 py-2" />
+            <textarea
+              name="details"
+              rows={2}
+              maxLength={1000}
+              defaultValue={state.values?.details}
+              className="rounded-lg border border-rule-strong bg-surface px-3 py-2"
+            />
           </label>
           {state.error && (
             <p role="alert" className="border-l-2 border-ink pl-3">

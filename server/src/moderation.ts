@@ -11,6 +11,26 @@ import type pg from 'pg'
  * applied.
  */
 
+/**
+ * Text from students made safe to print: control characters (escape sequences
+ * that could move the cursor, clear lines or rewrite an id on screen) become a
+ * visible mark, line breaks become ⏎, and long text is cut to 300 characters.
+ */
+export function printable(text: string): string {
+  const flat = text.replace(/\r?\n/g, ' ⏎ ').replace(/[\u0000-\u001f\u007f-\u009f]/g, '�')
+  return flat.length > 300 ? `${flat.slice(0, 300)}…` : flat
+}
+
+/** A review's building, status and current text, to check an id before acting on it. */
+export async function describeReview(client: pg.ClientBase, reviewId: string) {
+  const { rows } = await client.query<{ status: string; property: string; body: string }>(
+    `select r.status, p.name as property, r.body from reviews r join properties p on p.id = r.property_id where r.id = $1`,
+    [reviewId]
+  )
+  const row = rows[0]
+  return row ? { status: row.status, property: printable(row.property), body: printable(row.body) } : null
+}
+
 export type ReportedReview = {
   reviewId: string
   status: string

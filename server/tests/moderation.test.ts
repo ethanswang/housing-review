@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import type { Client } from 'pg'
-import { listRecent, listReported, moderate } from '../src/moderation.ts'
+import { describeReview, listRecent, listReported, moderate, printable } from '../src/moderation.ts'
 import { connect, insertProperty, insertReview, insertUser } from './helpers.ts'
 
 let db: Client
@@ -84,3 +84,24 @@ describe('moderation', () => {
     expect(recent.every((r) => !r.body.startsWith('A sample review that should not'))).toBe(true)
   })
 })
+
+describe('printable', () => {
+  it('shows control characters instead of letting them drive the terminal', () => {
+    expect(printable('fine \x1b[2J\x1b[1Atext\u009b31m')).toBe('fine �[2J�[1Atext�31m')
+    expect(printable('two\nlines\r')).toBe('two ⏎ lines�')
+    expect(printable('a'.repeat(400))).toHaveLength(301)
+  })
+})
+
+describe('describeReview', () => {
+  it('names the building and shows the current text, for checking the id before acting', async () => {
+    const propertyId = await insertProperty(db)
+    made.properties.push(propertyId)
+    const reviewId = await insertReview(db, propertyId, { body: 'Current text \x1b[2K of the review, long enough.' })
+    expect(await describeReview(db, reviewId)).toEqual({
+      status: 'published', property: 'Test Property', body: 'Current text �[2K of the review, long enough.',
+    })
+    expect(await describeReview(db, '00000000-0000-4000-8000-000000000000')).toBeNull()
+  })
+})
+

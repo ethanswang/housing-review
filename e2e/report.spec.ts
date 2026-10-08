@@ -26,7 +26,7 @@ test('a signed-in student can report a review, once', async ({ browser }) => {
   const page = await reader.newPage()
   await gotoHydrated(page, '/properties/green-street-towers')
   const review = page.locator('article', { hasText: body })
-  await review.getByText('Report', { exact: true }).click()
+  await review.locator('summary').click()
   await review.getByLabel('Not written by someone who lived here').check()
   await review.getByLabel('Anything a moderator should know (optional)').fill('Posted by the leasing office, I think.')
   await review.getByRole('button', { name: 'Send report' }).click()
@@ -35,10 +35,31 @@ test('a signed-in student can report a review, once', async ({ browser }) => {
   // A second report from the same account is accepted quietly, not an error.
   await page.reload()
   await page.locator('[data-hydrated]').first().waitFor({ state: 'attached' })
-  await review.getByText('Report', { exact: true }).click()
+  await review.locator('summary').click()
   await review.getByLabel('Spam or advertising').check()
   await review.getByRole('button', { name: 'Send report' }).click()
   await expect(review.getByRole('status')).toHaveText('Reported. A moderator will look at it.')
+})
+
+test('a report the server refuses keeps the reason and details', async ({ browser }) => {
+  const author = await browser.newContext()
+  await signIn(author)
+  const body = await postReview(await author.newPage(), '/properties/roland-realty')
+
+  const reader = await browser.newContext()
+  await signIn(reader)
+  const page = await reader.newPage()
+  await gotoHydrated(page, '/properties/roland-realty')
+  const review = page.locator('article', { hasText: body })
+  await review.locator('summary').click()
+  await review.getByLabel('Harassment or hate').check()
+  await review.getByLabel('Anything a moderator should know (optional)').fill('Second paragraph is a slur.')
+  // A tampered id: the action refuses it before it reaches the API.
+  await review.locator('input[name="review_id"]').evaluate((input: HTMLInputElement) => { input.value = 'not-an-id' })
+  await review.getByRole('button', { name: 'Send report' }).click()
+  await expect(review.getByRole('alert')).toHaveText('Something went wrong. Please reload and try again.')
+  await expect(review.getByLabel('Harassment or hate')).toBeChecked()
+  await expect(review.getByLabel('Anything a moderator should know (optional)')).toHaveValue('Second paragraph is a slur.')
 })
 
 test('a reader who is not signed in is asked to sign in to report', async ({ browser }) => {
@@ -49,7 +70,7 @@ test('a reader who is not signed in is asked to sign in to report', async ({ bro
   const page = await (await browser.newContext()).newPage()
   await page.goto('/properties/bankier-apartments')
   const review = page.locator('article', { hasText: body })
-  await review.getByText('Report', { exact: true }).click()
+  await review.locator('summary').click()
   await expect(review.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', /^\/signin\?next=/)
   await expect(review.getByRole('button', { name: 'Send report' })).toHaveCount(0)
 })
@@ -57,5 +78,5 @@ test('a reader who is not signed in is asked to sign in to report', async ({ bro
 test('sample reviews offer no report', async ({ page }) => {
   await page.goto('/properties/here-champaign')
   await expect(page.locator('article').first()).toBeVisible()
-  await expect(page.getByText('Report', { exact: true })).toHaveCount(0)
+  await expect(page.locator('article summary')).toHaveCount(0)
 })
