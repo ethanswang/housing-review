@@ -16,3 +16,24 @@ test('known pages answer 200 and unknown slugs a real 404', async ({ page }) => 
     expect(response?.status(), path).toBe(status)
   }
 })
+
+test('a slug with capitals redirects to the page; one that cannot exist is a 404, not an error', async ({ page, request }) => {
+  await page.goto('/properties/Here-Champaign')
+  await expect(page).toHaveURL('/properties/here-champaign')
+  expect((await request.get('/properties/foo_bar')).status()).toBe(404)
+  expect((await request.get('/companies/Bad_Slug')).status()).toBe(404)
+})
+
+test('a malformed rent limit in the URL is ignored rather than failing the directory', async ({ request }) => {
+  for (const maxRent of ['1500.5', '999999']) {
+    const response = await request.get(`/?maxRent=${maxRent}`)
+    expect(response.status()).toBe(200)
+    expect(await response.text()).not.toContain('This page couldn')
+  }
+})
+
+test('pages refuse to be framed by other sites', async ({ request }) => {
+  const response = await request.get('/')
+  expect(response.headers()['content-security-policy']).toContain("frame-ancestors 'none'")
+  expect(response.headers()['x-frame-options']).toBe('DENY')
+})

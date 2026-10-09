@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { checkSlug } from '@/lib/slug'
+import { notFound, permanentRedirect } from 'next/navigation'
 import { RatingSummary } from '@/components/Ratings'
 import { ReviewCard } from '@/components/ReviewCard'
 import { ReviewForm } from '@/components/ReviewForm'
@@ -13,6 +14,9 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
   // `params` is a promise in Next 16; the slug is the URL segment, matched
   // against the `slug` column by getPropertyBySlug.
   const { slug } = await params
+  const check = checkSlug(slug)
+  if ('redirectTo' in check) permanentRedirect(`/properties/${check.redirectTo}`)
+  if ('notFound' in check) notFound()
   const [property, user] = await Promise.all([getPropertyBySlug(slug), currentUser()])
 
   if (!property) notFound()
