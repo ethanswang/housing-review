@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { checkSlug } from '@/lib/slug'
+import { notFound, permanentRedirect } from 'next/navigation'
 import { PropertyRow } from '@/components/PropertyRow'
 import { RatingSummary } from '@/components/Ratings'
 import { getCompanyBySlug } from '@/lib/queries'
@@ -8,6 +9,9 @@ export const dynamic = 'force-dynamic'
 
 export default async function CompanyPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
+  const check = checkSlug(slug)
+  if ('redirectTo' in check) permanentRedirect(`/companies/${check.redirectTo}`)
+  if ('notFound' in check) notFound()
   const company = await getCompanyBySlug(slug)
 
   if (!company) notFound()

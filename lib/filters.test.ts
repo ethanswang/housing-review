@@ -70,3 +70,13 @@ describe('pageQuery', () => {
     expect(buildQuery(parseFilters({ q: 'green', page: '4' }))).toBe('q=green')
   })
 })
+
+describe('parseFilters maxRent', () => {
+  it('takes whole dollars up to the API limit, and ignores anything else rather than failing the page', () => {
+    expect(parseFilters({ maxRent: '1500' }).maxRent).toBe(1500)
+    for (const maxRent of ['1500.5', '999999', '0', '-5', 'abc']) {
+      expect(parseFilters({ maxRent }).maxRent).toBeUndefined()
+    }
+  })
+})
+

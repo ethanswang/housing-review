@@ -255,7 +255,11 @@ describe('GET /api/filters', () => {
     expect(response.statusCode).toBe(200)
     const body = response.json()
 
-    const { rows: companies } = await pool.query('select slug, name from management_companies order by name, slug')
+    const { rows: companies } = await pool.query(
+      `select c.slug, c.name from management_companies c
+       where exists (select from properties p where p.company_id = c.id and p.visibility = 'listed')
+       order by c.name, c.slug`
+    )
     expect(body.companies).toEqual(companies)
 
     const { rows: hoods } = await pool.query('select distinct neighborhood from properties where neighborhood is not null order by 1')
@@ -348,6 +352,17 @@ describe('building size', () => {
   it('breaks ties largest first, so unreviewed buildings list big ones before small', async () => {
     const slugs = (await get(`/api/properties?q=Size${tag}`)).json().data.map((p: { slug: string }) => p.slug)
     expect(slugs).toEqual([`size-${tag}-b-large`, `size-${tag}-a-small`])
+  })
+})
+
+describe('the company filter', () => {
+  const slug = `empty-co-${crypto.randomUUID().slice(0, 8)}`
+  beforeAll(async () => { await pool.query(`insert into management_companies (slug, name) values ($1, 'Empty Co')`, [slug]) })
+  afterAll(async () => { await pool.query('delete from management_companies where slug = $1', [slug]) })
+
+  it('leaves out a company with no listed building, which could only ever match nothing', async () => {
+    const companies = (await get('/api/filters')).json().companies.map((c: { slug: string }) => c.slug)
+    expect(companies).not.toContain(slug)
   })
 })
 

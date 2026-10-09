@@ -45,7 +45,8 @@ export function parseFilters(params: RawSearchParams): PropertyFilters {
     search: searchText(params.q),
     companies: list(params.company),
     neighborhoods: list(params.hood),
-    maxRent: Number.isFinite(maxRent) && maxRent > 0 ? maxRent : undefined,
+    // Whole dollars up to 100,000, as the API accepts; anything else would fail the page.
+    maxRent: Number.isInteger(maxRent) && maxRent > 0 && maxRent <= 100_000 ? maxRent : undefined,
     bedrooms: list(params.beds)
       ?.map(Number)
       // 0 is a studio. Capped at 20, as the API caps it: a huge number would

@@ -247,7 +247,13 @@ export type FilterOptions = {
 /** What the directory's filters offer, drawn from the data rather than hard-coded. */
 export async function getFilterOptions(db: Database): Promise<FilterOptions> {
   const [companies, options] = await Promise.all([
-    db.query('select slug, name from management_companies order by name, slug'),
+    // Only companies with a building the directory lists: choosing any other
+    // would always show "nothing matches".
+    db.query(
+      `select c.slug, c.name from management_companies c
+       where exists (select from properties p where p.company_id = c.id and p.visibility = 'listed')
+       order by c.name, c.slug`
+    ),
     db.query(
       `select
          coalesce((select array_agg(distinct neighborhood order by neighborhood) filter (where neighborhood is not null) from properties), '{}') as neighborhoods,

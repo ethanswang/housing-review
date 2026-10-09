@@ -54,7 +54,7 @@ the infrastructure are built and running; the site switches over once sign-in is
 | `app/`, `components/`, `lib/` | The Next.js site. `lib/queries.ts` holds all data access. |
 | `server/` | The API: routes, repositories, migrations, and tests against real Postgres. |
 | `infra/` | OpenTofu for the AWS stack: network, EC2, RDS, alarms. |
-| `supabase/` | The schema the live site still reads, until the switch. |
+| `supabase/` | The original Supabase schema. The site no longer reads it; Supabase is used only for sign-in. |
 | `docs/` | Design and operations documentation, below. |
 
 ### Documentation
