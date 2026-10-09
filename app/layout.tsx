@@ -45,7 +45,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               Reviews are written by students and reflect their own experiences. This site is not
               affiliated with the University of Illinois or with any management company.
             </p>
-            <p className="mt-4 text-meta text-muted">Built for the r/UIUC community</p>
+            <p className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-meta text-muted">
+              <span>Built for the r/UIUC community</span>
+              <Link href="/policies" className="underline">Guidelines, terms &amp; privacy</Link>
+              <Link href="/policies#contact" className="underline">Contact</Link>
+            </p>
           </div>
         </footer>
       </body>

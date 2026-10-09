@@ -23,7 +23,8 @@ export default async function SignInPage({
         <>
           <p className="mt-4 max-w-prose text-body text-ink-soft">
             Reviews are open to Illinois students. We email you a code instead of using a password,
-            and only use your address to sign you in; it is never shown on the site.
+            and only use your address to sign you in; it is never shown on the site. See{' '}
+            <Link href="/policies#privacy" className="underline">privacy</Link>.
           </p>
           <div className="mt-8">
             <SignInForm next={next} />
