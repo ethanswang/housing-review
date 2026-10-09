@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useActionState, useEffect, useRef } from 'react'
 import { submitReview, type ReviewFormState } from '@/app/actions'
 import { RATING_LABELS, SUB_RATING_KEYS, type RatingKey } from '@/lib/types'
@@ -86,7 +87,8 @@ export function ReviewForm({ slug }: { slug: string }) {
           className={`py-3 ${inputClass}`}
         />
         <span className="text-meta text-muted">
-          Posted anonymously. Please don&rsquo;t name individual employees.
+          Posted anonymously. Please don&rsquo;t name individual employees; see the{' '}
+          <Link href="/policies#guidelines" className="underline">guidelines</Link>.
         </span>
       </label>
 
