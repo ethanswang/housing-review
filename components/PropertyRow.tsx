@@ -24,7 +24,7 @@ export function PropertyRow({
   const address = property.address.toLowerCase().startsWith(property.name.toLowerCase()) ? null : property.address
   const who = [property.company?.name, property.neighborhood, address].filter(Boolean).join(' · ')
   const facts = [
-    rentRange(property.rent_min, property.rent_max),
+    rentRange(property.rent_min, property.rent_max, property.rent_basis),
     bedroomRange(property.bedrooms),
     sizeLabel(property.unit_count, property.stories),
   ]

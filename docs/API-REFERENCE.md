@@ -60,6 +60,7 @@ type Averages = { overall: number | null; maintenance: number | null; communicat
 type PropertySummary = {
   id: string; slug: string; name: string; address: string; neighborhood: string | null
   rentMin: number | null; rentMax: number | null                // both null when unknown
+  rentBasis: 'bed' | 'unit' | 'mixed' | null                    // what the rent is per; null: not stated
   bedrooms: number[]                                            // 0 is a studio; empty when unknown
   unitCount: number | null; stories: number | null              // from public building data
   website: string | null                                        // the building's leasing site

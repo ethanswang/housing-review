@@ -30,6 +30,8 @@ export type PropertySummary = {
   neighborhood: string | null
   rentMin: number | null
   rentMax: number | null
+  /** What the rent is per: a bed, a unit, or both in one building; null when not stated. */
+  rentBasis: 'bed' | 'unit' | 'mixed' | null
   bedrooms: number[]
   /** From public building data; null when not known. */
   unitCount: number | null
@@ -76,6 +78,7 @@ type PropertyStatsRow = {
   neighborhood: string | null
   rent_min: number | null
   rent_max: number | null
+  rent_basis: 'bed' | 'unit' | 'mixed' | null
   bedrooms: number[]
   unit_count: number | null
   stories: number | null
@@ -98,6 +101,7 @@ export function toSummary(row: PropertyStatsRow): PropertySummary {
     neighborhood: row.neighborhood,
     rentMin: row.rent_min,
     rentMax: row.rent_max,
+    rentBasis: row.rent_basis,
     bedrooms: row.bedrooms,
     unitCount: row.unit_count,
     stories: row.stories,

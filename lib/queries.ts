@@ -31,6 +31,7 @@ type ApiProperty = {
   neighborhood: string | null
   rentMin: number | null
   rentMax: number | null
+  rentBasis?: 'bed' | 'unit' | 'mixed' | null
   unitCount: number | null
   stories: number | null
   website: string | null
@@ -74,6 +75,7 @@ const toProperty = (p: ApiProperty): PropertyWithStats => ({
   neighborhood: p.neighborhood,
   rent_min: p.rentMin,
   rent_max: p.rentMax,
+  rent_basis: p.rentBasis ?? null,
   unit_count: p.unitCount,
   stories: p.stories,
   // An API from before websites existed sends none.

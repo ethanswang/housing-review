@@ -27,6 +27,12 @@ describe('rentRange', () => {
     expect(rentRange(900, 900)).toBe('$900/mo')
   })
 
+  it('says what the rent is per when the listing did', () => {
+    expect(rentRange(1160, 2380, 'bed')).toBe('$1,160–2,380/mo per bed')
+    expect(rentRange(1600, 4500, 'unit')).toBe('$1,600–4,500/mo per unit')
+    expect(rentRange(920, 1795, 'mixed')).toBe('$920–1,795/mo per bed or unit')
+  })
+
   it('is null when the rent is not known, rather than inventing one', () => {
     expect(rentRange(null, null)).toBeNull()
   })
