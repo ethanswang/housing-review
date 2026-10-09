@@ -49,6 +49,9 @@ export function FilterRail({
    * snapping the thumb back under the user's finger.
    */
   const [draftRent, setDraftRent] = useState<number | null>(null)
+  // The company list is long; it shows a few until asked, but never hides a
+  // company that is checked.
+  const [allCompanies, setAllCompanies] = useState(false)
   const rentTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   // The same value as draftRent, readable from handlers without waiting for a render.
   const pendingRent = useRef<number | undefined>(undefined)
@@ -189,14 +192,26 @@ export function FilterRail({
   const groups = (
     <>
       <Group title="Management company">
-        {options.companies.map((company) => (
-          <Check
-            key={company.slug}
-            label={company.name}
-            checked={current.companies?.includes(company.slug) ?? false}
-            onChange={() => apply({ ...current, companies: toggle(current.companies, company.slug) })}
-          />
-        ))}
+        {options.companies
+          .filter((company, i) => allCompanies || i < COMPANIES_SHOWN || current.companies?.includes(company.slug))
+          .map((company) => (
+            <Check
+              key={company.slug}
+              label={company.name}
+              checked={current.companies?.includes(company.slug) ?? false}
+              onChange={() => apply({ ...current, companies: toggle(current.companies, company.slug) })}
+            />
+          ))}
+        {options.companies.length > COMPANIES_SHOWN && (
+          <button
+            type="button"
+            aria-expanded={allCompanies}
+            onClick={() => setAllCompanies(!allCompanies)}
+            className="min-h-11 self-start text-meta font-semibold underline"
+          >
+            {allCompanies ? 'Show fewer' : `Show all ${options.companies.length} companies`}
+          </button>
+        )}
       </Group>
 
       <Group title="Area">
@@ -354,6 +369,9 @@ export function FilterRail({
     </div>
   )
 }
+
+/** Companies listed before "Show all". */
+const COMPANIES_SHOWN = 6
 
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
