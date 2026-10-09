@@ -100,8 +100,8 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
           <p className="text-title font-semibold text-balance">No published reviews yet.</p>
         ) : (
           <>
-            <p className="text-title font-semibold text-balance">No reviews yet — lived here? Be the first.</p>
-            <p className="mt-1 text-meta text-muted">Takes about a minute. Sign in with your Illinois email.</p>
+            <p className="text-title font-semibold text-balance">No reviews yet.</p>
+            {!user && <p className="mt-1 text-meta text-muted">Sign in with your Illinois email to add one.</p>}
             <a
               href="#write-review"
               className="mt-4 flex h-12 w-full items-center justify-center rounded-lg bg-accent text-body font-semibold text-surface hover:bg-accent-dark"
@@ -161,7 +161,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
 
         <section id="write-review" className="mt-10 scroll-mt-4 border-t border-ink pt-6">
           <h2 className="text-title font-semibold">{myReview ? 'Your review' : 'Write a review'}</h2>
-          {!myReview && <p className="mt-1 text-meta text-muted">Posted anonymously · takes about a minute</p>}
+          {!myReview && <p className="mt-1 text-meta text-muted">Posted anonymously</p>}
           <div className="mt-6">
             {myReview ? (
               <div role="status">

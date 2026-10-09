@@ -108,7 +108,7 @@ Based on StreetEasy's result list and Airbnb's filter sheet.
    - A `Filters` button, with a count badge when filters are active: "Filters · 2".
    - A native sort `<select>`.
    - Both are 44px tall.
-4. **Active filter chips.** A horizontally scrolling row. Each chip is 36px tall inside a 44px tap area and has a ✕ to remove that one filter. Only shown when there are active filters.
+4. **Active filter chips.** A horizontally scrolling row. Each chip is 36px tall inside a 44px tap area, with the same 8px corners as buttons (not a pill), and has a ✕ to remove that one filter. Only shown when there are active filters.
 5. **Result count** (`meta`): "14 properties · 83 reviews".
 6. **Result rows,** separated by dividers, each a full-width tap target:
    ```
@@ -163,8 +163,8 @@ Based on Airbnb's detail page structure and Letterboxd's review column.
 - The right column (320px) is sticky: the rating summary plus a full-width "Write a review" button, on a white panel with a 1px border. This is the one panel on the page.
 
 **Empty state (0 reviews):**
-- Replaces the summary and list with "No reviews yet — lived here? Be the first." in `title`.
-- Adds one line of `meta`, "Takes about a minute. Sign in with your Illinois email.", and a primary button "Write the first review" that jumps to the form.
+- Replaces the summary and list with "No reviews yet." in `title`.
+- For a visitor who is not signed in, adds one line of `meta`, "Sign in with your Illinois email to add one."; then a primary button "Write the first review" that jumps to the form.
 
 **Loading:** no skeleton, on purpose. A `loading.tsx` makes Next.js commit a `200` before the page runs, so a missing property would be served as a soft 404 instead of a real `404`. For the same reason the directory's skeleton sits inside the `(directory)` route group, which scopes it to `/` alone.
 
@@ -189,7 +189,7 @@ A divider above each review, with no box, background, or shadow (Letterboxd styl
 ### 5.5 Write-a-review flow
 It stays one form, submitted to the same `submitReview` action with the same field names. Only the order and styling change, so it reads top to bottom like a short survey:
 
-1. **Heading:** "Write a review", with "Posted anonymously · takes about a minute" in `meta`.
+1. **Heading:** "Write a review", with "Posted anonymously" in `meta`.
 2. **When did you live here?** A lease year text input (16px, 48px tall, capped at 192px wide on desktop) with the `2024-25` placeholder.
 3. **Overall — would you sign again?** A 1–5 segmented control.
 4. **Three sub-ratings.** Each is a segmented control with its existing hint line, stacked at every width (§8).
