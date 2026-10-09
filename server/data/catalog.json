@@ -100,7 +100,8 @@
         3,
         4
       ],
-      "website": "https://www.thedean.com/campustown/"
+      "website": "https://www.thedean.com/campustown/",
+      "neighborhood": "Campustown"
     },
     {
       "slug": "310-e-springfield-ave",
@@ -115,7 +116,8 @@
         3
       ],
       "company": "yugo",
-      "website": "https://www.burnham310.com/"
+      "website": "https://www.burnham310.com/",
+      "neighborhood": "Midtown"
     },
     {
       "slug": "hub-champaign-daniel",
@@ -128,7 +130,8 @@
         3,
         4
       ],
-      "website": "https://huboncampus.com/champaign/"
+      "website": "https://huboncampus.com/champaign/",
+      "neighborhood": "Campustown"
     },
     {
       "slug": "seven07",
@@ -143,7 +146,8 @@
         4
       ],
       "company": "cardinal-group-management",
-      "website": "https://liveseven07.com/"
+      "website": "https://liveseven07.com/",
+      "neighborhood": "Seniorland"
     },
     {
       "slug": "illini-tower",
@@ -158,7 +162,8 @@
         4
       ],
       "company": "bhom-student-living",
-      "website": "https://illinitower.prospectportal.com/champaign/illini-tower/"
+      "website": "https://illinitower.prospectportal.com/champaign/illini-tower/",
+      "neighborhood": "Campustown"
     },
     {
       "slug": "209-e-university-ave",
@@ -172,7 +177,8 @@
         3,
         4
       ],
-      "website": "https://www.greenstrealty.com/properties/profile/209-e-university-ave"
+      "website": "https://www.greenstrealty.com/properties/profile/209-e-university-ave",
+      "neighborhood": "Midtown"
     },
     {
       "slug": "latitude",
@@ -186,7 +192,8 @@
         4
       ],
       "company": "the-scion-group",
-      "website": "https://latitude-champaign.com/"
+      "website": "https://latitude-champaign.com/",
+      "neighborhood": "Engineering"
     },
     {
       "slug": "latitude-608-e-university-ave",
@@ -200,7 +207,8 @@
         4
       ],
       "company": "the-scion-group",
-      "website": "https://latitude-champaign.com/"
+      "website": "https://latitude-champaign.com/",
+      "neighborhood": "Engineering"
     },
     {
       "slug": "309-e-springfield-ave",
@@ -215,7 +223,8 @@
         3,
         4
       ],
-      "website": "https://www.iconchampaign.com/"
+      "website": "https://www.iconchampaign.com/",
+      "neighborhood": "Midtown"
     },
     {
       "slug": "the-tower-at-third",
@@ -228,7 +237,8 @@
         3
       ],
       "company": "american-campus-communities",
-      "website": "https://www.americancampus.com/student-apartments/il/champaign/tower-at-3rd"
+      "website": "https://www.americancampus.com/student-apartments/il/champaign/tower-at-3rd",
+      "neighborhood": "Seniorland"
     },
     {
       "slug": "512-s-third",
@@ -243,7 +253,8 @@
         4
       ],
       "company": "yugo",
-      "website": "https://yugochampaignsouth3rdlofts.prospectportal.com/champaign/yugo-champaign-south-3rd-lofts/"
+      "website": "https://yugochampaignsouth3rdlofts.prospectportal.com/champaign/yugo-champaign-south-3rd-lofts/",
+      "neighborhood": "Midtown"
     },
     {
       "slug": "here-apartments",
@@ -254,7 +265,8 @@
         4
       ],
       "company": "article-student-living",
-      "website": "https://www.herechampaign.com/"
+      "website": "https://www.herechampaign.com/",
+      "neighborhood": "Campustown"
     },
     {
       "slug": "401-chalmers-st",
@@ -266,7 +278,8 @@
         1
       ],
       "company": "jsm-living",
-      "website": "https://jsmliving.com/node/129751"
+      "website": "https://jsmliving.com/node/129751",
+      "neighborhood": "Campustown"
     },
     {
       "slug": "309-e-green-st",
@@ -280,7 +293,8 @@
         4
       ],
       "company": "american-campus-communities",
-      "website": "https://www.americancampus.com/student-apartments/il/champaign/309-green"
+      "website": "https://www.americancampus.com/student-apartments/il/champaign/309-green",
+      "neighborhood": "Campustown"
     },
     {
       "slug": "212-east",
@@ -291,7 +305,8 @@
         4
       ],
       "company": "core-spaces",
-      "website": "https://www.therivechampaign.com/"
+      "website": "https://www.therivechampaign.com/",
+      "neighborhood": "Campustown"
     },
     {
       "slug": "502-e-healey-st",
@@ -303,7 +318,8 @@
         1,
         2
       ],
-      "website": "https://ugroupcu.com/property-details/502-e-healey-champaign"
+      "website": "https://ugroupcu.com/property-details/502-e-healey-champaign",
+      "neighborhood": "Engineering"
     },
     {
       "slug": "462107377001",
@@ -318,7 +334,8 @@
         4
       ],
       "company": "asset-living",
-      "website": "https://liveatoctave.com/"
+      "website": "https://liveatoctave.com/",
+      "neighborhood": "Engineering"
     },
     {
       "slug": "103-e-healey-st",
@@ -330,7 +347,8 @@
         1,
         2
       ],
-      "website": "https://www.greenstrealty.com/properties/profile/103-e-healey-st"
+      "website": "https://www.greenstrealty.com/properties/profile/103-e-healey-st",
+      "neighborhood": "Midtown"
     },
     {
       "slug": "303-e-chalmers-st",
@@ -342,7 +360,8 @@
         1,
         2
       ],
-      "website": "https://ugroupcu.com/property-details/303-e-chalmers-champaign/"
+      "website": "https://ugroupcu.com/property-details/303-e-chalmers-champaign/",
+      "neighborhood": "Seniorland"
     },
     {
       "slug": "605-s-fourth-st",
@@ -354,7 +373,8 @@
         1,
         2
       ],
-      "website": "https://ugroupcu.com/property-details/605-s-fourth-champaign/"
+      "website": "https://ugroupcu.com/property-details/605-s-fourth-champaign/",
+      "neighborhood": "Midtown"
     },
     {
       "slug": "skelton-place",
@@ -368,7 +388,8 @@
         3
       ],
       "company": "green-street-realty",
-      "website": "https://www.greenstrealty.com/properties/profile/302-s-second-st"
+      "website": "https://www.greenstrealty.com/properties/profile/302-s-second-st",
+      "neighborhood": "Midtown"
     },
     {
       "slug": "vue",
@@ -381,7 +402,8 @@
         2,
         4
       ],
-      "website": "https://www.greenstrealty.com/properties/profile/711-s-fourth-st"
+      "website": "https://www.greenstrealty.com/properties/profile/711-s-fourth-st",
+      "neighborhood": "Seniorland"
     },
     {
       "slug": "462107377002-thru-004",
@@ -396,7 +418,8 @@
         4
       ],
       "company": "asset-living",
-      "website": "https://liveatoctave.com/"
+      "website": "https://liveatoctave.com/",
+      "neighborhood": "Engineering"
     },
     {
       "slug": "75-armory",
@@ -408,7 +431,8 @@
         4
       ],
       "company": "the-university-group",
-      "website": "https://ugroupcu.com/property-details/75-e-armory-champaign"
+      "website": "https://ugroupcu.com/property-details/75-e-armory-champaign",
+      "neighborhood": "Seniorland"
     },
     {
       "slug": "903-s-first-st",
@@ -421,7 +445,8 @@
         3
       ],
       "company": "roland-realty",
-      "website": "https://www.roland-realty.com/unit-listings/903-s-first-st-301"
+      "website": "https://www.roland-realty.com/unit-listings/903-s-first-st-301",
+      "neighborhood": "Seniorland"
     },
     {
       "slug": "green-st-towers",
@@ -432,7 +457,8 @@
         4
       ],
       "company": "jsm-living",
-      "website": "https://www.jsmliving.com/node/130567"
+      "website": "https://www.jsmliving.com/node/130567",
+      "neighborhood": "Campustown"
     },
     {
       "slug": "maywood-apartments",
@@ -444,7 +470,8 @@
         3,
         4
       ],
-      "website": "https://maywoodapts.com/"
+      "website": "https://maywoodapts.com/",
+      "neighborhood": "Seniorland"
     },
     {
       "slug": "1008-s-fourth-st",
@@ -459,7 +486,8 @@
         4
       ],
       "company": "green-street-realty",
-      "website": "https://www.greenstrealty.com/properties/profile/1008-s-fourth-st"
+      "website": "https://www.greenstrealty.com/properties/profile/1008-s-fourth-st",
+      "neighborhood": "Campustown"
     },
     {
       "slug": "54-e-john-st",
@@ -470,7 +498,8 @@
         0,
         1
       ],
-      "website": "https://www.greenstrealty.com/properties/profile/54-e-john-st"
+      "website": "https://www.greenstrealty.com/properties/profile/54-e-john-st",
+      "neighborhood": "Seniorland"
     },
     {
       "slug": "401-e-university-ave",
@@ -480,7 +509,8 @@
       "bedrooms": [
         1
       ],
-      "website": "https://ugroupcu.com/property-details/401-e-university-champaign"
+      "website": "https://ugroupcu.com/property-details/401-e-university-champaign",
+      "neighborhood": "Engineering"
     },
     {
       "slug": "408-e-healey-st",
@@ -493,7 +523,8 @@
         3,
         4
       ],
-      "company": "smile-student-living"
+      "company": "smile-student-living",
+      "neighborhood": "Engineering"
     },
     {
       "slug": "410-e-green-st",
@@ -507,7 +538,8 @@
         3
       ],
       "company": "bankier-apartments",
-      "website": "https://www.410bankierapartments.com/"
+      "website": "https://www.410bankierapartments.com/",
+      "neighborhood": "Campustown"
     },
     {
       "slug": "the-suites-at-third",
@@ -519,7 +551,8 @@
         3,
         4
       ],
-      "website": "https://www.americancampus.com/student-apartments/il/champaign/the-suites-at-3rd"
+      "website": "https://www.americancampus.com/student-apartments/il/champaign/the-suites-at-3rd",
+      "neighborhood": "Seniorland"
     },
     {
       "slug": "412-e-healey-st",
@@ -530,7 +563,8 @@
         0,
         1
       ],
-      "website": "https://ugroupcu.com/property-details/412-e-healey-champaign/"
+      "website": "https://ugroupcu.com/property-details/412-e-healey-champaign/",
+      "neighborhood": "Engineering"
     },
     {
       "slug": "107-e-springfield-ave",
@@ -544,7 +578,8 @@
         4
       ],
       "company": "smile-student-living",
-      "website": "https://www.smilestudentliving.com/"
+      "website": "https://www.smilestudentliving.com/",
+      "neighborhood": "Midtown"
     },
     {
       "slug": "202-e-green-st",
@@ -558,7 +593,8 @@
         4
       ],
       "company": "bankier-apartments",
-      "website": "https://www.202bankierapartments.com/"
+      "website": "https://www.202bankierapartments.com/",
+      "neighborhood": "Campustown"
     },
     {
       "slug": "202-e-john-st",
@@ -574,7 +610,8 @@
         6
       ],
       "company": "bankier-apartments",
-      "website": "https://www.202johnbankierapartments.com/"
+      "website": "https://www.202johnbankierapartments.com/",
+      "neighborhood": "Seniorland"
     },
     {
       "slug": "32-e-green-st",
@@ -586,7 +623,8 @@
         3,
         4
       ],
-      "website": "https://www.greenstrealty.com/properties/profile/32-e-green-st"
+      "website": "https://www.greenstrealty.com/properties/profile/32-e-green-st",
+      "neighborhood": "Campustown"
     },
     {
       "slug": "multiple-302-s-first-st",
@@ -595,7 +633,8 @@
         1,
         2
       ],
-      "website": "https://ugroupcu.com/property-details/?property=13"
+      "website": "https://ugroupcu.com/property-details/?property=13",
+      "neighborhood": "Midtown"
     },
     {
       "slug": "707-s-sixth-st",
@@ -608,7 +647,8 @@
         2
       ],
       "company": "jsm-living",
-      "website": "https://www.jsmliving.com/"
+      "website": "https://www.jsmliving.com/",
+      "neighborhood": "Campustown"
     },
     {
       "slug": "315-e-john-st",
@@ -617,7 +657,8 @@
         1,
         2
       ],
-      "website": "https://ugroupcu.com/property-details/315-e-john-champaign/"
+      "website": "https://ugroupcu.com/property-details/315-e-john-champaign/",
+      "neighborhood": "Seniorland"
     },
     {
       "slug": "112-e-green",
@@ -628,7 +669,8 @@
         2,
         4
       ],
-      "website": "https://www.112bankierapartments.com/"
+      "website": "https://www.112bankierapartments.com/",
+      "neighborhood": "Campustown"
     },
     {
       "slug": "52-e-armory",
@@ -641,7 +683,8 @@
         4
       ],
       "company": "smile-student-living",
-      "website": "https://www.smilestudentliving.com/seniorland"
+      "website": "https://www.smilestudentliving.com/seniorland",
+      "neighborhood": "Seniorland"
     },
     {
       "slug": "615-s-wright-st",
@@ -655,7 +698,8 @@
         4
       ],
       "company": "smile-student-living",
-      "website": "https://www.smilestudentliving.com/"
+      "website": "https://www.smilestudentliving.com/",
+      "neighborhood": "Engineering"
     },
     {
       "slug": "healey-place",
@@ -669,7 +713,8 @@
         3,
         4
       ],
-      "website": "https://ugroupcu.com/property-details/601-s-first-champaign"
+      "website": "https://ugroupcu.com/property-details/601-s-first-champaign",
+      "neighborhood": "Midtown"
     }
   ]
 }
