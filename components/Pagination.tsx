@@ -3,7 +3,7 @@ import { pageQuery } from '@/lib/filters'
 import type { PropertyFilters } from '@/lib/types'
 
 const linkClass =
-  'inline-flex h-11 items-center rounded-lg border border-rule-strong bg-surface px-4 text-body font-semibold'
+  'inline-flex h-11 items-center border border-rule-strong bg-surface px-4 text-body font-semibold'
 
 /** Previous and next links for the directory; each keeps the filters and scrolls to the top. */
 export function Pagination({ filters, page, totalPages }: { filters: PropertyFilters; page: number; totalPages: number }) {

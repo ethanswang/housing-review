@@ -14,7 +14,7 @@ const HINTS: Record<RatingKey, string> = {
   value: 'Worth what you paid?',
 }
 
-const inputClass = 'rounded-lg border border-rule-strong bg-surface px-4 text-body'
+const inputClass = 'border border-rule-strong bg-surface px-4 text-body'
 
 export function ReviewForm({ slug }: { slug: string }) {
   const [state, formAction, pending] = useActionState(submitReview, initialState)
@@ -101,7 +101,7 @@ export function ReviewForm({ slug }: { slug: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="h-12 rounded-lg bg-accent px-6 text-body font-semibold text-surface transition-colors hover:bg-accent-dark disabled:opacity-50 md:self-start"
+        className="h-12 bg-accent px-6 text-body font-semibold text-surface transition-colors hover:bg-accent-dark disabled:opacity-50 md:self-start"
       >
         {pending ? 'Posting…' : 'Post review'}
       </button>
@@ -144,7 +144,7 @@ function RatingInput({
               defaultChecked={initial === score}
               className="peer sr-only"
             />
-            <span className="tnum flex size-11 items-center justify-center rounded-lg border border-rule-strong bg-surface text-body transition-colors hover:border-ink peer-checked:border-accent peer-checked:bg-accent peer-checked:font-semibold peer-checked:text-surface peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent">
+            <span className="tnum flex size-11 items-center justify-center border border-rule-strong bg-surface text-body transition-colors hover:border-ink peer-checked:border-accent peer-checked:bg-accent peer-checked:font-semibold peer-checked:text-surface peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent">
               {score}
             </span>
           </label>

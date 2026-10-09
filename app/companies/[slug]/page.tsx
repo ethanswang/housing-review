@@ -26,7 +26,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
         <h1 className="text-heading font-semibold md:text-display">{company.name}</h1>
       </header>
 
-      <aside className="mt-6 border-y border-rule py-6 lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-8 lg:self-start lg:rounded-lg lg:border lg:bg-surface lg:p-6">
+      <aside className="mt-6 border-y border-rule py-6 lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-8 lg:self-start lg:border lg:bg-surface lg:p-6">
         {company.reviewCount > 0 ? (
           <>
             <RatingSummary averages={company.averages} reviewCount={company.reviewCount} />

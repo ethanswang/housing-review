@@ -85,7 +85,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
           Desktop: a sticky column beside everything else. */}
       <aside
         id="summary"
-        className="mt-6 border-y border-rule py-6 lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-8 lg:self-start lg:rounded-lg lg:border lg:bg-surface lg:p-6"
+        className="mt-6 border-y border-rule py-6 lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-8 lg:self-start lg:border lg:bg-surface lg:p-6"
       >
         {hasReviews ? (
           <>
@@ -93,7 +93,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
             {!myReview && (
               <a
                 href="#write-review"
-                className="mt-6 flex h-11 w-full items-center justify-center rounded-lg border border-rule-strong bg-surface text-body font-semibold hover:border-ink"
+                className="mt-6 flex h-11 w-full items-center justify-center border border-rule-strong bg-surface text-body font-semibold hover:border-ink"
               >
                 Write a review
               </a>
@@ -108,7 +108,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
             {!user && <p className="mt-1 text-meta text-muted">Sign in with your Illinois email to add one.</p>}
             <a
               href="#write-review"
-              className="mt-4 flex h-12 w-full items-center justify-center rounded-lg bg-accent text-body font-semibold text-surface hover:bg-accent-dark"
+              className="mt-4 flex h-12 w-full items-center justify-center bg-accent text-body font-semibold text-surface hover:bg-accent-dark"
             >
               Write the first review
             </a>
@@ -118,7 +118,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
 
       <div className="lg:col-start-1">
         {facts.length > 0 && (
-          <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-rule bg-rule [&>:last-child:nth-child(odd)]:col-span-2">
+          <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden border border-rule bg-rule [&>:last-child:nth-child(odd)]:col-span-2">
             {facts.map(([label, value]) => (
               <Fact key={label} label={label}>
                 {value}

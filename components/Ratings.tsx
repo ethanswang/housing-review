@@ -15,9 +15,9 @@ export function Score({ score, size = 'title' }: { score: number | null; size?: 
 
 function Bar({ score, className }: { score: number | null; className: string }) {
   return (
-    <span className={`block h-1 rounded-full bg-rule ${className}`} aria-hidden>
+    <span className={`block h-1 bg-rule ${className}`} aria-hidden>
       <span
-        className="block h-full rounded-full bg-ink"
+        className="block h-full bg-ink"
         style={{ width: score === null ? '0%' : `${(score / 5) * 100}%` }}
       />
     </span>
@@ -71,6 +71,6 @@ export function SubRatingsInline({ ratings }: { ratings: Record<(typeof SUB_RATI
 
 export function SampleBadge() {
   return (
-    <span className="rounded border border-rule-strong px-1.5 text-meta text-muted">Sample data</span>
+    <span className="border border-rule-strong px-1.5 text-meta text-muted">Sample data</span>
   )
 }

@@ -35,7 +35,7 @@ export function ReportReview({ reviewId, signedIn, signInHref }: { reviewId: str
         Report<span className="sr-only"> this review</span>
       </summary>
       {signedIn ? (
-        <form action={formAction} className="mt-2 flex flex-col gap-3 rounded-lg border border-rule bg-surface p-4 text-body text-ink">
+        <form action={formAction} className="mt-2 flex flex-col gap-3 border border-rule bg-surface p-4 text-body text-ink">
           <input type="hidden" name="review_id" value={reviewId} />
           <fieldset className="flex flex-col gap-2">
             <legend className="font-semibold">What is wrong with this review?</legend>
@@ -60,7 +60,7 @@ export function ReportReview({ reviewId, signedIn, signInHref }: { reviewId: str
               rows={2}
               maxLength={1000}
               defaultValue={state.values?.details}
-              className="rounded-lg border border-rule-strong bg-surface px-3 py-2"
+              className="border border-rule-strong bg-surface px-3 py-2"
             />
           </label>
           {state.error && (
@@ -71,7 +71,7 @@ export function ReportReview({ reviewId, signedIn, signInHref }: { reviewId: str
           <button
             type="submit"
             disabled={pending}
-            className="h-11 rounded-lg border border-rule-strong bg-surface px-4 font-semibold hover:border-ink disabled:opacity-50 md:self-start"
+            className="h-11 border border-rule-strong bg-surface px-4 font-semibold hover:border-ink disabled:opacity-50 md:self-start"
           >
             {pending ? 'Sending…' : 'Send report'}
           </button>
