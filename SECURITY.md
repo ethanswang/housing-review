@@ -19,9 +19,8 @@ Of particular interest: posting or editing a review as someone else, getting pas
 `@illinois.edu` requirement or the rate limits, reading data that should not be public, and
 anything that reveals who wrote a review.
 
-The sign-in requirement and the rate limits are enforced by the API. The website's current
-review path predates them, the form and the anonymous insert it relies on alike, and is being
-moved onto the API; that it does not apply them yet is known and does not need reporting.
+The sign-in requirement and the rate limits are enforced by the API, which the website reads
+and posts through.
 
 ## Please don't
 
@@ -31,4 +30,4 @@ moved onto the API; that it does not apply them yet is known and does not need r
 - Social-engineer anyone.
 
 For a review you believe breaks the site's rules, rather than a security problem, use the
-site's report option once it is available.
+**Report** link under it.

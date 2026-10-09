@@ -13,9 +13,9 @@ export const metadata: Metadata = {
   title: 'UIUC Housing Review — honest apartment reviews by Illinois students',
   description:
     'A free, student-run housing review site for the University of Illinois. Compare Champaign-Urbana apartments and management companies on maintenance, communication, and value.',
-  // Prototype: the seeded reviews are synthetic and name real companies. Keep
-  // this out of search results until the sample data is replaced with real
-  // student submissions, then remove this block.
+  // Kept out of search results until a few real reviews are up, so search
+  // engines don't index a directory of empty building pages. Then remove this
+  // block (docs/ROADMAP.md).
   robots: { index: false, follow: false },
 }
 

@@ -26,12 +26,12 @@ affiliated with the University of Illinois or any landlord.
   A report queues the review for a person to look at; reports never remove a review
   automatically, and a review is not removed for being negative. Moderators can look up who
   wrote a reported review; readers never can. See [Moderation](docs/MODERATION.md).
-- **Policy pages** (before launch): community guidelines, terms, privacy, and a contact
-  address. The guidelines ask reviewers not to name individual staff, and let a landlord
-  dispute a false statement of fact.
+- **Policy pages** at [`/policies`](https://www.uiuchousing.com/policies): community guidelines,
+  terms, privacy, and a contact address. The guidelines ask reviewers not to name individual
+  staff, and let a landlord dispute a false statement of fact.
 
 **Planned after launch**, as optional questions on the review form:
-- **Rent you paid**, so a building's rent comes from tenants rather than a placeholder.
+- **Rent you paid**, so a building's rent comes from tenants, not only from listings.
 - **Would you rent here again?** and **Did you get your deposit back?**, both yes or no.
 
 ## Architecture
@@ -46,8 +46,8 @@ Fastify API  (Docker on EC2, TLS by Caddy)
 PostgreSQL 17  (RDS)
 ```
 
-The website is moving from reading Supabase directly onto the API. The API, its database, and
-the infrastructure are built and running; the site switches over once sign-in is in place.
+The website reads and posts only through the API. Supabase signs students in and holds none of
+the site's data.
 
 | Path | What it is |
 | --- | --- |
@@ -101,18 +101,25 @@ students in, so posting locally needs the API to trust your project's tokens: st
 `npm run test:e2e` runs the browser tests against a local API and a stand-in for Supabase; see
 [CONTRIBUTING.md](CONTRIBUTING.md#running-what-ci-runs).
 
-## Sample data
+## Data
 
-Company and building names are real and public. Addresses are block-level, rents are
-placeholders, and company–building pairings have not been verified. **Every seeded review is
-synthetic**: none of its text came from a tenant. Sample text sticks to mundane observations
-about repairs, communication, noise, and value, and names no individual.
+**On the live site**, buildings come from the City of Champaign's apartment-buildings layer and
+the City of Urbana's rental registry, limited to the area around campus. The largest buildings
+also have rent, bedrooms, website and management company, entered by hand from public listings.
+Everything else is left blank rather than guessed. Every review is from a student. See
+[Database](docs/DATABASE.md#importing-buildings-from-public-data).
+
+**Locally**, `npm run db:seed` loads sample data instead. Company and building names are real
+and public. Addresses are block-level, rents are placeholders, and company–building pairings
+have not been verified. **Every seeded review is synthetic**: none of its text came from a
+tenant. Sample text sticks to mundane observations about repairs, communication, noise, and
+value, and names no individual.
 
 ## Contributing
 
 Issues and pull requests are welcome; [CONTRIBUTING.md](CONTRIBUTING.md) covers the workflow,
 running CI's checks locally, and the conventions. CI runs lint, type checks, the API test suite against
-Postgres, a container build, and an infrastructure validation on every pull request.
+Postgres, a container build, browser tests, and an infrastructure validation on every pull request.
 
 To report a security vulnerability, see [SECURITY.md](SECURITY.md) rather than opening an
 issue.

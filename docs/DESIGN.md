@@ -1,8 +1,8 @@
 # Design
 
 The visual system and page layouts for the site: type, colour, the rating display, and how each
-page is laid out on a phone and on desktop. Implemented in #25. §8 lists where the build
-departed from the first draft, and why.
+page is laid out on a phone and on desktop. Implemented in #25 and kept current since; §7 records
+what #25 itself changed. §8 lists where the build departed from the first draft, and why.
 
 ## 0. Deliberately left out
 
@@ -13,9 +13,9 @@ first.
 | Feature | What exists today | Decision |
 |---|---|---|
 | Photos first on listings; photo thumbs in browse | No image field on `properties` | Leave out. No stock or placeholder images. Layout keeps room to add a photo strip above the title later. |
-| Distance to campus | No coordinates or distance | Leave out. Key facts show what exists: rent, bedrooms, area, management. |
+| Distance to campus | Coordinates on imported buildings only, and no distance | Leave out. Key facts show what exists (§5.3). |
 | Lease terms (on the listing) | Only `review.lease_term`, which is the year a reviewer lived there (e.g. `2024-25`) | Leave out at listing level. Show the year on each review as "Lived here 2024–25". |
-| Map/list toggle (StreetEasy) | No coordinates | Leave out. List only. |
+| Map/list toggle (StreetEasy) | Coordinates on imported buildings only | Leave out. List only. |
 | Reviewer unit type | Not collected | Leave out. |
 | "Helpful" count | Not in the schema | Leave out. |
 | Sub-ratings: noise, landlord responsiveness | Schema has `maintenance`, `communication`, `value` | Keep those three. "Communication" already covers landlord responsiveness. Adding noise changes the form and schema. |
@@ -95,21 +95,20 @@ Filling only the chosen number (an earlier form filled 1 through n) stops the co
 
 ### 5.1 Global chrome
 - **Header:** the wordmark "UIUC Housing Review" in `title`, with a `meta` line "Student-run · Not affiliated with UIUC or any landlord". On mobile the line sits below the wordmark; on desktop it sits on the right. The double rule and the second masthead line are removed.
-- **Prototype notice:** kept (the data is synthetic), but as a single `meta` line with a left rule. Not a colored callout.
-- **Footer:** unchanged content, restyled with the new tokens.
+- **Footer:** one line that reviews are students' own experiences, then "Built for the r/UIUC community" and links to the guidelines, terms and privacy page and to contact.
 
 ### 5.2 Search / browse (`/`)
 Based on StreetEasy's result list and Airbnb's filter sheet.
 
 **Mobile (390px), top to bottom:**
-1. **Intro.** A one-sentence page title, "Apartment reviews from Illinois students", in `heading`, followed by the prototype line. No hero and no marketing copy.
+1. **Intro.** A one-sentence page title, "Apartment reviews from Illinois students", in `heading`, followed by one line in `body`: every review is from a verified @illinois.edu student. No hero and no marketing copy.
 2. **Search.** A full-width input at 48px tall, `body` size, on a white surface.
 3. **Control row**, sticky under the header while you scroll:
    - A `Filters` button, with a count badge when filters are active: "Filters · 2".
    - A native sort `<select>`.
    - Both are 44px tall.
 4. **Active filter chips.** A horizontally scrolling row. Each chip is 36px tall inside a 44px tap area, square like every other control (not a pill), and has a ✕ to remove that one filter. Only shown when there are active filters.
-5. **Result count** (`meta`): "14 properties · 83 reviews".
+5. **Result count** (`meta`): "1–24 of 412 properties", plus "matching “…”" during a search. Results come 24 to a page, with page links below the list.
 6. **Result rows,** separated by dividers, each a full-width tap target:
    ```
    Green Street Towers                        4.2
@@ -145,13 +144,15 @@ Based on Airbnb's detail page structure and Letterboxd's review column.
 1. A "← All properties" link, 44px tall.
 2. **Name** in `heading`. Below it, "JSM · Campustown" (company links to its page) and the address, both in `meta`.
 3. **Rating summary:** the big overall number with "out of 5 · 12 reviews", then three sub-rating bar rows (§4). About 150px tall.
-4. **Key facts,** as a 2×2 `<dl>` grid with 1px dividers:
-   - Rent `$850–1,200/mo`
+4. **Key facts,** as a two-column `<dl>` grid with 1px dividers, showing only what is known, in this order:
+   - Rent `$850–1,200/mo`, per bed or per unit where known
    - Bedrooms `1, 2, 3`
+   - Size `36 units · 3 stories`
    - Area `Campustown`
+   - Website, the building's own leasing site
    - Managed by `JSM`
 
-   Labels are in `meta`, values in `body` semibold.
+   Labels are in `meta`, values in `body` semibold. A building with no rent, bedrooms or company gets one `meta` line naming what is not listed, rather than empty cells. Listed rent carries a note that it may be out of date.
 5. **Reviews header:** "12 reviews" on the left, "Newest first" on the right, and the note on sample entries below. The "Write a review" button sits in the rating summary (step 3) instead (§8).
 6. **Review list** (§5.4).
 7. **Write a review** (§5.5) at the bottom of the page.

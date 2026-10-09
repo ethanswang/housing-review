@@ -179,9 +179,10 @@ and register it in `SOURCES` in `server/src/import-properties.ts`.
 
 ## Removing the sample data
 
-The site launched with eight sample buildings and their sample reviews (`supabase/seed.sql`).
-Their "block of" addresses are deliberately vague, so imported buildings never match them;
-remove them before launch so the directory does not list both.
+The prototype ran on eight sample buildings and their sample reviews (`supabase/seed.sql`).
+Production never held them: its database was empty until the first import. This removes them
+from a database that has them alongside imported buildings, so the directory does not list both.
+Their "block of" addresses are deliberately vague, so imported buildings never match them.
 
 ```bash
 cd server
@@ -211,7 +212,7 @@ ever introduced, the caller's policies apply rather than the view owner's.
 
 | Login | Used by | Can |
 | --- | --- | --- |
-| Master (`housing` on RDS) | Migrations, the catalog importer, exports | Everything |
+| Master (`housing` on RDS) | Migrations, both importers, moderation, exports | Everything |
 | API login, a member of `api_access` | The running API | Only what the API's own queries do |
 
 `api_access` is created by a migration and holds the runtime grants; the API's login is created
@@ -362,8 +363,7 @@ parameter group — or search quietly degrades into a table scan.
 `property_stats` and `company_stats` compute review counts and per-category averages in SQL,
 so that application code never has to average anything itself.
 
-The API reads both. The live website does not yet: it still queries the older Supabase schema
-directly and averages in JavaScript, until it moves onto the API.
+The API reads both, and the website shows the averages the API returns.
 
 Both use `LEFT JOIN LATERAL` rather than `GROUP BY`. With a lateral join, conditions on
 `properties` (search, area, rent, bedrooms) restrict the property scan *before* any review
@@ -396,15 +396,14 @@ the base tables later, the caller's policies still apply rather than the view ow
 
 ## Where each rule is enforced
 
-This schema is written only through the API, which enforces the API column today. The live
-website still submits through a Next.js Server Action to the older Supabase schema
-(`supabase/schema.sql`) until it moves onto the API, so its form is the browser column.
+This schema is written only through the API. The website's review form posts to it through a
+Next.js Server Action with the student's token, and is the browser column.
 
 | Rule | Browser (review form) | API | Database |
 | --- | --- | --- | --- |
 | Ratings are 1–5 | `required` radio inputs | request validation | `check` constraint |
 | Body length 20–2000 | `minLength` / `maxLength` | request validation | `check` constraint |
-| Lease term at most 40 characters | `required` only | request validation | `check` constraint |
+| Lease term at most 40 characters | `required` / `maxLength` | request validation | `check` constraint |
 | University email only | — | checked at sign-in | `check` constraint, anchored at both ends |
 | One review per property | — | conflict check | partial `unique` index |
 | Only the author edits a review | — | ownership check on every write | `author_id` comparison |
