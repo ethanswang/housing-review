@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 
 export const metadata: Metadata = {
   title: 'Guidelines, terms and privacy — UIUC Housing Review',
@@ -111,11 +110,7 @@ export default function PoliciesPage() {
       <Section id="contact" title="Contact">
         <p>
           Email <Email /> for questions, removal requests, corrections to a building&rsquo;s details, or
-          your data. Please report security problems privately{' '}
-          <Link href="https://github.com/ethanswang/housing-review/security/advisories/new" className="underline">
-            through GitHub
-          </Link>
-          .
+          your data. Security problems too: please report them there privately rather than publicly.
         </p>
       </Section>
     </div>
