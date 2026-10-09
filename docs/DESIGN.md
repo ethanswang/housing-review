@@ -73,7 +73,7 @@ Review text is capped at `max-width: 65ch` (about 600px). On a 390px phone the 1
 - **No card boxes.** Lists are separated by 1px `rule` dividers (Letterboxd review lists, StreetEasy result rows).
 - **Only two things get a border or panel:** the bottom sheet, and the sticky rating summary on desktop.
 - **Shadows:** one, on the bottom sheet only, to show it sits above the page.
-- **Corners:** 8px radius on inputs, buttons, and the sheet; nothing else is rounded.
+- **Corners:** square everywhere: inputs, buttons, chips, the sheet, the rating bars. An 8px radius is the most common template default; square suits the public-record feel above. Only native checkboxes and radios keep the browser's own shape.
 - **Never used:** gradients, glows, blur, or glass effects.
 
 ## 4. Rating display system
@@ -108,7 +108,7 @@ Based on StreetEasy's result list and Airbnb's filter sheet.
    - A `Filters` button, with a count badge when filters are active: "Filters · 2".
    - A native sort `<select>`.
    - Both are 44px tall.
-4. **Active filter chips.** A horizontally scrolling row. Each chip is 36px tall inside a 44px tap area, with the same 8px corners as buttons (not a pill), and has a ✕ to remove that one filter. Only shown when there are active filters.
+4. **Active filter chips.** A horizontally scrolling row. Each chip is 36px tall inside a 44px tap area, square like every other control (not a pill), and has a ✕ to remove that one filter. Only shown when there are active filters.
 5. **Result count** (`meta`): "14 properties · 83 reviews".
 6. **Result rows,** separated by dividers, each a full-width tap target:
    ```

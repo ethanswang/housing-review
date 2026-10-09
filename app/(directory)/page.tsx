@@ -60,7 +60,7 @@ export default async function DirectoryPage({
             // A page past the end, from an old link or a hand-edited URL.
             <div className="py-12">
               <p className="text-title font-semibold">There is no page {page}.</p>
-              <Link href={pageQuery(filters, 1) ? `/?${pageQuery(filters, 1)}` : '/'} className="mt-4 inline-flex h-11 items-center rounded-lg border border-rule-strong bg-surface px-4 text-body font-semibold">
+              <Link href={pageQuery(filters, 1) ? `/?${pageQuery(filters, 1)}` : '/'} className="mt-4 inline-flex h-11 items-center border border-rule-strong bg-surface px-4 text-body font-semibold">
                 Back to the first page
               </Link>
             </div>
@@ -79,7 +79,7 @@ export default async function DirectoryPage({
                   <Link
                     href={clearedQuery ? `/?${clearedQuery}` : '/'}
                     scroll={false}
-                    className="mt-4 inline-flex h-11 items-center rounded-lg border border-rule-strong bg-surface px-4 text-body font-semibold"
+                    className="mt-4 inline-flex h-11 items-center border border-rule-strong bg-surface px-4 text-body font-semibold"
                   >
                     Clear filters
                   </Link>

@@ -45,11 +45,9 @@ body {
 }
 
 /* Loading skeleton block. The pulse is dropped under reduced motion below.
-   Declared with @utility so it sits in Tailwind's utilities layer and
-   `rounded-lg` etc. can still override the radius. */
+   Declared with @utility so it sits in Tailwind's utilities layer. */
 @utility skeleton {
   background-color: var(--color-rule);
-  border-radius: 4px;
   animation: pulse 1.6s ease-in-out infinite;
 }
 @keyframes pulse {

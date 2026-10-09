@@ -181,7 +181,7 @@ export function FilterRail({
       value={current.sort ?? 'rating'}
       onChange={(e) => apply({ ...current, sort: e.target.value as PropertyFilters['sort'] })}
       aria-label="Sort by"
-      className="h-11 rounded-lg border border-rule-strong bg-surface px-3 text-body"
+      className="h-11 border border-rule-strong bg-surface px-3 text-body"
     >
       <option value="rating">Highest rated</option>
       <option value="price">Lowest price</option>
@@ -255,7 +255,7 @@ export function FilterRail({
                 type="button"
                 onClick={() => apply({ ...current, bedrooms: toggle(current.bedrooms, count) })}
                 aria-pressed={active}
-                className={`tnum h-11 min-w-11 px-3 rounded-lg border text-body transition-colors ${
+                className={`tnum h-11 min-w-11 px-3 border text-body transition-colors ${
                   active
                     ? 'border-accent bg-accent text-surface'
                     : 'border-rule-strong bg-surface hover:border-ink'
@@ -284,7 +284,7 @@ export function FilterRail({
           <button
             type="button"
             onClick={() => sheet.current?.showModal()}
-            className="h-11 flex-1 rounded-lg border border-rule-strong bg-surface px-4 text-body font-semibold"
+            className="h-11 flex-1 border border-rule-strong bg-surface px-4 text-body font-semibold"
           >
             Filters{chips.length > 0 && ` · ${chips.length}`}
           </button>
@@ -301,7 +301,7 @@ export function FilterRail({
                   aria-label={`Remove filter: ${chip.label}`}
                   className="flex h-11 items-center"
                 >
-                  <span className="flex h-8 items-center gap-1.5 rounded-lg border border-rule-strong bg-surface px-3 text-meta whitespace-nowrap">
+                  <span className="flex h-8 items-center gap-1.5 border border-rule-strong bg-surface px-3 text-meta whitespace-nowrap">
                     {chip.label}
                     <span aria-hidden className="text-muted">✕</span>
                   </span>
@@ -317,7 +317,7 @@ export function FilterRail({
         aria-label="Filters"
         // A click on the dialog element itself (not its content) is a click on the backdrop.
         onClick={(e) => e.target === e.currentTarget && sheet.current?.close()}
-        className="mt-auto mb-0 max-h-[85dvh] w-full max-w-none rounded-t-lg bg-surface text-ink shadow-[0_-4px_24px_rgb(0_0_0/0.12)] backdrop:bg-ink/40 lg:hidden"
+        className="mt-auto mb-0 max-h-[85dvh] w-full max-w-none bg-surface text-ink shadow-[0_-4px_24px_rgb(0_0_0/0.12)] backdrop:bg-ink/40 lg:hidden"
       >
         <div className="flex max-h-[85dvh] flex-col">
           <div className="flex items-center justify-between border-b border-rule px-4 py-2">
@@ -343,7 +343,7 @@ export function FilterRail({
             <button
               type="button"
               onClick={() => sheet.current?.close()}
-              className="h-12 w-full rounded-lg bg-accent text-body font-semibold text-surface hover:bg-accent-dark"
+              className="h-12 w-full bg-accent text-body font-semibold text-surface hover:bg-accent-dark"
             >
               {updating
                 ? 'Updating…'
