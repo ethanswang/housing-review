@@ -26,7 +26,8 @@ rewritten.
    ran or clicked to know it works, with results. "Tests pass" is a start; a before/after for
    the behaviour you changed is better.
 5. **Review.** `main` is protected by rulesets:
-   - all four CI checks must pass, for everyone;
+   - the four CI checks other than end-to-end must pass, for everyone (end-to-end runs on every
+     pull request too, but does not block a merge);
    - a collaborator's pull request needs an approving review from the maintainer, the code
      owner for everything (`.github/CODEOWNERS`); another collaborator's approval does not
      count, and new commits after an approval need another. The maintainer's own pull requests

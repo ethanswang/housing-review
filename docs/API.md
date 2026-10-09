@@ -123,9 +123,9 @@ A session authenticated only by `password`, `oauth`, `sso/saml` or `anonymous` i
 | Anonymous sign-ins | Off | Not needed; refused by the API regardless |
 | Other providers (Google, GitHub, …) | Off | Their sessions carry `oauth`, which the API refuses |
 
-Not yet checked against a real token: what `amr` holds after a session is **refreshed**. Confirm
-it when sign-in is wired up, since a refreshed token that lost its original method would be
-refused here.
+Still to confirm against a real token: what `amr` holds after a session is **refreshed**, which
+happens after an hour. A refreshed token that lost its original method would be refused here.
+Check it by posting from a session more than an hour old ([ROADMAP.md](ROADMAP.md#when-the-time-comes)).
 
 ## Reporting a review
 
@@ -159,8 +159,8 @@ Both return `429` with `error.code = "rate_limited"` and a `Retry-After` header.
 
 ### Requests from the frontend server
 
-Once the website reads through this API, the Next.js server will call it on behalf of every
-visitor, from a handful of its own addresses. Keyed by those, every visitor would share one bucket, and one busy minute would
+The website's Next.js server calls this API on behalf of every visitor, from a handful of its
+own addresses. Keyed by those, every visitor would share one bucket, and one busy minute would
 lock out the whole site. So a request carrying `x-frontend-secret` equal to `FRONTEND_SECRET`
 may name the visitor in `x-client-ip`, and is limited under that address instead.
 

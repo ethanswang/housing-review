@@ -9,8 +9,10 @@ The API runs on AWS. The frontend stays on Vercel. Everything here is OpenTofu/T
 > unauthenticated callers, and logs reach CloudWatch. `/readyz` is answered 404 from outside on
 > purpose (see *When something is wrong*).
 >
-> The database holds the schema and no rows. Seeding is deliberately not done here: the seed
-> truncates every table, and `scripts/guard.mjs` refuses any non-local host for that reason.
+> The database holds the live site's data: buildings imported from public data and the
+> catalog (see [DATABASE.md](DATABASE.md#loading-the-property-list)), and students' reviews.
+> Never seed it: the seed truncates every table, and `scripts/guard.mjs` refuses any non-local
+> host for that reason. Run `infra/export-db.sh` before any write.
 
 ## Shape
 
@@ -243,7 +245,7 @@ aws secretsmanager get-secret-value --secret-id "$(tofu -chdir=infra output -raw
 
 Until both sides match, the API ignores the forwarded visitor address and rate-limits all
 traffic from the frontend as one client; nothing goes down, but a busy minute could throttle
-everyone. The frontend does not send it yet.
+everyone.
 
 Scope it to Vercel's **Production** environment only. Preview deployments build from any
 collaborator's branch and can read every Preview variable.
