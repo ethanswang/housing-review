@@ -286,7 +286,7 @@ export function FilterRail({
                   aria-label={`Remove filter: ${chip.label}`}
                   className="flex h-11 items-center"
                 >
-                  <span className="flex h-8 items-center gap-1.5 rounded-full border border-rule-strong bg-surface px-3 text-meta whitespace-nowrap">
+                  <span className="flex h-8 items-center gap-1.5 rounded-lg border border-rule-strong bg-surface px-3 text-meta whitespace-nowrap">
                     {chip.label}
                     <span aria-hidden className="text-muted">✕</span>
                   </span>

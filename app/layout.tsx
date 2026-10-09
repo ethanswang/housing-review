@@ -42,8 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <footer className="mt-16 border-t border-rule">
           <div className="mx-auto max-w-6xl px-4 py-8 md:px-6">
             <p className="max-w-2xl text-meta text-ink-soft">
-              Reviews are written by students and reflect their own experiences. This site is not
-              affiliated with the University of Illinois or with any management company.
+              Reviews are written by students and reflect their own experiences.
             </p>
             <p className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-meta text-muted">
               <span>Built for the r/UIUC community</span>
