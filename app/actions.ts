@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { accessToken } from '@/lib/auth'
-import { postReview } from '@/lib/queries'
+import { postReview, REPORT_REASONS, reportReview, type ReportReason } from '@/lib/queries'
 import { RATING_KEYS, type RatingKey } from '@/lib/types'
 
 /** What the student typed, so the form can be refilled after an error. */
@@ -92,3 +92,40 @@ function refusal(status: number, code?: string): string {
   if (status === 429) return 'Too many reviews in a short time. Please try again later.'
   return 'We couldn’t save your review just now. Please try again in a moment.'
 }
+
+/** `values` refill the form after an error: React resets a form once its action returns. */
+export type ReportState = { sent: boolean; error: string | null; values?: { reason: string; details: string } }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** Reports a review for a moderator to look at. Nothing is hidden by a report. */
+export async function submitReport(_prev: ReportState, formData: FormData): Promise<ReportState> {
+  const reviewId = String(formData.get('review_id') ?? '')
+  const reason = String(formData.get('reason') ?? '') as ReportReason
+  const details = String(formData.get('details') ?? '').trim()
+  const fail = (error: string): ReportState => ({ sent: false, error, values: { reason, details } })
+
+  // The id goes into the API's path, so it must be exactly an id.
+  if (!UUID.test(reviewId)) return fail('Something went wrong. Please reload and try again.')
+  if (!REPORT_REASONS.includes(reason)) return fail('Please choose a reason.')
+  if (details.length > 1000) return fail('Please keep the details under 1000 characters.')
+
+  const token = await accessToken()
+  if (!token) return fail('Your sign-in has expired. Sign in again to report.')
+
+  try {
+    const result = await reportReview(reviewId, { reason, details: details || null }, token)
+    if (result.ok) return { sent: true, error: null }
+    console.error('submitReport: the API refused', result.status, result.code)
+    if (result.code === 'already_reported') return { sent: true, error: null }
+    if (result.status === 404) return fail('This review is no longer shown.')
+    if (result.status === 429) return fail('Too many reports in a short time. Please try again later.')
+    if (result.status === 401 || result.status === 403) {
+      return fail('Sign in with the code emailed to your @illinois.edu address to report.')
+    }
+  } catch (error) {
+    console.error('submitReport failed', error)
+  }
+  return fail('We couldn’t send the report just now. Please try again in a moment.')
+}
+

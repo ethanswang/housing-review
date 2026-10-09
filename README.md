@@ -22,10 +22,10 @@ affiliated with the University of Illinois or any landlord.
 - **Reviewers need an `@illinois.edu` address** to post, signing in with a code emailed to it,
   and get one review per building. That is what makes a review from a real student distinct
   from one written by a landlord.
-- **Reviews are reportable** (before launch) for personal information, harassment, or not being
-  from a tenant. A report queues the review for a person to look at; reports never remove a
-  review automatically, and a review is not removed for being negative. Moderators can see who
-  wrote a reported review; readers never can.
+- **Reviews are reportable** for personal information, harassment, or not being from a tenant.
+  A report queues the review for a person to look at; reports never remove a review
+  automatically, and a review is not removed for being negative. Moderators can look up who
+  wrote a reported review; readers never can. See [Moderation](docs/MODERATION.md).
 - **Policy pages** (before launch): community guidelines, terms, privacy, and a contact
   address. The guidelines ask reviewers not to name individual staff, and let a landlord
   dispute a false statement of fact.
@@ -67,6 +67,7 @@ the infrastructure are built and running; the site switches over once sign-in is
 - [Leaving AWS](docs/LEAVING-AWS.md) — exporting the data and moving to another host with no
   code changes.
 - [Design](docs/DESIGN.md) — type, colour, the rating display, and page layouts.
+- [Moderation](docs/MODERATION.md) — checking reports, hiding and restoring reviews.
 
 ## Running it locally
 

@@ -143,7 +143,11 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
             )}
             <div className="mt-4">
               {property.reviews.map((review) => (
-                <ReviewCard key={review.id} review={review} />
+                <ReviewCard
+                  key={review.id}
+                  review={review}
+                  report={{ signedIn: Boolean(user), signInHref: `/signin?next=${encodeURIComponent(`/properties/${property.slug}#reviews-heading`)}` }}
+                />
               ))}
             </div>
           </section>
@@ -158,7 +162,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
                 <p className="text-body font-semibold">You have reviewed this building.</p>
                 <p className="mt-1 text-body text-ink-soft">
                   {myReview.status === 'hidden'
-                    ? 'A moderator has hidden your review while they look into a report about it.'
+                    ? 'A moderator hid your review after it was reported, so it is not shown to others.'
                     : 'It is shown with the other reviews above. Each student can review a building once.'}
                 </p>
               </div>
