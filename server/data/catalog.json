@@ -1,18 +1,675 @@
 {
   "companies": [
-    { "slug": "green-street-realty", "name": "Green Street Realty", "aliases": ["Green Streeet Realty"] },
-    { "slug": "the-university-group", "name": "The University Group" },
-    { "slug": "gmh-communities", "name": "GMH Communities" },
-    { "slug": "student-quarters", "name": "Student Quarters" },
-    { "slug": "bankier-apartments", "name": "Bankier Apartments" },
-    { "slug": "mhm-properties", "name": "MHM Properties" },
-    { "slug": "cochrane-premier-properties", "name": "Cochrane Premier Properties" },
-    { "slug": "core-spaces", "name": "Core Spaces" },
-    { "slug": "campus-advantage", "name": "Campus Advantage" },
-    { "slug": "american-campus-communities", "name": "American Campus Communities", "aliases": ["American Campus"] },
-    { "slug": "jsj-property-management", "name": "JSJ Property Management" },
-    { "slug": "roland-realty", "name": "Roland Realty" },
-    { "slug": "smile-student-living", "name": "Smile Student Living" }
+    {
+      "slug": "green-street-realty",
+      "name": "Green Street Realty",
+      "aliases": [
+        "Green Streeet Realty"
+      ]
+    },
+    {
+      "slug": "the-university-group",
+      "name": "The University Group"
+    },
+    {
+      "slug": "gmh-communities",
+      "name": "GMH Communities"
+    },
+    {
+      "slug": "student-quarters",
+      "name": "Student Quarters"
+    },
+    {
+      "slug": "bankier-apartments",
+      "name": "Bankier Apartments"
+    },
+    {
+      "slug": "mhm-properties",
+      "name": "MHM Properties"
+    },
+    {
+      "slug": "cochrane-premier-properties",
+      "name": "Cochrane Premier Properties"
+    },
+    {
+      "slug": "core-spaces",
+      "name": "Core Spaces"
+    },
+    {
+      "slug": "campus-advantage",
+      "name": "Campus Advantage"
+    },
+    {
+      "slug": "american-campus-communities",
+      "name": "American Campus Communities",
+      "aliases": [
+        "American Campus"
+      ]
+    },
+    {
+      "slug": "jsj-property-management",
+      "name": "JSJ Property Management"
+    },
+    {
+      "slug": "roland-realty",
+      "name": "Roland Realty"
+    },
+    {
+      "slug": "smile-student-living",
+      "name": "Smile Student Living"
+    },
+    {
+      "slug": "yugo",
+      "name": "Yugo"
+    },
+    {
+      "slug": "cardinal-group-management",
+      "name": "Cardinal Group Management"
+    },
+    {
+      "slug": "bhom-student-living",
+      "name": "B.HOM Student Living"
+    },
+    {
+      "slug": "the-scion-group",
+      "name": "The Scion Group"
+    },
+    {
+      "slug": "article-student-living",
+      "name": "Article Student Living"
+    },
+    {
+      "slug": "jsm-living",
+      "name": "JSM Living"
+    },
+    {
+      "slug": "asset-living",
+      "name": "Asset Living"
+    }
   ],
-  "properties": []
+  "properties": [],
+  "updates": [
+    {
+      "slug": "the-dean-campustown",
+      "rentMin": 1160,
+      "rentMax": 2380,
+      "bedrooms": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "website": "https://www.thedean.com/campustown/"
+    },
+    {
+      "slug": "310-e-springfield-ave",
+      "name": "Burnham 310",
+      "rentMin": 920,
+      "rentMax": 1795,
+      "rentBasis": "mixed",
+      "bedrooms": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "company": "yugo",
+      "website": "https://www.burnham310.com/"
+    },
+    {
+      "slug": "hub-champaign-daniel",
+      "rentMin": 1047,
+      "rentMax": 1858,
+      "bedrooms": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "website": "https://huboncampus.com/champaign/"
+    },
+    {
+      "slug": "seven07",
+      "rentMin": 1019,
+      "rentMax": 1700,
+      "rentBasis": "bed",
+      "bedrooms": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "company": "cardinal-group-management",
+      "website": "https://liveseven07.com/"
+    },
+    {
+      "slug": "illini-tower",
+      "rentMin": 765,
+      "rentMax": 1851,
+      "rentBasis": "mixed",
+      "bedrooms": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "company": "bhom-student-living",
+      "website": "https://illinitower.prospectportal.com/champaign/illini-tower/"
+    },
+    {
+      "slug": "209-e-university-ave",
+      "rentMin": 1250,
+      "rentMax": 3200,
+      "rentBasis": "unit",
+      "bedrooms": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "website": "https://www.greenstrealty.com/properties/profile/209-e-university-ave"
+    },
+    {
+      "slug": "latitude",
+      "rentMin": 800,
+      "rentMax": 1379,
+      "rentBasis": "bed",
+      "bedrooms": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "company": "the-scion-group",
+      "website": "https://latitude-champaign.com/"
+    },
+    {
+      "slug": "latitude-608-e-university-ave",
+      "rentMin": 800,
+      "rentMax": 1379,
+      "rentBasis": "bed",
+      "bedrooms": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "company": "the-scion-group",
+      "website": "https://latitude-champaign.com/"
+    },
+    {
+      "slug": "309-e-springfield-ave",
+      "name": "ICON",
+      "rentMin": 1525,
+      "rentMax": 4200,
+      "rentBasis": "unit",
+      "bedrooms": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "website": "https://www.iconchampaign.com/"
+    },
+    {
+      "slug": "the-tower-at-third",
+      "rentMin": 864,
+      "rentMax": 1579,
+      "rentBasis": "mixed",
+      "bedrooms": [
+        1,
+        2,
+        3
+      ],
+      "company": "american-campus-communities",
+      "website": "https://www.americancampus.com/student-apartments/il/champaign/tower-at-3rd"
+    },
+    {
+      "slug": "512-s-third",
+      "name": "Yugo Champaign South 3rd Lofts",
+      "rentMin": 805,
+      "rentMax": 1475,
+      "rentBasis": "bed",
+      "bedrooms": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "company": "yugo",
+      "website": "https://yugochampaignsouth3rdlofts.prospectportal.com/champaign/yugo-champaign-south-3rd-lofts/"
+    },
+    {
+      "slug": "here-apartments",
+      "name": "HERE Champaign",
+      "bedrooms": [
+        2,
+        3,
+        4
+      ],
+      "company": "article-student-living",
+      "website": "https://www.herechampaign.com/"
+    },
+    {
+      "slug": "401-chalmers-st",
+      "rentMin": 865,
+      "rentMax": 1009,
+      "rentBasis": "unit",
+      "bedrooms": [
+        0,
+        1
+      ],
+      "company": "jsm-living",
+      "website": "https://jsmliving.com/node/129751"
+    },
+    {
+      "slug": "309-e-green-st",
+      "name": "309 Green",
+      "rentMin": 1049,
+      "rentMax": 1304,
+      "rentBasis": "bed",
+      "bedrooms": [
+        2,
+        3,
+        4
+      ],
+      "company": "american-campus-communities",
+      "website": "https://www.americancampus.com/student-apartments/il/champaign/309-green"
+    },
+    {
+      "slug": "212-east",
+      "name": "The Rive Champaign",
+      "bedrooms": [
+        2,
+        3,
+        4
+      ],
+      "company": "core-spaces",
+      "website": "https://www.therivechampaign.com/"
+    },
+    {
+      "slug": "502-e-healey-st",
+      "rentMin": 1395,
+      "rentMax": 2390,
+      "rentBasis": "unit",
+      "bedrooms": [
+        0,
+        1,
+        2
+      ],
+      "website": "https://ugroupcu.com/property-details/502-e-healey-champaign"
+    },
+    {
+      "slug": "462107377001",
+      "name": "Octave",
+      "rentMin": 1089,
+      "rentMax": 1849,
+      "rentBasis": "bed",
+      "bedrooms": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "company": "asset-living",
+      "website": "https://liveatoctave.com/"
+    },
+    {
+      "slug": "103-e-healey-st",
+      "rentMin": 1350,
+      "rentMax": 2000,
+      "rentBasis": "unit",
+      "bedrooms": [
+        0,
+        1,
+        2
+      ],
+      "website": "https://www.greenstrealty.com/properties/profile/103-e-healey-st"
+    },
+    {
+      "slug": "303-e-chalmers-st",
+      "rentMin": 1440,
+      "rentMax": 2050,
+      "rentBasis": "unit",
+      "bedrooms": [
+        0,
+        1,
+        2
+      ],
+      "website": "https://ugroupcu.com/property-details/303-e-chalmers-champaign/"
+    },
+    {
+      "slug": "605-s-fourth-st",
+      "rentMin": 1445,
+      "rentMax": 2050,
+      "rentBasis": "unit",
+      "bedrooms": [
+        0,
+        1,
+        2
+      ],
+      "website": "https://ugroupcu.com/property-details/605-s-fourth-champaign/"
+    },
+    {
+      "slug": "skelton-place",
+      "rentMin": 1125,
+      "rentMax": 2000,
+      "rentBasis": "unit",
+      "bedrooms": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "company": "green-street-realty",
+      "website": "https://www.greenstrealty.com/properties/profile/302-s-second-st"
+    },
+    {
+      "slug": "vue",
+      "rentMin": 1600,
+      "rentMax": 4500,
+      "rentBasis": "unit",
+      "bedrooms": [
+        0,
+        1,
+        2,
+        4
+      ],
+      "website": "https://www.greenstrealty.com/properties/profile/711-s-fourth-st"
+    },
+    {
+      "slug": "462107377002-thru-004",
+      "name": "Octave",
+      "rentMin": 1089,
+      "rentMax": 1849,
+      "rentBasis": "bed",
+      "bedrooms": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "company": "asset-living",
+      "website": "https://liveatoctave.com/"
+    },
+    {
+      "slug": "75-armory",
+      "rentMin": 855,
+      "rentMax": 1000,
+      "bedrooms": [
+        2,
+        3,
+        4
+      ],
+      "company": "the-university-group",
+      "website": "https://ugroupcu.com/property-details/75-e-armory-champaign"
+    },
+    {
+      "slug": "903-s-first-st",
+      "rentMin": 595,
+      "rentMax": 805,
+      "rentBasis": "mixed",
+      "bedrooms": [
+        1,
+        2,
+        3
+      ],
+      "company": "roland-realty",
+      "website": "https://www.roland-realty.com/unit-listings/903-s-first-st-301"
+    },
+    {
+      "slug": "green-st-towers",
+      "rentMin": 970,
+      "rentMax": 985,
+      "rentBasis": "bed",
+      "bedrooms": [
+        4
+      ],
+      "company": "jsm-living",
+      "website": "https://www.jsmliving.com/node/130567"
+    },
+    {
+      "slug": "maywood-apartments",
+      "rentMin": 910,
+      "rentMax": 1005,
+      "rentBasis": "bed",
+      "bedrooms": [
+        2,
+        3,
+        4
+      ],
+      "website": "https://maywoodapts.com/"
+    },
+    {
+      "slug": "1008-s-fourth-st",
+      "rentMin": 925,
+      "rentMax": 1250,
+      "rentBasis": "bed",
+      "bedrooms": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "company": "green-street-realty",
+      "website": "https://www.greenstrealty.com/properties/profile/1008-s-fourth-st"
+    },
+    {
+      "slug": "54-e-john-st",
+      "rentMin": 1450,
+      "rentMax": 1525,
+      "rentBasis": "unit",
+      "bedrooms": [
+        0,
+        1
+      ],
+      "website": "https://www.greenstrealty.com/properties/profile/54-e-john-st"
+    },
+    {
+      "slug": "401-e-university-ave",
+      "rentMin": 1395,
+      "rentMax": 1395,
+      "rentBasis": "unit",
+      "bedrooms": [
+        1
+      ],
+      "website": "https://ugroupcu.com/property-details/401-e-university-champaign"
+    },
+    {
+      "slug": "408-e-healey-st",
+      "rentMin": 1399,
+      "rentMax": 2780,
+      "rentBasis": "unit",
+      "bedrooms": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "company": "smile-student-living"
+    },
+    {
+      "slug": "410-e-green-st",
+      "rentMin": 930,
+      "rentMax": 1700,
+      "rentBasis": "bed",
+      "bedrooms": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "company": "bankier-apartments",
+      "website": "https://www.410bankierapartments.com/"
+    },
+    {
+      "slug": "the-suites-at-third",
+      "rentMin": 724,
+      "rentMax": 1199,
+      "rentBasis": "bed",
+      "bedrooms": [
+        2,
+        3,
+        4
+      ],
+      "website": "https://www.americancampus.com/student-apartments/il/champaign/the-suites-at-3rd"
+    },
+    {
+      "slug": "412-e-healey-st",
+      "rentMin": 1440,
+      "rentMax": 1690,
+      "rentBasis": "unit",
+      "bedrooms": [
+        0,
+        1
+      ],
+      "website": "https://ugroupcu.com/property-details/412-e-healey-champaign/"
+    },
+    {
+      "slug": "107-e-springfield-ave",
+      "rentMin": 549,
+      "rentMax": 1149,
+      "bedrooms": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "company": "smile-student-living",
+      "website": "https://www.smilestudentliving.com/"
+    },
+    {
+      "slug": "202-e-green-st",
+      "rentMin": 900,
+      "rentMax": 1640,
+      "rentBasis": "bed",
+      "bedrooms": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "company": "bankier-apartments",
+      "website": "https://www.202bankierapartments.com/"
+    },
+    {
+      "slug": "202-e-john-st",
+      "rentMin": 625,
+      "rentMax": 1400,
+      "rentBasis": "bed",
+      "bedrooms": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "company": "bankier-apartments",
+      "website": "https://www.202johnbankierapartments.com/"
+    },
+    {
+      "slug": "32-e-green-st",
+      "rentMin": 2200,
+      "rentMax": 3700,
+      "rentBasis": "unit",
+      "bedrooms": [
+        2,
+        3,
+        4
+      ],
+      "website": "https://www.greenstrealty.com/properties/profile/32-e-green-st"
+    },
+    {
+      "slug": "multiple-302-s-first-st",
+      "name": "Midtown Plaza",
+      "bedrooms": [
+        1,
+        2
+      ],
+      "website": "https://ugroupcu.com/property-details/?property=13"
+    },
+    {
+      "slug": "707-s-sixth-st",
+      "name": "Lando Place",
+      "rentMin": 1015,
+      "rentMax": 1225,
+      "rentBasis": "unit",
+      "bedrooms": [
+        1,
+        2
+      ],
+      "company": "jsm-living",
+      "website": "https://www.jsmliving.com/"
+    },
+    {
+      "slug": "315-e-john-st",
+      "bedrooms": [
+        0,
+        1,
+        2
+      ],
+      "website": "https://ugroupcu.com/property-details/315-e-john-champaign/"
+    },
+    {
+      "slug": "112-e-green",
+      "rentMin": 875,
+      "rentMax": 875,
+      "rentBasis": "bed",
+      "bedrooms": [
+        2,
+        4
+      ],
+      "website": "https://www.112bankierapartments.com/"
+    },
+    {
+      "slug": "52-e-armory",
+      "rentMin": 599,
+      "rentMax": 1239,
+      "bedrooms": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "company": "smile-student-living",
+      "website": "https://www.smilestudentliving.com/seniorland"
+    },
+    {
+      "slug": "615-s-wright-st",
+      "rentMin": 789,
+      "rentMax": 1219,
+      "bedrooms": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "company": "smile-student-living",
+      "website": "https://www.smilestudentliving.com/"
+    },
+    {
+      "slug": "healey-place",
+      "rentMin": 1295,
+      "rentMax": 3900,
+      "rentBasis": "unit",
+      "bedrooms": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "website": "https://ugroupcu.com/property-details/601-s-first-champaign"
+    }
+  ]
 }

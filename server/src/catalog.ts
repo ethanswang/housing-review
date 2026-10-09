@@ -66,8 +66,13 @@ const bedrooms = z
 const updateSchema = z
   .object({
     slug,
+    // A better display name than the source's ("462107377001" is Octave). The
+    // slug, and so the URL, stays.
+    name: z.string().trim().min(1).max(120).optional(),
     rentMin: z.number().int().positive().optional(),
     rentMax: z.number().int().positive().optional(),
+    // What the rent is per; given with the rent it describes.
+    rentBasis: z.enum(['bed', 'unit', 'mixed']).optional(),
     bedrooms: bedrooms.optional(),
     neighborhood: z.string().trim().min(1).max(60).optional(),
     // A company slug from this file or already in the database.
@@ -82,6 +87,10 @@ const updateSchema = z
   .refine((u) => u.rentMin === undefined || u.rentMax === undefined || u.rentMax >= u.rentMin, {
     message: 'rentMax must be at least rentMin',
     path: ['rentMax'],
+  })
+  .refine((u) => u.rentBasis === undefined || u.rentMin !== undefined, {
+    message: 'give rentBasis with the rentMin and rentMax it describes',
+    path: ['rentBasis'],
   })
   .refine((u) => Object.keys(u).some((key) => key !== 'slug'), { message: 'nothing to update', path: ['slug'] })
 
@@ -236,8 +245,10 @@ async function upsertProperties(client: pg.ClientBase, properties: Catalog['prop
 
 /** Columns an update may set, by its field name. */
 const UPDATE_COLUMNS = {
+  name: 'name',
   rentMin: 'rent_min',
   rentMax: 'rent_max',
+  rentBasis: 'rent_basis',
   bedrooms: 'bedrooms',
   neighborhood: 'neighborhood',
   company: 'company_id',

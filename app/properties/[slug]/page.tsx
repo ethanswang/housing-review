@@ -28,7 +28,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
 
   // The facts the site knows, and a single line naming what it does not, rather
   // than a grid of "not listed".
-  const rent = rentRange(property.rent_min, property.rent_max)
+  const rent = rentRange(property.rent_min, property.rent_max, property.rent_basis)
   const size = sizeLabel(property.unit_count, property.stories)
   const known: [string, React.ReactNode | null][] = [
     ['Rent', rent && <span className="tnum">{rent}</span>],
@@ -114,13 +114,19 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
 
       <div className="lg:col-start-1">
         {facts.length > 0 && (
-          <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-rule bg-rule">
+          <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-rule bg-rule [&>:last-child:nth-child(odd)]:col-span-2">
             {facts.map(([label, value]) => (
               <Fact key={label} label={label}>
                 {value}
               </Fact>
             ))}
           </dl>
+        )}
+        {rent && (
+          <p className="mt-3 text-meta text-muted">
+            Rent is as listed by the building or rental sites and may be out of date. Check the building&rsquo;s own
+            site for current prices and fees.
+          </p>
         )}
         {missing.length > 0 && (
           <p className="mt-3 text-meta text-muted">

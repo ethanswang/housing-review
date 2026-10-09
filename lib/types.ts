@@ -24,6 +24,8 @@ export type Property = {
   neighborhood: string | null
   rent_min: number | null
   rent_max: number | null
+  /** What the rent is per; null when not stated. */
+  rent_basis: 'bed' | 'unit' | 'mixed' | null
   bedrooms: number[]
   /** From public building data; null when not known. */
   unit_count: number | null

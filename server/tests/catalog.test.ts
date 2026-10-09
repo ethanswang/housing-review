@@ -231,7 +231,15 @@ describe('importCatalog updates', () => {
     expect((await row()).company).toBeNull()
   })
 
+  it('renames a building and records what its rent is per, keeping the slug', async () => {
+    await importCatalog(db, withUpdates([{ slug: imported, name: 'Octave', rentMin: 1089, rentMax: 1849, rentBasis: 'bed' }]), { apply: true })
+    const { rows: [p] } = await db.query('select name, rent_basis, slug from properties where slug = $1', [imported])
+    expect(p).toEqual({ name: 'Octave', rent_basis: 'bed', slug: imported })
+  })
+
   it('validates the file: rent as a pair, an http(s) website, something to change', () => {
+    expect(() => withUpdates([{ slug: imported, rentBasis: 'bed' }])).toThrow('give rentBasis with the rentMin and rentMax')
+    expect(() => withUpdates([{ slug: imported, rentMin: 900, rentMax: 1000, rentBasis: 'room' }])).toThrow()
     expect(() => withUpdates([{ slug: imported, rentMin: 900 }])).toThrow('give rentMin and rentMax together')
     expect(() => withUpdates([{ slug: imported, rentMin: 900, rentMax: 800 }])).toThrow('rentMax must be at least rentMin')
     expect(() => withUpdates([{ slug: imported, website: 'javascript:alert(1)' }])).toThrow('http:// or https://')

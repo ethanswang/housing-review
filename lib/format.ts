@@ -19,10 +19,23 @@ export function bedroomList(bedrooms: number[]): string {
   return bedrooms.map((count) => (count === 0 ? 'Studio' : String(count))).join(', ')
 }
 
-/** "$875–$1,250/mo", "$900/mo", or null when the rent is not known. */
-export function rentRange(min: number | null, max: number | null): string | null {
+export type RentBasis = 'bed' | 'unit' | 'mixed' | null
+
+const BASIS: Record<Exclude<RentBasis, null>, string> = {
+  bed: ' per bed',
+  unit: ' per unit',
+  mixed: ' per bed or unit',
+}
+
+/**
+ * "$875–1,250/mo per bed", "$900/mo per unit", or null when the rent is not
+ * known. The basis matters: near campus a per-bed price is a fraction of the
+ * unit's, so it is shown whenever the listing said which.
+ */
+export function rentRange(min: number | null, max: number | null, basis: RentBasis = null): string | null {
   if (min === null || max === null) return null
-  return min === max ? `$${min.toLocaleString('en-US')}/mo` : `$${min.toLocaleString('en-US')}–${max.toLocaleString('en-US')}/mo`
+  const amount = min === max ? `$${min.toLocaleString('en-US')}` : `$${min.toLocaleString('en-US')}–${max.toLocaleString('en-US')}`
+  return `${amount}/mo${basis ? BASIS[basis] : ''}`
 }
 
 /** "36 units · 3 stories", either half alone, or null when neither is known. */
