@@ -68,6 +68,7 @@ the infrastructure are built and running; the site switches over once sign-in is
   code changes.
 - [Design](docs/DESIGN.md) — type, colour, the rating display, and page layouts.
 - [Moderation](docs/MODERATION.md) — checking reports, hiding and restoring reviews.
+- [Roadmap](docs/ROADMAP.md) — optional work after launch.
 
 ## Running it locally
 
