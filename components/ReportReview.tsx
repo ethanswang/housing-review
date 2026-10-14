@@ -71,7 +71,7 @@ export function ReportReview({ reviewId, signedIn, signInHref }: { reviewId: str
           <button
             type="submit"
             disabled={pending}
-            className="h-11 border border-rule-strong bg-surface px-4 font-semibold hover:border-ink disabled:opacity-50 md:self-start"
+            className="press h-11 border border-rule-strong bg-surface px-4 font-semibold hover:border-ink disabled:opacity-50 md:self-start"
           >
             {pending ? 'Sending…' : 'Send report'}
           </button>

@@ -31,7 +31,7 @@ export function SearchBox({ filters }: { filters: PropertyFilters }) {
       />
       <button
         type="submit"
-        className="h-12 shrink-0 bg-accent px-5 text-body font-semibold text-surface hover:bg-accent-dark"
+        className="press h-12 shrink-0 bg-accent px-5 text-body font-semibold text-surface hover:bg-accent-dark"
       >
         Search
       </button>

@@ -93,7 +93,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
             {!myReview && (
               <a
                 href="#write-review"
-                className="mt-6 flex h-11 w-full items-center justify-center border border-rule-strong bg-surface text-body font-semibold hover:border-ink"
+                className="press mt-6 flex h-11 w-full items-center justify-center border border-rule-strong bg-surface text-body font-semibold hover:border-ink"
               >
                 Write a review
               </a>
@@ -108,7 +108,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
             {!user && <p className="mt-1 text-meta text-muted">Sign in with your Illinois email to add one.</p>}
             <a
               href="#write-review"
-              className="mt-4 flex h-12 w-full items-center justify-center bg-accent text-body font-semibold text-surface hover:bg-accent-dark"
+              className="press mt-4 flex h-12 w-full items-center justify-center bg-accent text-body font-semibold text-surface hover:bg-accent-dark"
             >
               Write the first review
             </a>
