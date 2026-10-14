@@ -28,13 +28,13 @@ export default function Error({
         <button
           type="button"
           onClick={() => retry()}
-          className="h-12 bg-accent px-6 text-body font-semibold text-surface hover:bg-accent-dark"
+          className="press h-12 bg-accent px-6 text-body font-semibold text-surface hover:bg-accent-dark"
         >
           Try again
         </button>
         <Link
           href="/"
-          className="inline-flex h-12 items-center border border-rule-strong bg-surface px-6 text-body font-semibold"
+          className="press inline-flex h-12 items-center border border-rule-strong bg-surface px-6 text-body font-semibold hover:border-ink"
         >
           All properties
         </Link>

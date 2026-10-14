@@ -101,7 +101,7 @@ export function ReviewForm({ slug }: { slug: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="h-12 bg-accent px-6 text-body font-semibold text-surface transition-colors hover:bg-accent-dark disabled:opacity-50 md:self-start"
+        className="press h-12 bg-accent px-6 text-body font-semibold text-surface hover:bg-accent-dark disabled:opacity-50 md:self-start"
       >
         {pending ? 'Posting…' : 'Post review'}
       </button>

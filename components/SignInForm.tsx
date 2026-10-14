@@ -6,7 +6,7 @@ import { signIn, type SignInState } from '@/app/auth/actions'
 const initialState: SignInState = { error: null }
 const inputClass = 'h-12 border border-rule-strong bg-surface px-4 text-body md:max-w-sm'
 const buttonClass =
-  'h-12 bg-accent px-6 text-body font-semibold text-surface transition-colors hover:bg-accent-dark disabled:opacity-50 md:self-start'
+  'press h-12 bg-accent px-6 text-body font-semibold text-surface hover:bg-accent-dark disabled:opacity-50 md:self-start'
 
 export function SignInForm({ next }: { next?: string }) {
   const [state, formAction, pending] = useActionState(signIn, initialState)

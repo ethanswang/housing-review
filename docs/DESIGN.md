@@ -74,6 +74,7 @@ Review text is capped at `max-width: 65ch` (about 600px). On a 390px phone the 1
 - **Only two things get a border or panel:** the bottom sheet, and the sticky rating summary on desktop.
 - **Shadows:** one, on the bottom sheet only, to show it sits above the page.
 - **Corners:** square everywhere: inputs, buttons, chips, the sheet, the rating bars. An 8px radius is the most common template default; square suits the public-record feel above. Only native checkboxes and radios keep the browser's own shape.
+- **Press:** buttons and button-styled links fade their colour over 150ms and scale to 96% while pressed (the `press` utility in `globals.css`). Disabled controls don't move, and nothing scales under reduced motion.
 - **Never used:** gradients, glows, blur, or glass effects.
 
 ## 4. Rating display system
