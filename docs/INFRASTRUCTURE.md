@@ -263,7 +263,7 @@ Secrets Manager, which is the right answer once anyone depends on this.
 
 Vercel stops the site's function after about ten idle minutes, and the next visitor waits about
 2s for it to start (a warm page is about 0.3s). `.github/workflows/keep-warm.yml` loads the home
-page every five minutes, which also keeps the API warm. GitHub runs schedules on a best-effort
+page every five minutes. GitHub runs schedules on a best-effort
 basis and disables them in a public repository after 60 days without a commit; re-enable it from
 the Actions tab if that happens.
 
