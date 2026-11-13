@@ -1,0 +1,23 @@
+name: Keep warm
+
+# After about ten idle minutes Vercel stops the site's function, and the next
+# visitor waits ~2s while it starts again (a warm load is ~0.3s). Loading the
+# home page every few minutes keeps it running. GitHub runs scheduled workflows
+# on a best-effort basis, so some runs are late or skipped; it narrows the gaps
+# rather than closing them.
+on:
+  schedule:
+    # Off the hour, when GitHub's scheduler is busiest and most likely to drop runs.
+    - cron: '2-59/5 * * * *'
+  workflow_dispatch:
+
+# Only fetches a public page; it needs no access to the repository.
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      # The time in the log shows whether this run found the site cold.
+      - run: curl -sS -o /dev/null --max-time 30 -w '%{http_code} in %{time_total}s\n' https://www.uiuchousing.com/
